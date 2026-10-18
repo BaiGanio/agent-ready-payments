@@ -20,8 +20,9 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 
 ## Who writes the code
 
-- **The user writes all lab code.** This is a learning repo. The code is the evidence.
-- The agent writes: lab specs (`labs/NN-…/README.md`), `QA.md`, **failing tests**, docs, plans.
+- **The user writes all lab code — tests included.** This is a learning repo. The code is the evidence. Writing the tests yourself is the learning; reading someone else's tests is not.
+- The agent writes: lab specs (`labs/NN-…/README.md`), `QA.md`, docs, plans, and the **test list** — one line per test name, grouped, with the rule each test must check. The agent does **not** write the test bodies.
+- **Exception, Lab 01 only:** the agent wrote the test bodies in `tests/Payments.Domain.Tests/` before this rule changed (2026-10-18). They stay as the worked example of what good test code looks like. From Lab 02 the user writes the tests.
 - The agent writes implementation code **only when the user asks for it**, for that one task. The permission ends with the task.
 - When the user is stuck: give a hint first, then a small snippet, then the full answer. Go one step at a time.
 - Never make a failing test pass by changing the test. Ask first.
