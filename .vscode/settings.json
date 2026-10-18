@@ -1,1 +1,4 @@
-{}
+{
+  "dotnet.defaultSolution": "Payments.slnx",
+  "debug.internalConsoleOptions": "neverOpen"
+}

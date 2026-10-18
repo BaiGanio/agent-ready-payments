@@ -53,6 +53,7 @@ Known debt. Each one needs a lab or a commit, not a discussion.
 |---|---|---|---|---|
 | CF-005 | 2026-10-18 | lab 00 | No `global.json`, so the SDK version floats. Add one if a version difference ever bites. | Open |
 | CF-006 | 2026-10-18 | lab 00 | No CI. Nothing checks that `migrate` still runs on a clean machine. Decide later whether this repo gets a workflow at all. | Open |
+| CF-010 | 2026-10-18 | lab 00 build | `dotnet build` warns NU1903: `System.Security.Cryptography.Pkcs` 9.0.11 pulled in by `dbup-sqlserver` has a high severity advisory. Bump or pin the transitive package. | Open |
 
 ## Ideas for later
 

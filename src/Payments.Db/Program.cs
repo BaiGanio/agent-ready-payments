@@ -1,1 +1,2 @@
-﻿Console.WriteLine("Hello, World!");
+﻿
+args = [ "migrate", "--engine", "postgres" ];
