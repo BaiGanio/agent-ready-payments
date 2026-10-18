@@ -1,6 +1,6 @@
 # Lab 00 — Workbench
 
-Follow the steps in order. Each step says **Goal**, **Why**, **Do**, **Proof**.
+Follow the steps in order. Each step says **Goal**, **Why**, **Do**, **Proof**, **Commit**.
 
 Spec and Done-when list: `README.md` in this folder. Interview questions: `QA.md`.
 
@@ -44,6 +44,8 @@ grep -E '^\*\*Q' labs/00-setup-and-glossary/QA.md
 
 **Proof.** You can say, in one sentence, what this lab is going to be asked about.
 
+**Commit.** Nothing to commit.
+
 ---
 
 ## Step 1 — Make the machine ready
@@ -66,6 +68,8 @@ uname -m             # arm64
 
 **Proof.** `docker info` prints a block of text and no error.
 
+**Commit.** Nothing to commit. This step changes your machine, not the repo.
+
 ---
 
 ## Step 2 — Create the Gitflow branches
@@ -86,6 +90,8 @@ git checkout -b feature/lab-00-setup
 ```bash
 git branch        # main, develop, * feature/lab-00-setup
 ```
+
+**Commit.** Nothing to commit. A branch is not a commit.
 
 Where this lab ends up:
 
@@ -141,43 +147,134 @@ MSSQL_SA_PASSWORD=ChangeMe_Str0ng!
 git status --short        # .env must NOT appear
 ```
 
+**Commit.** Stage `.gitignore` and `.env.example`. Never stage `.env`.
+
+```
+chore(repo): add .gitignore and .env.example
+```
+
 ---
 
 ## Step 4 — Write `docker/docker-compose.yml`
 
-**Goal.** Two database containers start and report healthy.
+**Goal.** One file, `docker/docker-compose.yml`, with two services in it. Both containers start and report `(healthy)`.
 
-**Why.** Two engines, because the labs need both: Postgres is native on ARM and fast, and it carries pgvector for Lab 12; SQL Server is the engine where stored procedures and lock hints actually behave the way an interview will ask about. Running them side by side also forces the lockstep discipline — the same tables in both engines, changed in the same commit. That is the same rule Aperio keeps with its Postgres and SQLite migration folders.
+**Why.** Two engines, because the labs need both: Postgres is native on ARM and fast, and it carries pgvector for Lab 12; SQL Server is the engine where stored procedures and lock hints actually behave the way an interview will ask about. They go in **one** file so one command brings the whole lab environment up and down together — two files would let you run half an environment and not notice. Running them side by side also forces the lockstep discipline: the same tables in both engines, changed in the same commit. That is the same rule Aperio keeps with its Postgres and SQLite migration folders.
 
-**Do.** Two services, nothing else yet.
+**Do.**
 
-| Service | Image | Port | Must have |
-|---|---|---|---|
-| `payments-postgres` | `pgvector/pgvector:pg17` | `5432:5432` | `POSTGRES_USER=labs`, `POSTGRES_PASSWORD=labs`, `POSTGRES_DB=postgres` |
-| `payments-mssql` | `mcr.microsoft.com/mssql/server:2022-latest` | `1433:1433` | `platform: linux/amd64`, `ACCEPT_EULA=Y`, `MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}` |
+**1. Make the folder and the file.** One file. It does not exist yet.
 
-Three rules for the file:
+```bash
+mkdir -p docker
+touch docker/docker-compose.yml
+```
 
-- **Named volume per service.** Without one, `docker compose down` throws your databases away.
-- **Healthcheck per service.** Use `pg_isready` for Postgres, and `/opt/mssql-tools18/bin/sqlcmd -C -Q "SELECT 1"` for SQL Server. "Container started" and "database accepts connections" are not the same moment. Under Rosetta that gap is 30–60 seconds, and a migration run inside that gap fails for no visible reason.
+Where things live after this step:
+
+```
+agent-ready-payments/
+├── .env                      # your real password. git ignores it
+├── .env.example              # fake values. committed
+└── docker/
+    └── docker-compose.yml    # this step. ONE file, TWO services
+```
+
+**2. Fill it.** Here is the shape. Copy it, then replace every `TODO` yourself — the `TODO` lines are the learning, the rest is plumbing.
+
+```yaml
+services:
+  payments-postgres:
+    image: pgvector/pgvector:pg17
+    container_name: payments-postgres
+    environment:
+      POSTGRES_USER: labs
+      POSTGRES_PASSWORD: labs
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - payments-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: TODO   # the pg_isready command, as a list
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  payments-mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: payments-mssql
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    volumes:
+      - payments-mssql-data:/var/opt/mssql
+    healthcheck:
+      test: TODO   # the sqlcmd command, as a list
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+volumes:
+  payments-postgres-data:
+  payments-mssql-data:
+```
+
+The two healthchecks you must write:
+
+| Service | Use this command inside the container |
+|---|---|
+| `payments-postgres` | `pg_isready -U labs -d postgres` |
+| `payments-mssql` | `/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "SELECT 1"` |
+
+Wrap each one in a list that starts with `CMD-SHELL`. Look up the exact syntax — reading the Compose healthcheck docs once is part of the step.
+
+Three rules behind that file:
+
+- **A named volume per service.** Without one, `docker compose down` throws your databases away.
+- **A healthcheck per service.** "Container started" and "database accepts connections" are not the same moment. Under Rosetta that gap is 30–60 seconds, and a migration run inside that gap fails for no visible reason.
 - **Do not create `payments_labs` or `PaymentsLabs` here.** The runner creates them in Step 6. Database creation belongs in one place, in code, where you can test it and run it again safely.
 
 `POSTGRES_DB=postgres` on purpose: the runner must connect to some existing database before it can say `CREATE DATABASE payments_labs`. You cannot create a database from inside the database you are creating.
 
-**Do (run it).**
+**3. Run it.** Both commands point at that **same one file**. Run them from the repo root.
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d
-docker compose -f docker/docker-compose.yml ps
+docker compose -f docker/docker-compose.yml --env-file .env up -d
+docker compose -f docker/docker-compose.yml --env-file .env ps
 ```
 
-**Proof.** Both services show `(healthy)`. Give SQL Server a minute on the first start.
+- `-f docker/docker-compose.yml` says which file to read. Without it, Compose looks for a compose file in the folder you are standing in, finds none, and stops.
+- `--env-file .env` says where `${MSSQL_SA_PASSWORD}` comes from. Compose looks for `.env` next to the compose file, which here is `docker/`. Your `.env` is at the repo root, so you must say so. Skip this flag and SQL Server starts with an empty password and dies.
+
+**Proof.** Both services show `(healthy)`. Give SQL Server a minute on the first start — that is what `start_period: 60s` is for.
+
+```bash
+docker compose -f docker/docker-compose.yml --env-file .env ps
+# both lines must say   Up (healthy)
+```
+
+If one says `Up` but never `(healthy)`, read its log:
+
+```bash
+docker logs payments-mssql --tail 30
+```
+
+**Commit.** Stage `docker/docker-compose.yml`.
+
+```
+build(lab-00): add docker compose with postgres and sql server
+```
 
 ---
 
 ## Step 5 — Create the solution
 
-**Goal.** `Payments.sln` exists with one project, `src/Payments.Db`.
+**Goal.** `Payments.slnx` exists with one project, `src/Payments.Db`.
 
 **Why.** Every later lab adds a project to this solution: the domain, the API, the MCP server, the agent. Starting the solution now means you never have to restructure later. `Payments.Db` comes first because nothing else can run until the databases exist.
 
@@ -204,6 +301,12 @@ Add these packages to `src/Payments.Db`:
 dotnet build      # 0 errors
 ```
 
+**Commit.** Stage `Payments.slnx` and `src/Payments.Db/`.
+
+```
+chore(repo): add Payments solution and Payments.Db project
+```
+
 ---
 
 ## Step 6 — Build the migration runner
@@ -227,12 +330,70 @@ dotnet run --project src/Payments.Db -- status  --engine postgres
 
 `status` prints what has run and what is waiting. Use `upgrader.GetScriptsToExecute()`.
 
+### The shape of it
+
+This is the skeleton, with the holes left for you. Fill every `TODO`. You write the code.
+
+```csharp
+// Program.cs
+using DbUp;
+using DbUp.Engine;
+
+// 1. Read the two arguments: the command and the engine.
+//    args = [ "migrate", "--engine", "postgres" ]
+// TODO: parse them. Unknown command or engine -> print usage, return 2.
+
+// 2. Find the repo root, then db/<engine>.
+static string RepoRoot()
+{
+    var dir = new DirectoryInfo(AppContext.BaseDirectory);
+    // TODO: walk up while no "Payments.slnx" (or "Payments.sln") sits in dir.
+    //       Nothing found -> throw. Never hard-code "../../../../db".
+    return dir.FullName;
+}
+
+// 3. Connection string per engine. The sa password comes from .env.
+// TODO: DotNetEnv.Env.Load(Path.Combine(RepoRoot(), ".env"));
+//       postgres  -> "Host=localhost;Port=5432;Database=payments_labs;Username=labs;Password=labs"
+//       sqlserver -> "Server=localhost,1433;Database=PaymentsLabs;User Id=sa;Password=" +
+//                    Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD") + ";TrustServerCertificate=true"
+
+// 4. Make the database if it is missing. Safe to run again.
+// postgres : EnsureDatabase.For.PostgresqlDatabase(cs);
+// sqlserver: EnsureDatabase.For.SqlDatabase(cs);
+
+// 5. Build the upgrader. Same four calls for both engines, only the first line differs.
+UpgradeEngine Build(string engine, string cs, string scriptDir)
+{
+    var builder = engine == "postgres"
+        ? DeployChanges.To.PostgresqlDatabase(cs)
+        : DeployChanges.To.SqlDatabase(cs);
+
+    return builder
+        .WithScriptsFromFileSystem(scriptDir)   // TODO: throw if the folder is missing or empty
+        .WithTransactionPerScript()
+        .LogToConsole()
+        .Build();
+}
+
+// 6. Run it.
+// migrate: var result = upgrader.PerformUpgrade();
+//          TODO: result.Successful == false -> print result.Error, return 1. Else return 0.
+// status : TODO: print upgrader.GetScriptsToExecute() names, or "nothing waiting". Return 0.
+```
+
 Two details that will cost you an hour if you miss them:
 
-- **Finding the `db/` folder.** `dotnet run` sets the working directory to the project folder, not the repo root. Walk up from `AppContext.BaseDirectory` until you find the folder holding `Payments.sln`, then resolve `db/` from there. Never hard-code `../../../../db`. Also fail loudly when the script folder is empty — a silent "0 scripts" plus exit 0 looks exactly like success.
-- **Journal table name.** Keep DbUp's default, `SchemaVersions`, on both engines. Lockstep means the same shape everywhere, including the bookkeeping.
+- **Finding the `db/` folder.** `dotnet run` sets the working directory to the project folder, not the repo root. Walk up from `AppContext.BaseDirectory` until you find the folder holding `Payments.slnx`, then resolve `db/` from there. Never hard-code `../../../../db`. Also fail loudly when the script folder is empty — a silent "0 scripts" plus exit 0 looks exactly like success.
+- **Journal table name.** Keep DbUp's default, `SchemaVersions`, on both engines. Lockstep means the same shape everywhere, including the bookkeeping. One catch: DbUp sends the name unquoted, and Postgres folds unquoted names to lowercase. So the real table is `schemaversions` on Postgres and `SchemaVersions` on SQL Server. Your code never notices, because DbUp is unquoted on both sides. You notice the moment you query it by hand.
 
 **Proof.** Both `migrate` commands print one applied script and exit 0.
+
+**Commit.** Stage `src/Payments.Db/`.
+
+```
+feat(db): add DbUp migration runner for both engines
+```
 
 What one `migrate` run actually does:
 
@@ -245,7 +406,7 @@ sequenceDiagram
     participant DB as Database engine
 
     You->>R: migrate --engine postgres
-    R->>R: walk up to find Payments.sln, then db/
+    R->>R: walk up to find Payments.slnx, then db/
     R->>R: read .env for the sa password
     R->>DB: EnsureDatabase - CREATE DATABASE if missing
     DB-->>R: database exists
@@ -291,7 +452,13 @@ Then run `migrate` for both engines, and run it **a second time**.
 **Proof.** The second run says there are no new scripts to execute. That line is the point of the whole step. It proves the journal works, and a journal that works is what stops a migration running twice in production.
 
 ```bash
-docker exec payments-postgres psql -U labs -d payments_labs -c "TABLE \"SchemaVersions\";"
+docker exec payments-postgres psql -U labs -d payments_labs -c 'TABLE schemaversions;'
+```
+
+**Commit.** Stage `db/postgres/0000_baseline.sql` and `db/sqlserver/0000_baseline.sql`.
+
+```
+feat(db): add baseline migration scripts for both engines
 ```
 
 ---
@@ -366,6 +533,12 @@ flowchart LR
 
 This is the **four-party model**. A payment technology company usually sits in the `Acquirer / PSP` box, which is why every lab in this repo is written from that seat.
 
+**Commit.** Stage `labs/00-setup-and-glossary/GLOSSARY.md`.
+
+```
+docs(lab-00): fill the payments glossary
+```
+
 ---
 
 ## Step 9 — Say the answers out loud
@@ -383,25 +556,17 @@ This is the **four-party model**. A payment technology company usually sits in t
 
 **Proof.** You answered every question without looking. The marked list is short.
 
+**Commit.** Nothing to commit.
+
 ---
 
 ## Step 10 — Close the lab
 
-**Goal.** Lab 00 is on `develop`, and `main` has the `lab-00` tag.
+**Goal.** Lab 00 is on `develop`, `main` has the `lab-00` tag, and the feature branch is gone.
 
-**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work instead of loose commits. This is the pattern every later lab repeats, so get it right once.
+**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work instead of loose commits. A branch name is only a pointer at one commit, so deleting a merged feature branch drops the pointer and never the work — from here on the tag `lab-00` is the bookmark. This is the pattern every later lab repeats, so get it right once.
 
-**Do.** Run the full Done-when list in `README.md` first. Then suggested commits, smallest first:
-
-```
-chore(repo): add .gitignore and .env.example
-build(lab-00): add docker compose with postgres and sql server
-feat(db): add DbUp migration runner for both engines
-feat(db): add baseline migration scripts
-docs(lab-00): add payments glossary
-```
-
-Then:
+**Do.** Run the full Done-when list in `README.md` first. Every step above is already committed, so nothing is left to commit here. Check that with `git status --short` — it must be empty — then:
 
 ```bash
 git checkout develop
@@ -409,7 +574,10 @@ git merge --no-ff feature/lab-00-setup
 git checkout main
 git merge --no-ff develop
 git tag lab-00
+git branch -d feature/lab-00-setup
 ```
+
+The small `-d` deletes the branch only if its work is really merged. If something is unmerged, git refuses and prints the branch name. That makes `-d` a safety check. Never use the capital `-D` here: it deletes the pointer with no check.
 
 You run every git command. The agent never commits, merges, pushes or tags.
 
@@ -417,8 +585,19 @@ You run every git command. The agent never commits, merges, pushes or tags.
 
 ```bash
 git log --oneline --graph --all | head -20
-git tag        # lab-00
+git tag           # lab-00
+git branch        # develop and main only — no feature branch
 ```
+
+To prove the work survived the delete, stand at the tag and look around, then come back:
+
+```bash
+git checkout lab-00    # detached HEAD, exactly the end of Lab 00
+git log --oneline -3
+git checkout develop   # back to work
+```
+
+**Commit.** Nothing to commit. The merge commits are the record of this step.
 
 ---
 
@@ -426,12 +605,18 @@ git tag        # lab-00
 
 | Trap | What happens | Fix |
 |---|---|---|
+| `git branch -d` refused | git says the branch is not fully merged, so one commit never reached `develop` | Do not reach for `-D`. Merge first, then delete |
+| Deleting the branch while standing on it | "Cannot delete branch ... checked out" | `git checkout develop` first, then delete |
 | Rosetta off | `payments-mssql` restarts forever | Turn it on in Docker Desktop, then recreate the container |
 | Weak `sa` password | Container exits; the logs say the password fails the policy | 8+ chars: upper, lower, digit, symbol |
 | `.env` committed | The secret is in git history forever | Add the ignore rule **before** the first commit |
+| `--env-file .env` left off | `MSSQL_SA_PASSWORD` is empty, so SQL Server exits at once | Compose reads `.env` next to the compose file, which is `docker/`. Yours is at the repo root, so pass `--env-file .env` |
+| `docker compose up` without `-f` | "no configuration file provided" | There is no compose file at the repo root. Always pass `-f docker/docker-compose.yml` |
 | Connecting before healthy | `migrate` fails on a cold start | Wait for `(healthy)`. SQL Server needs 30–60 s under Rosetta |
 | Runner started in the wrong folder | "0 scripts found", exit 0, nothing happened | Resolve `db/` from the solution root; fail loudly on an empty folder |
 | Editing an applied script | DbUp will not run it again, so the engines drift apart | Never edit an applied script. Add a new numbered one. |
+| `TABLE "SchemaVersions";` on Postgres | `ERROR: relation "SchemaVersions" does not exist`, so you think the migration failed when it worked | Postgres folds unquoted names to lowercase, and DbUp sends the name unquoted. Double quotes ask for the exact capitals, so they never match. Query `schemaversions` with no quotes. SQL Server keeps the capitals, so there the name really is `SchemaVersions` |
+| `$` in the `sa` password | Compose reads `$NAME` as a variable, warns `The "N" variable is not set`, and starts the container with a different password. The container then never goes healthy | No `$` in `.env`. Letters, digits, `_`, `-` and `!` are safe. `$$` fixes Compose but breaks `DotNetEnv`, which reads `.env` too |
 
 ## Notes while you work
 

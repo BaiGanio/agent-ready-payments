@@ -4,7 +4,7 @@
 > Replace every `NN`, every `<…>` and every `TODO`. Delete this blockquote.
 > Rules for this file live in `CLAUDE.md` → "Writing style for docs".
 
-Follow the steps in order. Each step says **Goal**, **Why**, **Do**, **Proof**.
+Follow the steps in order. Each step says **Goal**, **Why**, **Do**, **Proof**, **Commit**.
 
 Spec and Done-when list: `README.md` in this folder. Interview questions: `QA.md`.
 
@@ -35,6 +35,8 @@ grep -E '^\*\*Q' labs/NN-short-name/QA.md
 
 **Proof.** You can say, in one sentence, what this lab is going to be asked about.
 
+**Commit.** Nothing to commit.
+
 ---
 
 ## Step 1 — <short title>
@@ -51,6 +53,12 @@ grep -E '^\*\*Q' labs/NN-short-name/QA.md
 
 **Proof.** The command or output that shows it worked.
 
+**Commit.** Stage `<files this step touched>`.
+
+```
+<type>(lab-NN): <short summary in imperative mood>
+```
+
 ---
 
 ## Step 2 — <short title>
@@ -62,6 +70,12 @@ grep -E '^\*\*Q' labs/NN-short-name/QA.md
 **Do.**
 
 **Proof.**
+
+**Commit.** Stage `<files>`.
+
+```
+<type>(lab-NN): <short summary>
+```
 
 <!-- Add a diagram inside any step where the shape is hard to hold in your head:
      a flow, a sequence, a state machine, a branch history, a lock timeline. -->
@@ -83,21 +97,17 @@ grep -E '^\*\*Q' labs/NN-short-name/QA.md
 
 **Proof.** You answered every question without looking. The marked list is short.
 
+**Commit.** Nothing to commit.
+
 ---
 
 ## Step N — Close the lab
 
-**Goal.** The lab is merged to `develop`, and `main` carries the `lab-NN` tag.
+**Goal.** The lab is merged to `develop`, `main` carries the `lab-NN` tag, and the feature branch is gone.
 
-**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work. Every lab repeats this, so the shape stays the same.
+**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work. A branch name is only a pointer at one commit, so deleting a merged feature branch drops the pointer and never the work — the tag is the bookmark after that. Every lab repeats this, so the shape stays the same.
 
-**Do.** Run the full Done-when list in `README.md` first. Suggested commits, smallest first:
-
-```
-test(lab-NN): <the red commit, if the lab has tests>
-feat(lab-NN): <the green commit>
-docs(lab-NN): <notes>
-```
+**Do.** Run the full Done-when list in `README.md` first. Every step above is already committed, so this step only merges and tags.
 
 ```bash
 git checkout develop
@@ -105,7 +115,10 @@ git merge --no-ff feature/lab-NN-short-name
 git checkout main
 git merge --no-ff develop
 git tag lab-NN
+git branch -d feature/lab-NN-short-name
 ```
+
+The small `-d` deletes the branch only if its work is really merged. If something is unmerged, git refuses. Never use the capital `-D` here: it skips that check.
 
 You run every git command. The agent never commits, merges, pushes or tags.
 
@@ -114,7 +127,10 @@ You run every git command. The agent never commits, merges, pushes or tags.
 ```bash
 git log --oneline --graph --all | head -20
 git tag
+git branch        # develop and main only — no feature branch
 ```
+
+**Commit.** Nothing to commit. The merge commits are the record of this step.
 
 ---
 

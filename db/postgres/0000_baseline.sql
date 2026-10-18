@@ -1,0 +1,1 @@
+COMMENT ON DATABASE payments_labs IS 'Agent-ready payments labs';
