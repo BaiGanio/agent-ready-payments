@@ -52,6 +52,7 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 - Every lab `README.md` has an **"Aperio comparison"** table. Every `QA.md` ends with **Q-APERIO**.
 - **Three files per lab.** `README.md` = the spec (what we solve, Aperio comparison, what you deliver, hard requirements, "Done when"). `WORKBENCH.md` = the ordered bench sheet the user follows with their hands. `QA.md` = interview questions. Steps live in `WORKBENCH.md` only, never in both.
 - Every `WORKBENCH.md` step has four parts: **Goal** (one line), **Why** (3–4 sentences: what we accomplish and why it is done this way), **Do** (exact commands and files), **Proof** (how you know it worked). The `Why` is the point of the file — never drop it. End the file with a **Traps** table and a **Notes while you work** section.
+- **`QA.md` is read twice, differently.** Every `WORKBENCH.md` starts with **Step 0 — read the questions, not the answers** (5 min, `grep -E '^\*\*Q' …/QA.md`), and ends — just before "Close the lab" — with **say the answers out loud**, then check and mark the misses. Reading the answers upfront spoils the test: it turns recall into recognition.
 - **When to write a `WORKBENCH.md`:** at the start of that lab, not in advance. Copy `labs/_TEMPLATE/WORKBENCH.md` and fill it. A workbench written three labs early is wrong by the time you reach it, because earlier labs change the decisions.
 - `labs/_TEMPLATE/WORKBENCH.md` is the blueprint. When a lab teaches a better shape, change the blueprint too, in the same commit.
 

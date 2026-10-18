@@ -21,7 +21,23 @@ flowchart LR
 
 ---
 
-## Step 0 — <short title>
+## Step 0 — Read the questions, not the answers
+
+**Goal.** You have skimmed every question in `QA.md`. 5 minutes. No answers read.
+
+**Why.** Knowing the questions first changes what you notice while you work, and attention is most of the learning. Reading the **answers** now would spoil the test — afterwards you would *recognise* them instead of *recalling* them, which feels like knowing and does not survive an interview. So eyes off every `A:` line. If one question makes no sense at all, read that single answer and move on.
+
+**Do.**
+
+```bash
+grep -E '^\*\*Q' labs/NN-short-name/QA.md
+```
+
+**Proof.** You can say, in one sentence, what this lab is going to be asked about.
+
+---
+
+## Step 1 — <short title>
 
 **Goal.** One line. What exists when this step is done.
 
@@ -37,7 +53,7 @@ flowchart LR
 
 ---
 
-## Step 1 — <short title>
+## Step 2 — <short title>
 
 **Goal.**
 
@@ -49,6 +65,23 @@ flowchart LR
 
 <!-- Add a diagram inside any step where the shape is hard to hold in your head:
      a flow, a sequence, a state machine, a branch history, a lock timeline. -->
+
+---
+
+## Step N-1 — Say the answers out loud
+
+**Goal.** You answered every question in `QA.md` out loud, then checked.
+
+**Why.** This is the test the lab was for. Speaking the answer uses a different path than reading it, and it is the path an interview uses. Mark every question you got wrong or said badly — those marked ones are a 5-minute warm-up at the start of your next session, and that repeat is where most of the gain sits.
+
+**Do.**
+
+1. Cover the file. Work down the question list.
+2. Say the answer out loud. Then read the real answer.
+3. Mark the misses. Read the **Trap** follow-up for each one.
+4. Answer `Q-APERIO` last: "Have you solved this before?"
+
+**Proof.** You answered every question without looking. The marked list is short.
 
 ---
 

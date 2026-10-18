@@ -30,7 +30,23 @@ The two script folders are kept **in lockstep**: the same change lands in both i
 
 ---
 
-## Step 0 — Make the machine ready
+## Step 0 — Read the questions, not the answers
+
+**Goal.** You have skimmed every question in `QA.md`. 5 minutes. No answers read.
+
+**Why.** Knowing the questions first changes what you notice while you work, and attention is most of the learning. Reading the **answers** now would spoil the test — afterwards you would *recognise* them instead of *recalling* them, which feels like knowing and does not survive an interview. So eyes off every `A:` line. If one question makes no sense at all, read that single answer and move on.
+
+**Do.**
+
+```bash
+grep -E '^\*\*Q' labs/00-setup-and-glossary/QA.md
+```
+
+**Proof.** You can say, in one sentence, what this lab is going to be asked about.
+
+---
+
+## Step 1 — Make the machine ready
 
 **Goal.** Docker Desktop runs, and it can run amd64 images.
 
@@ -52,7 +68,7 @@ uname -m             # arm64
 
 ---
 
-## Step 1 — Create the Gitflow branches
+## Step 2 — Create the Gitflow branches
 
 **Goal.** `develop` and `feature/lab-00-setup` exist. You are on the feature branch.
 
@@ -94,7 +110,7 @@ gitGraph
 
 ---
 
-## Step 2 — Protect the secret before the first commit
+## Step 3 — Protect the secret before the first commit
 
 **Goal.** `.gitignore` and `.env.example` are committed. `.env` holds the real SQL Server password and is ignored.
 
@@ -127,7 +143,7 @@ git status --short        # .env must NOT appear
 
 ---
 
-## Step 3 — Write `docker/docker-compose.yml`
+## Step 4 — Write `docker/docker-compose.yml`
 
 **Goal.** Two database containers start and report healthy.
 
@@ -144,7 +160,7 @@ Three rules for the file:
 
 - **Named volume per service.** Without one, `docker compose down` throws your databases away.
 - **Healthcheck per service.** Use `pg_isready` for Postgres, and `/opt/mssql-tools18/bin/sqlcmd -C -Q "SELECT 1"` for SQL Server. "Container started" and "database accepts connections" are not the same moment. Under Rosetta that gap is 30–60 seconds, and a migration run inside that gap fails for no visible reason.
-- **Do not create `payments_labs` or `PaymentsLabs` here.** The runner creates them in Step 5. Database creation belongs in one place, in code, where you can test it and run it again safely.
+- **Do not create `payments_labs` or `PaymentsLabs` here.** The runner creates them in Step 6. Database creation belongs in one place, in code, where you can test it and run it again safely.
 
 `POSTGRES_DB=postgres` on purpose: the runner must connect to some existing database before it can say `CREATE DATABASE payments_labs`. You cannot create a database from inside the database you are creating.
 
@@ -159,7 +175,7 @@ docker compose -f docker/docker-compose.yml ps
 
 ---
 
-## Step 4 — Create the solution
+## Step 5 — Create the solution
 
 **Goal.** `Payments.sln` exists with one project, `src/Payments.Db`.
 
@@ -190,7 +206,7 @@ dotnet build      # 0 errors
 
 ---
 
-## Step 5 — Build the migration runner
+## Step 6 — Build the migration runner
 
 **Goal.** Two commands work against both engines.
 
@@ -250,7 +266,7 @@ The journal read is what makes the second run do nothing. That is the whole idea
 
 ---
 
-## Step 6 — Add the baseline scripts
+## Step 7 — Add the baseline scripts
 
 **Goal.** One script per engine, applied and journalled. Still zero tables.
 
@@ -280,7 +296,7 @@ docker exec payments-postgres psql -U labs -d payments_labs -c "TABLE \"SchemaVe
 
 ---
 
-## Step 7 — Write the glossary
+## Step 8 — Write the glossary
 
 **Goal.** `labs/00-setup-and-glossary/GLOSSARY.md`, one line per word, in your own words.
 
@@ -344,7 +360,24 @@ This is the **four-party model**. A payment technology company usually sits in t
 
 ---
 
-## Step 8 — Close the lab
+## Step 9 — Say the answers out loud
+
+**Goal.** You answered every question in `QA.md` out loud, then checked.
+
+**Why.** This is the test the lab was for. Speaking the answer uses a different path than reading it, and it is the path an interview uses. Mark every question you got wrong or said badly — those marked ones are a 5-minute warm-up at the start of your next session, and that repeat is where most of the gain sits.
+
+**Do.**
+
+1. Cover the file. Work down the question list.
+2. Say the answer out loud. Then read the real answer.
+3. Mark the misses. Read the **Trap** follow-up for each one.
+4. Answer `Q-APERIO` last: "Have you solved this before?"
+
+**Proof.** You answered every question without looking. The marked list is short.
+
+---
+
+## Step 10 — Close the lab
 
 **Goal.** Lab 00 is on `develop`, and `main` has the `lab-00` tag.
 
