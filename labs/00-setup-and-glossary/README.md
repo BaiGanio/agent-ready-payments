@@ -47,7 +47,7 @@ agent-ready-payments/
 |-- db/
 |   |-- postgres/0000_baseline.sql
 |   `-- sqlserver/0000_baseline.sql
-|-- Payments.sln
+|-- Payments.slnx
 `-- src/Payments.Db/          (DbUp runner: migrate, status)
 ```
 

@@ -274,7 +274,7 @@ build(lab-00): add docker compose with postgres and sql server
 
 ## Step 5 — Create the solution
 
-**Goal.** `Payments.sln` exists with one project, `src/Payments.Db`.
+**Goal.** `Payments.slnx` exists with one project, `src/Payments.Db`.
 
 **Why.** Every later lab adds a project to this solution: the domain, the API, the MCP server, the agent. Starting the solution now means you never have to restructure later. `Payments.Db` comes first because nothing else can run until the databases exist.
 
@@ -301,7 +301,7 @@ Add these packages to `src/Payments.Db`:
 dotnet build      # 0 errors
 ```
 
-**Commit.** Stage `Payments.sln` and `src/Payments.Db/`.
+**Commit.** Stage `Payments.slnx` and `src/Payments.Db/`.
 
 ```
 chore(repo): add Payments solution and Payments.Db project
@@ -330,9 +330,61 @@ dotnet run --project src/Payments.Db -- status  --engine postgres
 
 `status` prints what has run and what is waiting. Use `upgrader.GetScriptsToExecute()`.
 
+### The shape of it
+
+This is the skeleton, with the holes left for you. Fill every `TODO`. You write the code.
+
+```csharp
+// Program.cs
+using DbUp;
+using DbUp.Engine;
+
+// 1. Read the two arguments: the command and the engine.
+//    args = [ "migrate", "--engine", "postgres" ]
+// TODO: parse them. Unknown command or engine -> print usage, return 2.
+
+// 2. Find the repo root, then db/<engine>.
+static string RepoRoot()
+{
+    var dir = new DirectoryInfo(AppContext.BaseDirectory);
+    // TODO: walk up while no "Payments.slnx" (or "Payments.sln") sits in dir.
+    //       Nothing found -> throw. Never hard-code "../../../../db".
+    return dir.FullName;
+}
+
+// 3. Connection string per engine. The sa password comes from .env.
+// TODO: DotNetEnv.Env.Load(Path.Combine(RepoRoot(), ".env"));
+//       postgres  -> "Host=localhost;Port=5432;Database=payments_labs;Username=labs;Password=labs"
+//       sqlserver -> "Server=localhost,1433;Database=PaymentsLabs;User Id=sa;Password=" +
+//                    Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD") + ";TrustServerCertificate=true"
+
+// 4. Make the database if it is missing. Safe to run again.
+// postgres : EnsureDatabase.For.PostgresqlDatabase(cs);
+// sqlserver: EnsureDatabase.For.SqlDatabase(cs);
+
+// 5. Build the upgrader. Same four calls for both engines, only the first line differs.
+UpgradeEngine Build(string engine, string cs, string scriptDir)
+{
+    var builder = engine == "postgres"
+        ? DeployChanges.To.PostgresqlDatabase(cs)
+        : DeployChanges.To.SqlDatabase(cs);
+
+    return builder
+        .WithScriptsFromFileSystem(scriptDir)   // TODO: throw if the folder is missing or empty
+        .WithTransactionPerScript()
+        .LogToConsole()
+        .Build();
+}
+
+// 6. Run it.
+// migrate: var result = upgrader.PerformUpgrade();
+//          TODO: result.Successful == false -> print result.Error, return 1. Else return 0.
+// status : TODO: print upgrader.GetScriptsToExecute() names, or "nothing waiting". Return 0.
+```
+
 Two details that will cost you an hour if you miss them:
 
-- **Finding the `db/` folder.** `dotnet run` sets the working directory to the project folder, not the repo root. Walk up from `AppContext.BaseDirectory` until you find the folder holding `Payments.sln`, then resolve `db/` from there. Never hard-code `../../../../db`. Also fail loudly when the script folder is empty — a silent "0 scripts" plus exit 0 looks exactly like success.
+- **Finding the `db/` folder.** `dotnet run` sets the working directory to the project folder, not the repo root. Walk up from `AppContext.BaseDirectory` until you find the folder holding `Payments.slnx`, then resolve `db/` from there. Never hard-code `../../../../db`. Also fail loudly when the script folder is empty — a silent "0 scripts" plus exit 0 looks exactly like success.
 - **Journal table name.** Keep DbUp's default, `SchemaVersions`, on both engines. Lockstep means the same shape everywhere, including the bookkeeping.
 
 **Proof.** Both `migrate` commands print one applied script and exit 0.
@@ -354,7 +406,7 @@ sequenceDiagram
     participant DB as Database engine
 
     You->>R: migrate --engine postgres
-    R->>R: walk up to find Payments.sln, then db/
+    R->>R: walk up to find Payments.slnx, then db/
     R->>R: read .env for the sa password
     R->>DB: EnsureDatabase - CREATE DATABASE if missing
     DB-->>R: database exists
