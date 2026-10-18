@@ -41,6 +41,8 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 - Explain a payment or agent word the first time it shows up.
 - Every lab `README.md` opens with: **What we solve / Simple example / Why it matters for a payment platform**. Add an everyday picture (see `AGENT-READY-BACKEND.md`).
 - Every lab `README.md` has an **"Aperio comparison"** table. Every `QA.md` ends with **Q-APERIO**.
+- **Three files per lab.** `README.md` = the spec (what we solve, Aperio comparison, what you deliver, hard requirements, "Done when"). `WORKBENCH.md` = the ordered bench sheet the user follows with their hands. `QA.md` = interview questions. Steps live in `WORKBENCH.md` only, never in both.
+- Every `WORKBENCH.md` step has four parts: **Goal** (one line), **Why** (3–4 sentences: what we accomplish and why it is done this way), **Do** (exact commands and files), **Proof** (how you know it worked). The `Why` is the point of the file — never drop it. End the file with a **Traps** table and a **Notes while you work** section.
 - Use Mermaid for diagrams.
 - Write absolute dates (`2026-10-18`), not "today" or "last week".
 

@@ -324,6 +324,10 @@ The repo itself is the Gitflow evidence.
 - **Added 2026-10-17:** optional **Lab 12 — semantic search** (pgvector + local embedding model + hybrid full-text). Good Aperio story: `db/migrations/013_vec_meta.sql` marks a vector store stale when the embedding model changes and falls back to full-text.
 - **Decided 2026-10-17:** API = **Minimal API**, CQRS-lite and FluentValidation added **on the fly** when a lab needs them — see "API shape".
 
+- **Decided 2026-10-18 (Lab 00 scope, option A):** full Lab 00 — both engines at once (Postgres native + SQL Server under Rosetta), `src/Payments.Db` DbUp runner, `develop` branch, glossary. Rejected the Postgres-only slice: Rosetta is the risky part, and it is cheaper to find that out now than in Lab 04 next to procedures and locking.
+- **Rule from 2026-10-18: three files per lab.** `README.md` = spec and "Done when". **`WORKBENCH.md`** = the ordered bench sheet the user works through; every step is **Goal / Why (3-4 sentences) / Do / Proof**, and the file ends with a Traps table and a "Notes while you work" section. `QA.md` = interview questions. Steps live in `WORKBENCH.md` only, so the spec stays still while the steps move. Lab 00 is the template.
+- **Verified 2026-10-18:** this Mac has `dotnet 10.0.401` (section 9 said `10.0.302`). Docker Desktop was not running at the start of the session.
+
 ## 9. Environment checklist
 
 - `dotnet --version` → `10.0.302` ✓
