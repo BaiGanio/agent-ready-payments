@@ -51,4 +51,6 @@ In short: strong backend fundamentals, plus knowing what changes when the caller
 | 18 | System design capstone |
 | 19 | Human-in-the-loop approval UI *(optional)* |
 
+Where you are right now: [`PROGRESS.md`](PROGRESS.md) — the status board, one row per lab.
+
 Full details: [`PLAN.md`](PLAN.md). Inputs and constraints: [`SPEC.md`](SPEC.md). Open findings, ideas and fix-later items: [`CARRY-FORWARD.md`](CARRY-FORWARD.md). Every command you need, in one place: [`EVERYDAY-COMMANDS.md`](EVERYDAY-COMMANDS.md).

@@ -18,6 +18,7 @@ Replace `NN` with the lab number and `short-name` with the lab folder name. The 
 | Find a trap in **any** lab by error word | `grep -rn -i 'healthy' labs/*/WORKBENCH.md` |
 | See one step only (step 4 here) | `sed -n '/^## Step 4/,/^## Step 5/p' labs/NN-short-name/WORKBENCH.md` |
 | Read the QA **questions**, not the answers | `grep -E '^\*\*Q' labs/NN-short-name/QA.md` |
+| See where I am across all labs | `open PROGRESS.md` |
 | See the open inbox | `open CARRY-FORWARD.md` |
 | See what is already decided | `open PLAN.md` |
 
@@ -138,6 +139,8 @@ You run every git command. The agent never commits, merges, pushes or tags.
 | I want to | Command |
 |---|---|
 | Where am I? | `git status --short && git branch --show-current` |
+| Is `develop` behind `main`? | `git log --oneline develop..main` (empty = level) |
+| Bring `develop` level with `main` | `git checkout develop && git merge main` |
 | Start a lab | `git checkout develop && git checkout -b feature/lab-NN-short-name` |
 | Stage one file | `git add path/to/file` |
 | See what I staged, line by line | `git diff --staged` |
@@ -160,7 +163,18 @@ git merge --no-ff feature/lab-NN-short-name
 git checkout main
 git merge --no-ff develop
 git tag lab-NN
+git checkout develop
+git merge main                 # the back-merge
 git branch -d feature/lab-NN-short-name
+```
+
+**The back-merge is not optional.** Merging `develop` into `main` makes a merge commit that lives only on `main`, so `develop` is behind from that second on. The next feature branch would then start from a base missing `main`'s history, and a hotfix made on `main` would never reach `develop` at all. Check with `git log --oneline develop..main` — empty means level.
+
+Never commit lab work straight to `main`. If it happened anyway and `main` is only ahead, fast-forward `develop` onto it:
+
+```bash
+git checkout develop
+git merge --ff-only main
 ```
 
 `--no-ff` forces a merge commit even when git could fast-forward. That commit is the marker that one lab finished.

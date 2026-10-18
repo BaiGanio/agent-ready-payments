@@ -103,7 +103,7 @@ grep -E '^\*\*Q' labs/NN-short-name/QA.md
 
 ## Step N — Close the lab
 
-**Goal.** The lab is merged to `develop`, `main` carries the `lab-NN` tag, and the feature branch is gone.
+**Goal.** The lab is merged to `develop`, `main` carries the `lab-NN` tag, `develop` is level with `main`, the feature branch is gone, and `PROGRESS.md` says `Done`.
 
 **Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work. A branch name is only a pointer at one commit, so deleting a merged feature branch drops the pointer and never the work — the tag is the bookmark after that. Every lab repeats this, so the shape stays the same.
 
@@ -115,8 +115,12 @@ git merge --no-ff feature/lab-NN-short-name
 git checkout main
 git merge --no-ff develop
 git tag lab-NN
+git checkout develop
+git merge main                 # the back-merge. Without it develop is behind main
 git branch -d feature/lab-NN-short-name
 ```
+
+The back-merge is the line people forget. Merging `develop` into `main` makes a merge commit that lives **only** on `main`, so from that second on `develop` is behind. The content is the same today, but the next lab branches from a base that is missing `main`'s history, and a later hotfix on `main` would be missing from `develop` altogether — that one is lost work, not just untidy history. `git merge main` on `develop` costs nothing and keeps the two in step.
 
 The small `-d` deletes the branch only if its work is really merged. If something is unmerged, git refuses. Never use the capital `-D` here: it skips that check.
 
@@ -127,7 +131,8 @@ You run every git command. The agent never commits, merges, pushes or tags.
 ```bash
 git log --oneline --graph --all | head -20
 git tag
-git branch        # develop and main only — no feature branch
+git branch                     # develop and main only — no feature branch
+git log --oneline develop..main   # empty: develop is level with main
 ```
 
 **Commit.** Nothing to commit. The merge commits are the record of this step.

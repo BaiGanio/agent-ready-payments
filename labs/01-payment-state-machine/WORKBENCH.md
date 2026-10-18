@@ -586,11 +586,11 @@ docs(lab-01): write the TDD notes
 
 ## Step 16 — Close the lab
 
-**Goal.** Lab 01 is on `develop`, `main` has the `lab-01` tag, and the feature branch is gone.
+**Goal.** Lab 01 is on `develop`, `main` has the `lab-01` tag, `develop` is level with `main`, the feature branch is gone, and `PROGRESS.md` says `Done`.
 
 **Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work instead of loose commits. Before that, the lab's notes move into the inbox, because a finding written in a workbench file is lost the moment the next lab starts. Every lab repeats this, so the shape stays the same.
 
-**Do.** Run the full Done-when list in `README.md` first. Then move every line from **Notes while you work** below into `CARRY-FORWARD.md` as a `CF-NNN` row with the date, and groom the inbox. Then:
+**Do.** Run the full Done-when list in `README.md` first. Then move every line from **Notes while you work** below into `CARRY-FORWARD.md` as a `CF-NNN` row with the date, and groom the inbox. Set the Lab 01 row in `PROGRESS.md` to `Done` with the tag, and tick its list. Then:
 
 ```bash
 git status --short      # must be empty
@@ -599,8 +599,12 @@ git merge --no-ff feature/lab-01-state-machine
 git checkout main
 git merge --no-ff develop
 git tag lab-01
+git checkout develop
+git merge main          # the back-merge. Without it develop is behind main
 git branch -d feature/lab-01-state-machine
 ```
+
+The back-merge is the line people forget. Merging `develop` into `main` makes a merge commit that lives **only** on `main`, so from that second on `develop` is behind. The content is the same today, but the next lab branches from a base that is missing `main`'s history, and a later hotfix on `main` would be missing from `develop` altogether — that one is lost work, not just untidy history. `git merge main` on `develop` costs nothing and keeps the two in step.
 
 The small `-d` deletes the branch only if its work is really merged. Never use the capital `-D` here: it skips that check.
 
@@ -610,16 +614,17 @@ You run every git command. The agent never commits, merges, pushes or tags.
 
 ```bash
 git log --oneline --graph --all | head -25
-git tag          # lab-00, lab-01
-git branch       # develop and main only
+git tag                           # lab-00, lab-01
+git branch                        # develop and main only
+git log --oneline develop..main   # empty: develop is level with main
 ```
 
 The history must show a `test(lab-01)` commit before the `feat(lab-01)` commits. That is the TDD evidence you point at in the interview.
 
-**Commit.** The carry-forward grooming is a commit of its own:
+**Commit.** The grooming and the board are one commit, on the feature branch, **before** the merges. Stage `CARRY-FORWARD.md` and `PROGRESS.md`:
 
 ```
-docs(plan): groom the inbox after lab 01
+docs(plan): groom the inbox and close lab 01 on the board
 ```
 
 The merges are the record of the rest of this step.
@@ -640,6 +645,8 @@ The merges are the record of the rest of this step.
 | State changed before the last check | The status moves on a refused call, and `A_refused_move_changes_nothing` goes red for 1 of 32 pairs | Do every check first, then one block that mutates |
 | `DateTimeOffset.UtcNow` in the domain | Clock tests fail, or pass only on a fast machine | Take the time from the injected `TimeProvider` |
 | 8 tests pass at Step 3 | Looks like free progress | They are the allowed pairs of `A_refused_move_changes_nothing`, which returns early. A test that asserts nothing is not a passing test |
+| Lab work committed straight to `main` | `develop` is behind, and the next feature branch starts from a stale base | Commit lab work on `feature/lab-01-state-machine`. If it already landed on `main`, fast-forward `develop`: `git checkout develop && git merge --ff-only main` |
+| The back-merge skipped at the end | `git log --oneline develop..main` is not empty, so `develop` is behind `main` | `git checkout develop && git merge main`. Do it every lab |
 | Editing a test to make it pass | The lab is pointless, and the interview answer becomes a lie | Never. If a test looks wrong, ask — `CLAUDE.md` says the agent must ask before changing a test |
 | `NU1903` warnings during `dotnet test` | A transitive package in `Payments.Db` has an advisory. Not this lab's problem | It is `CF-010` in the inbox. Do not widen Lab 01 to fix it |
 

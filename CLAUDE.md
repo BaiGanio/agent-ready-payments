@@ -97,6 +97,10 @@ Gitflow. The repo itself shows it.
 - `feature/lab-NN-short-name` — one per lab, from `develop`. Merge back with `--no-ff`.
 - `release/x.y` — once, after Lab 08.
 - `hotfix/…` — only for a real bug on `main`. Do not fake one.
+- **Always back-merge `main` into `develop`.** Anything that lands on `main` — the lab merge commit, a hotfix, a release — is not on `develop` until you merge it back. Skip it and `develop` falls behind, every new feature branch starts from a stale base, and the next merge fights over commits that are already on `main`. The "Close the lab" step does it in one line: `git checkout develop && git merge main`.
+- **Never commit lab work straight to `main`.** Lab prep (spec, bench sheet, tests, scaffolds) is lab work: it belongs on `feature/lab-NN-…`, same as the code.
+
+Keep [`PROGRESS.md`](PROGRESS.md) true. It is the status board: one row per lab plus a tick list for the lab in flight. The row changes in the same commit as the work it describes, and a lab becomes `Done` only in its "Close the lab" step.
 
 Commits use **Conventional Commits**:
 

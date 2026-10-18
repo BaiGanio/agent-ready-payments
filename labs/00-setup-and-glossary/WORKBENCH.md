@@ -574,8 +574,12 @@ git merge --no-ff feature/lab-00-setup
 git checkout main
 git merge --no-ff develop
 git tag lab-00
+git checkout develop
+git merge main          # the back-merge. Without it develop is behind main
 git branch -d feature/lab-00-setup
 ```
+
+The back-merge was missing when this lab was first written, and it bit at the start of Lab 01: the merge commit `Merge branch 'develop'` sat only on `main`, so `develop` was five commits behind. The fix is one line, every lab. Check it with `git log --oneline develop..main` — an empty answer means the two are level.
 
 The small `-d` deletes the branch only if its work is really merged. If something is unmerged, git refuses and prints the branch name. That makes `-d` a safety check. Never use the capital `-D` here: it deletes the pointer with no check.
 
@@ -585,8 +589,9 @@ You run every git command. The agent never commits, merges, pushes or tags.
 
 ```bash
 git log --oneline --graph --all | head -20
-git tag           # lab-00
-git branch        # develop and main only — no feature branch
+git tag                           # lab-00
+git branch                        # develop and main only — no feature branch
+git log --oneline develop..main   # empty: develop is level with main
 ```
 
 To prove the work survived the delete, stand at the tag and look around, then come back:
