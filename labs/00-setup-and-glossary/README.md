@@ -97,7 +97,7 @@ Compose gives you a running **engine**. The runner creates the **database** and 
 Every line must pass.
 
 ```bash
-docker compose -f docker/docker-compose.yml ps          # both (healthy)
+docker compose -f docker/docker-compose.yml --env-file .env ps   # both (healthy)
 dotnet build                                            # 0 errors
 dotnet run --project src/Payments.Db -- migrate --engine postgres
 dotnet run --project src/Payments.Db -- migrate --engine sqlserver

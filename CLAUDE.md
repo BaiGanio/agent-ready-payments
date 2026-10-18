@@ -7,6 +7,7 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 - Hands-on **labs**, not an app. Goal: prepare for a senior .NET payment backend role with AI agents.
 - Read these first, in this order: `README.md` → `PLAN.md` section 8 (**Decided**) → `CARRY-FORWARD.md` (the open inbox) → the lab's `README.md`, `WORKBENCH.md` and `QA.md`.
 - `SPEC.md` holds the inputs and limits. `PLAN.md` holds the decisions. If they disagree, `PLAN.md` wins (it is newer).
+- `EVERYDAY-COMMANDS.md` is the user's command cheat sheet. When a lab introduces a command the user will run again, add a row there in the same commit.
 
 ## Carry-forward
 
