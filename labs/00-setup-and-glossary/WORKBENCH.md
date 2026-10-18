@@ -1,6 +1,6 @@
 # Lab 00 — Workbench
 
-Follow the steps in order. Each step says **Goal**, **Why**, **Do**, **Proof**.
+Follow the steps in order. Each step says **Goal**, **Why**, **Do**, **Proof**, **Commit**.
 
 Spec and Done-when list: `README.md` in this folder. Interview questions: `QA.md`.
 
@@ -44,6 +44,8 @@ grep -E '^\*\*Q' labs/00-setup-and-glossary/QA.md
 
 **Proof.** You can say, in one sentence, what this lab is going to be asked about.
 
+**Commit.** Nothing to commit.
+
 ---
 
 ## Step 1 — Make the machine ready
@@ -66,6 +68,8 @@ uname -m             # arm64
 
 **Proof.** `docker info` prints a block of text and no error.
 
+**Commit.** Nothing to commit. This step changes your machine, not the repo.
+
 ---
 
 ## Step 2 — Create the Gitflow branches
@@ -86,6 +90,8 @@ git checkout -b feature/lab-00-setup
 ```bash
 git branch        # main, develop, * feature/lab-00-setup
 ```
+
+**Commit.** Nothing to commit. A branch is not a commit.
 
 Where this lab ends up:
 
@@ -141,6 +147,12 @@ MSSQL_SA_PASSWORD=ChangeMe_Str0ng!
 git status --short        # .env must NOT appear
 ```
 
+**Commit.** Stage `.gitignore` and `.env.example`. Never stage `.env`.
+
+```
+chore(repo): add .gitignore and .env.example
+```
+
 ---
 
 ## Step 4 — Write `docker/docker-compose.yml`
@@ -173,6 +185,12 @@ docker compose -f docker/docker-compose.yml ps
 
 **Proof.** Both services show `(healthy)`. Give SQL Server a minute on the first start.
 
+**Commit.** Stage `docker/docker-compose.yml`.
+
+```
+build(lab-00): add docker compose with postgres and sql server
+```
+
 ---
 
 ## Step 5 — Create the solution
@@ -204,6 +222,12 @@ Add these packages to `src/Payments.Db`:
 dotnet build      # 0 errors
 ```
 
+**Commit.** Stage `Payments.sln` and `src/Payments.Db/`.
+
+```
+chore(repo): add Payments solution and Payments.Db project
+```
+
 ---
 
 ## Step 6 — Build the migration runner
@@ -233,6 +257,12 @@ Two details that will cost you an hour if you miss them:
 - **Journal table name.** Keep DbUp's default, `SchemaVersions`, on both engines. Lockstep means the same shape everywhere, including the bookkeeping.
 
 **Proof.** Both `migrate` commands print one applied script and exit 0.
+
+**Commit.** Stage `src/Payments.Db/`.
+
+```
+feat(db): add DbUp migration runner for both engines
+```
 
 What one `migrate` run actually does:
 
@@ -292,6 +322,12 @@ Then run `migrate` for both engines, and run it **a second time**.
 
 ```bash
 docker exec payments-postgres psql -U labs -d payments_labs -c "TABLE \"SchemaVersions\";"
+```
+
+**Commit.** Stage `db/postgres/0000_baseline.sql` and `db/sqlserver/0000_baseline.sql`.
+
+```
+feat(db): add baseline migration scripts for both engines
 ```
 
 ---
@@ -366,6 +402,12 @@ flowchart LR
 
 This is the **four-party model**. A payment technology company usually sits in the `Acquirer / PSP` box, which is why every lab in this repo is written from that seat.
 
+**Commit.** Stage `labs/00-setup-and-glossary/GLOSSARY.md`.
+
+```
+docs(lab-00): fill the payments glossary
+```
+
 ---
 
 ## Step 9 — Say the answers out loud
@@ -383,6 +425,8 @@ This is the **four-party model**. A payment technology company usually sits in t
 
 **Proof.** You answered every question without looking. The marked list is short.
 
+**Commit.** Nothing to commit.
+
 ---
 
 ## Step 10 — Close the lab
@@ -391,17 +435,7 @@ This is the **four-party model**. A payment technology company usually sits in t
 
 **Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work instead of loose commits. This is the pattern every later lab repeats, so get it right once.
 
-**Do.** Run the full Done-when list in `README.md` first. Then suggested commits, smallest first:
-
-```
-chore(repo): add .gitignore and .env.example
-build(lab-00): add docker compose with postgres and sql server
-feat(db): add DbUp migration runner for both engines
-feat(db): add baseline migration scripts
-docs(lab-00): add payments glossary
-```
-
-Then:
+**Do.** Run the full Done-when list in `README.md` first. Every step above is already committed, so nothing is left to commit here. Check that with `git status --short` — it must be empty — then:
 
 ```bash
 git checkout develop
@@ -419,6 +453,8 @@ You run every git command. The agent never commits, merges, pushes or tags.
 git log --oneline --graph --all | head -20
 git tag        # lab-00
 ```
+
+**Commit.** Nothing to commit. The merge commits are the record of this step.
 
 ---
 
