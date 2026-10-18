@@ -142,6 +142,9 @@ You run every git command. The agent never commits, merges, pushes or tags.
 | Throw away edits in a file | `git restore path/to/file` |
 | See the history as a picture | `git log --oneline --graph --all \| head -20` |
 | List the tags | `git tag` |
+| List the branches | `git branch` |
+| Delete a merged feature branch | `git branch -d feature/lab-NN-short-name` |
+| Go to the end of a finished lab | `git checkout lab-NN` (then `git checkout develop` to come back) |
 | Finish a lab | see the "Close the lab" step in that lab's `WORKBENCH.md` |
 
 Closing a lab, in full:
@@ -152,9 +155,12 @@ git merge --no-ff feature/lab-NN-short-name
 git checkout main
 git merge --no-ff develop
 git tag lab-NN
+git branch -d feature/lab-NN-short-name
 ```
 
 `--no-ff` forces a merge commit even when git could fast-forward. That commit is the marker that one lab finished.
+
+`git branch -d` deletes the branch name only when its work is merged. A branch name is just a pointer at one commit, so this drops the pointer and keeps every commit. The tag `lab-NN` is the bookmark after that: `git checkout lab-NN` puts you at the exact end of that lab.
 
 Commit message shape: `<type>(<scope>): <summary in imperative mood>`. Types: `feat`, `fix`, `test`, `docs`, `refactor`, `chore`, `build`, `ci`. Scope is the lab (`lab-03`) or an area (`db`, `api`, `mcp`, `agent`, `plan`, `repo`).
 

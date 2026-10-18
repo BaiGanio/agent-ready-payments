@@ -562,9 +562,9 @@ docs(lab-00): fill the payments glossary
 
 ## Step 10 — Close the lab
 
-**Goal.** Lab 00 is on `develop`, and `main` has the `lab-00` tag.
+**Goal.** Lab 00 is on `develop`, `main` has the `lab-00` tag, and the feature branch is gone.
 
-**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work instead of loose commits. This is the pattern every later lab repeats, so get it right once.
+**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work instead of loose commits. A branch name is only a pointer at one commit, so deleting a merged feature branch drops the pointer and never the work — from here on the tag `lab-00` is the bookmark. This is the pattern every later lab repeats, so get it right once.
 
 **Do.** Run the full Done-when list in `README.md` first. Every step above is already committed, so nothing is left to commit here. Check that with `git status --short` — it must be empty — then:
 
@@ -574,7 +574,10 @@ git merge --no-ff feature/lab-00-setup
 git checkout main
 git merge --no-ff develop
 git tag lab-00
+git branch -d feature/lab-00-setup
 ```
+
+The small `-d` deletes the branch only if its work is really merged. If something is unmerged, git refuses and prints the branch name. That makes `-d` a safety check. Never use the capital `-D` here: it deletes the pointer with no check.
 
 You run every git command. The agent never commits, merges, pushes or tags.
 
@@ -582,7 +585,16 @@ You run every git command. The agent never commits, merges, pushes or tags.
 
 ```bash
 git log --oneline --graph --all | head -20
-git tag        # lab-00
+git tag           # lab-00
+git branch        # develop and main only — no feature branch
+```
+
+To prove the work survived the delete, stand at the tag and look around, then come back:
+
+```bash
+git checkout lab-00    # detached HEAD, exactly the end of Lab 00
+git log --oneline -3
+git checkout develop   # back to work
 ```
 
 **Commit.** Nothing to commit. The merge commits are the record of this step.
@@ -593,6 +605,8 @@ git tag        # lab-00
 
 | Trap | What happens | Fix |
 |---|---|---|
+| `git branch -d` refused | git says the branch is not fully merged, so one commit never reached `develop` | Do not reach for `-D`. Merge first, then delete |
+| Deleting the branch while standing on it | "Cannot delete branch ... checked out" | `git checkout develop` first, then delete |
 | Rosetta off | `payments-mssql` restarts forever | Turn it on in Docker Desktop, then recreate the container |
 | Weak `sa` password | Container exits; the logs say the password fails the policy | 8+ chars: upper, lower, digit, symbol |
 | `.env` committed | The secret is in git history forever | Add the ignore rule **before** the first commit |

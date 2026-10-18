@@ -103,9 +103,9 @@ grep -E '^\*\*Q' labs/NN-short-name/QA.md
 
 ## Step N — Close the lab
 
-**Goal.** The lab is merged to `develop`, and `main` carries the `lab-NN` tag.
+**Goal.** The lab is merged to `develop`, `main` carries the `lab-NN` tag, and the feature branch is gone.
 
-**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work. Every lab repeats this, so the shape stays the same.
+**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work. A branch name is only a pointer at one commit, so deleting a merged feature branch drops the pointer and never the work — the tag is the bookmark after that. Every lab repeats this, so the shape stays the same.
 
 **Do.** Run the full Done-when list in `README.md` first. Every step above is already committed, so this step only merges and tags.
 
@@ -115,7 +115,10 @@ git merge --no-ff feature/lab-NN-short-name
 git checkout main
 git merge --no-ff develop
 git tag lab-NN
+git branch -d feature/lab-NN-short-name
 ```
+
+The small `-d` deletes the branch only if its work is really merged. If something is unmerged, git refuses. Never use the capital `-D` here: it skips that check.
 
 You run every git command. The agent never commits, merges, pushes or tags.
 
@@ -124,6 +127,7 @@ You run every git command. The agent never commits, merges, pushes or tags.
 ```bash
 git log --oneline --graph --all | head -20
 git tag
+git branch        # develop and main only — no feature branch
 ```
 
 **Commit.** Nothing to commit. The merge commits are the record of this step.
