@@ -94,11 +94,16 @@ Run `migrate` **twice**. The second run must say there are no new scripts. That 
 | Build everything | `dotnet build` |
 | Run all tests | `dotnet test` |
 | Run one test project | `dotnet test tests/Payments.Domain.Tests` |
-| Run only matching tests | `dotnet test --filter "FullyQualifiedName~Refund"` |
-| Show failures with detail | `dotnet test --logger "console;verbosity=detailed"` |
+| Run only matching tests | `dotnet test --filter "RefundTests"` |
+| Re-run the tests on every save | `dotnet watch test --project tests/Payments.Domain.Tests` |
+| List the test names without running them | `dotnet test -- --list-tests` |
 | Add a package to a project | `dotnet add src/Payments.Db package dbup-core` |
 | Add a project to the solution | `dotnet sln add src/Payments.Api` |
 | Clear a confusing build | `dotnet clean && dotnet build` |
+
+`dotnet test` needs the `test.runner` block in `global.json`. .NET 10 dropped the old VSTest host, and xUnit v3 test projects run on **Microsoft.Testing.Platform**. Without it you get "Testing with VSTest target is no longer supported". The filter is a plain substring of the test name, so `--filter "RefundTests"` runs one class and `--filter "Refund"` runs everything with that word in it.
+
+`dotnet watch test` is the red-green loop: leave it running in one terminal, edit in the other, and the tests re-run on every save.
 
 ---
 
