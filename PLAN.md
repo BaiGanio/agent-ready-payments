@@ -328,6 +328,9 @@ The repo itself is the Gitflow evidence.
 - **Rule from 2026-10-18: three files per lab.** `README.md` = spec and "Done when". **`WORKBENCH.md`** = the ordered bench sheet the user works through; every step is **Goal / Why (3-4 sentences) / Do / Proof**, and the file ends with a Traps table and a "Notes while you work" section. `QA.md` = interview questions. Steps live in `WORKBENCH.md` only, so the spec stays still while the steps move. Lab 00 is the template.
 - **Verified 2026-10-18:** this Mac has `dotnet 10.0.401` (section 9 said `10.0.302`). Docker Desktop was not running at the start of the session.
 
+- **Rule from 2026-10-18: `WORKBENCH.md` is written at the start of its own lab**, never in advance, from the blueprint `labs/_TEMPLATE/WORKBENCH.md`. A workbench written three labs early is wrong by the time you reach it. When a lab teaches a better shape, the blueprint changes in the same commit.
+- **Rule from 2026-10-18: Mermaid diagrams everywhere.** The user learns from visuals. Mermaid only (renders on GitHub, diffs as text). Every lab `README.md` has at least one diagram; every `WORKBENCH.md` opens with a **"The target state"** diagram before step 1, and adds one inside any step whose shape is hard to hold in your head. Type per shape and the "label every arrow" rule are in `CLAUDE.md` → Diagrams. Lab 00 is the worked example: target state (`flowchart`), Gitflow (`gitGraph`), one `migrate` run (`sequenceDiagram`), payment life (`stateDiagram-v2`), four-party model (`flowchart`).
+
 ## 9. Environment checklist
 
 - `dotnet --version` → `10.0.302` ✓
