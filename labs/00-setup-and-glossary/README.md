@@ -103,7 +103,7 @@ dotnet run --project src/Payments.Db -- migrate --engine postgres
 dotnet run --project src/Payments.Db -- migrate --engine sqlserver
 dotnet run --project src/Payments.Db -- migrate --engine postgres   # 2nd run: no new scripts
 dotnet run --project src/Payments.Db -- status --engine sqlserver   # 0 waiting
-docker exec payments-postgres psql -U labs -d payments_labs -c "TABLE \"SchemaVersions\";"
+docker exec payments-postgres psql -U labs -d payments_labs -c 'TABLE schemaversions;'
 git branch                                              # develop exists
 ```
 

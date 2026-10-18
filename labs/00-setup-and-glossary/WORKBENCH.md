@@ -385,7 +385,7 @@ UpgradeEngine Build(string engine, string cs, string scriptDir)
 Two details that will cost you an hour if you miss them:
 
 - **Finding the `db/` folder.** `dotnet run` sets the working directory to the project folder, not the repo root. Walk up from `AppContext.BaseDirectory` until you find the folder holding `Payments.slnx`, then resolve `db/` from there. Never hard-code `../../../../db`. Also fail loudly when the script folder is empty — a silent "0 scripts" plus exit 0 looks exactly like success.
-- **Journal table name.** Keep DbUp's default, `SchemaVersions`, on both engines. Lockstep means the same shape everywhere, including the bookkeeping.
+- **Journal table name.** Keep DbUp's default, `SchemaVersions`, on both engines. Lockstep means the same shape everywhere, including the bookkeeping. One catch: DbUp sends the name unquoted, and Postgres folds unquoted names to lowercase. So the real table is `schemaversions` on Postgres and `SchemaVersions` on SQL Server. Your code never notices, because DbUp is unquoted on both sides. You notice the moment you query it by hand.
 
 **Proof.** Both `migrate` commands print one applied script and exit 0.
 
@@ -452,7 +452,7 @@ Then run `migrate` for both engines, and run it **a second time**.
 **Proof.** The second run says there are no new scripts to execute. That line is the point of the whole step. It proves the journal works, and a journal that works is what stops a migration running twice in production.
 
 ```bash
-docker exec payments-postgres psql -U labs -d payments_labs -c "TABLE \"SchemaVersions\";"
+docker exec payments-postgres psql -U labs -d payments_labs -c 'TABLE schemaversions;'
 ```
 
 **Commit.** Stage `db/postgres/0000_baseline.sql` and `db/sqlserver/0000_baseline.sql`.
@@ -601,6 +601,8 @@ git tag        # lab-00
 | Connecting before healthy | `migrate` fails on a cold start | Wait for `(healthy)`. SQL Server needs 30–60 s under Rosetta |
 | Runner started in the wrong folder | "0 scripts found", exit 0, nothing happened | Resolve `db/` from the solution root; fail loudly on an empty folder |
 | Editing an applied script | DbUp will not run it again, so the engines drift apart | Never edit an applied script. Add a new numbered one. |
+| `TABLE "SchemaVersions";` on Postgres | `ERROR: relation "SchemaVersions" does not exist`, so you think the migration failed when it worked | Postgres folds unquoted names to lowercase, and DbUp sends the name unquoted. Double quotes ask for the exact capitals, so they never match. Query `schemaversions` with no quotes. SQL Server keeps the capitals, so there the name really is `SchemaVersions` |
+| `$` in the `sa` password | Compose reads `$NAME` as a variable, warns `The "N" variable is not set`, and starts the container with a different password. The container then never goes healthy | No `$` in `.env`. Letters, digits, `_`, `-` and `!` are safe. `$$` fixes Compose but breaks `DotNetEnv`, which reads `.env` too |
 
 ## Notes while you work
 

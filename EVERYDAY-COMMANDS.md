@@ -52,7 +52,7 @@ Both lines of `ps` must say `Up (healthy)`. `Up` alone is not ready yet. SQL Ser
 | I want to | Command |
 |---|---|
 | Postgres shell | `docker exec -it payments-postgres psql -U labs -d payments_labs` |
-| One Postgres query | `docker exec payments-postgres psql -U labs -d payments_labs -c "TABLE \"SchemaVersions\";"` |
+| One Postgres query | `docker exec payments-postgres psql -U labs -d payments_labs -c 'TABLE schemaversions;'` |
 | List Postgres tables | `docker exec payments-postgres psql -U labs -d payments_labs -c '\dt'` |
 | SQL Server shell | `docker exec -it payments-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -d PaymentsLabs` |
 | One SQL Server query | `docker exec payments-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -d PaymentsLabs -Q "SELECT * FROM SchemaVersions"` |

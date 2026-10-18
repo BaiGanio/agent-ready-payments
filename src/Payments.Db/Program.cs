@@ -1,7 +1,7 @@
 ﻿using DbUp;
 using DbUp.Engine;
 
-string[] args1 = new[] { "migrate", "--engine", "postgres" };
+//string[] args = new[] { "migrate", "--engine", "postgres" };
 // 1. Read the args and parse them
 //(bool flowControl, int value) = CheckArgs(args);
 //if (!flowControl) return value;
@@ -13,24 +13,24 @@ string root = RepoRoot();
 string cs = string.Empty;
 DotNetEnv.Env.Load(Path.Combine(RepoRoot(), ".env"));
 string pass = Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD");
-if(args1[2] == "postgres")
+if(args[2] == "postgres")
     cs = "Host=localhost;Port=5432;Database=payments_labs;Username=labs;Password=labs";
 else
     cs = $"Server=localhost,1433;Database=PaymentsLabs;User Id=sa;Password={pass};TrustServerCertificate=true";
 
 // 4. Make the database if it is missing.
-if (args1[2] == "postgres")
+if (args[2] == "postgres")
     EnsureDatabase.For.PostgresqlDatabase(cs);
 else
     EnsureDatabase.For.SqlDatabase(cs);
 
 // 5. Build the upgrader. Same four calls for both engines, only the first line differs.
-string scriptDir = Path.Combine(root, "db", args1[2]);
+string scriptDir = Path.Combine(root, "db", args[2]);
 CheckScriptDir(scriptDir);
 
 // 6. Run it.
-var upgrader = Build(args1[2], cs, scriptDir);
-if (args1[0] == "migrate")
+var upgrader = Build(args[2], cs, scriptDir);
+if (args[0] == "migrate")
 {
     var result = upgrader.PerformUpgrade();
     if (result.Successful == false)
