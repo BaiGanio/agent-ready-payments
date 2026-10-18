@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Payments.Db/Payments.Db.csproj" />
+  </Folder>
+</Solution>

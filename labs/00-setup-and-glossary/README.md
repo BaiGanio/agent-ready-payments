@@ -47,7 +47,7 @@ agent-ready-payments/
 |-- db/
 |   |-- postgres/0000_baseline.sql
 |   `-- sqlserver/0000_baseline.sql
-|-- Payments.sln
+|-- Payments.slnx
 `-- src/Payments.Db/          (DbUp runner: migrate, status)
 ```
 
@@ -97,13 +97,13 @@ Compose gives you a running **engine**. The runner creates the **database** and 
 Every line must pass.
 
 ```bash
-docker compose -f docker/docker-compose.yml ps          # both (healthy)
+docker compose -f docker/docker-compose.yml --env-file .env ps   # both (healthy)
 dotnet build                                            # 0 errors
 dotnet run --project src/Payments.Db -- migrate --engine postgres
 dotnet run --project src/Payments.Db -- migrate --engine sqlserver
 dotnet run --project src/Payments.Db -- migrate --engine postgres   # 2nd run: no new scripts
 dotnet run --project src/Payments.Db -- status --engine sqlserver   # 0 waiting
-docker exec payments-postgres psql -U labs -d payments_labs -c "TABLE \"SchemaVersions\";"
+docker exec payments-postgres psql -U labs -d payments_labs -c 'TABLE schemaversions;'
 git branch                                              # develop exists
 ```
 
