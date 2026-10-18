@@ -53,6 +53,32 @@ agent-ready-payments/
 
 Plus `labs/00-setup-and-glossary/GLOSSARY.md`, written in your own words.
 
+## Who creates what
+
+The split in requirement 4 is the one to remember.
+
+```mermaid
+flowchart TB
+    subgraph CO["docker compose - owns the engines"]
+        direction LR
+        P1["Postgres server<br/>user labs<br/>db: postgres"]
+        M1["SQL Server server<br/>user sa"]
+    end
+
+    subgraph RU["src/Payments.Db - owns the schema"]
+        direction LR
+        E["EnsureDatabase<br/>CREATE DATABASE"]
+        J["SchemaVersions<br/>journal table"]
+        T["future tables<br/>Lab 02+"]
+    end
+
+    CO -->|"an engine that accepts connections"| RU
+    RU -->|"payments_labs"| P1
+    RU -->|"PaymentsLabs"| M1
+```
+
+Compose gives you a running **engine**. The runner creates the **database** and everything inside it. Keeping it that way means one tested, repeatable path to a schema — the same path CI and a new machine will use.
+
 ## Hard requirements
 
 | # | Requirement |

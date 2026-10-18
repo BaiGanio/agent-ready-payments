@@ -6,6 +6,28 @@ Spec and Done-when list: `README.md` in this folder. Interview questions: `QA.md
 
 Started 2026-10-18.
 
+## The target state
+
+Two containers, two databases, one runner. No tables yet.
+
+```mermaid
+flowchart LR
+    You["You<br/>dotnet run"] -->|"migrate --engine X"| R["src/Payments.Db<br/>DbUp runner"]
+    SP["db/postgres/*.sql"] -->|"read in order"| R
+    SS["db/sqlserver/*.sql"] -->|"read in order"| R
+    ENV[".env<br/>sa password"] -->|"secret"| R
+
+    subgraph DC["docker compose"]
+        PG[("payments_labs<br/>Postgres 17 + pgvector<br/>native arm64")]
+        MS[("PaymentsLabs<br/>SQL Server 2022<br/>amd64 via Rosetta")]
+    end
+
+    R -->|"Npgsql: create db, run scripts"| PG
+    R -->|"SqlClient: create db, run scripts"| MS
+```
+
+The two script folders are kept **in lockstep**: the same change lands in both in the same commit.
+
 ---
 
 ## Step 0 — Make the machine ready
@@ -47,6 +69,27 @@ git checkout -b feature/lab-00-setup
 
 ```bash
 git branch        # main, develop, * feature/lab-00-setup
+```
+
+Where this lab ends up:
+
+```mermaid
+gitGraph
+    commit id: "initial plan"
+    commit id: "CLAUDE.md"
+    branch develop
+    checkout develop
+    branch feature/lab-00-setup
+    checkout feature/lab-00-setup
+    commit id: "gitignore + env"
+    commit id: "compose"
+    commit id: "DbUp runner"
+    commit id: "baseline sql"
+    commit id: "glossary"
+    checkout develop
+    merge feature/lab-00-setup
+    checkout main
+    merge develop tag: "lab-00"
 ```
 
 ---
@@ -175,6 +218,36 @@ Two details that will cost you an hour if you miss them:
 
 **Proof.** Both `migrate` commands print one applied script and exit 0.
 
+What one `migrate` run actually does:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor You
+    participant R as Payments.Db
+    participant FS as db/&lt;engine&gt;/*.sql
+    participant DB as Database engine
+
+    You->>R: migrate --engine postgres
+    R->>R: walk up to find Payments.sln, then db/
+    R->>R: read .env for the sa password
+    R->>DB: EnsureDatabase - CREATE DATABASE if missing
+    DB-->>R: database exists
+    R->>FS: list scripts, sort by file name
+    FS-->>R: 0000_baseline.sql
+    R->>DB: SELECT from SchemaVersions
+    DB-->>R: already applied: none
+    loop each new script
+        R->>DB: BEGIN
+        R->>DB: run the script
+        R->>DB: INSERT into SchemaVersions
+        R->>DB: COMMIT
+    end
+    R-->>You: exit 0, or print error and exit 1
+```
+
+The journal read is what makes the second run do nothing. That is the whole idea.
+
 ---
 
 ## Step 6 — Add the baseline scripts
@@ -233,6 +306,41 @@ The four pairs that catch people:
 | chargeback vs refund | A refund is the merchant choosing to give money back. A chargeback is the issuer taking it back. |
 
 **Proof.** Read `QA.md` out loud and answer without looking.
+
+### One payment, over its life
+
+```mermaid
+stateDiagram-v2
+    [*] --> Authorised: authorise (bank holds the money)
+    Authorised --> Declined: issuer says no
+    Authorised --> Voided: void (let the hold go, no money moved)
+    Authorised --> Captured: capture (money moves)
+    Captured --> PartiallyRefunded: refund part of it
+    Captured --> Refunded: refund all of it
+    PartiallyRefunded --> Refunded: refund the rest
+    Voided --> [*]
+    Declined --> [*]
+    Refunded --> [*]
+```
+
+`void` and `refund` sit on different sides of `Captured`. That single picture is the answer to the most common interview trap. A **chargeback** is not on this diagram on purpose: it is the issuer taking money back against your will, so it is its own record (Lab 13), not a status the merchant chooses.
+
+### Who is who, in one card payment
+
+```mermaid
+flowchart LR
+    C["Cardholder<br/>buys shoes"] -->|"taps card"| M["Merchant<br/>the shop"]
+    M -->|"auth request"| A["Acquirer / PSP<br/>the shop's bank"]
+    A -->|"routes it"| S["Card scheme<br/>Visa / Mastercard"]
+    S -->|"asks: may I?"| I["Issuer<br/>the cardholder's bank"]
+    I -->|"approve or decline"| S
+    S -->|"answer"| A
+    A -->|"answer"| M
+    I -->|"money, minus interchange"| A
+    A -->|"settlement payout, minus fees"| M
+```
+
+This is the **four-party model**. A payment technology company usually sits in the `Acquirer / PSP` box, which is why every lab in this repo is written from that seat.
 
 ---
 
