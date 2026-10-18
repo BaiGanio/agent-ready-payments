@@ -298,11 +298,19 @@ docker exec payments-postgres psql -U labs -d payments_labs -c "TABLE \"SchemaVe
 
 ## Step 8 — Write the glossary
 
-**Goal.** `labs/00-setup-and-glossary/GLOSSARY.md`, one line per word, in your own words.
+**Goal.** `labs/00-setup-and-glossary/GLOSSARY.md` is filled in, one line per word, in your own words.
+
+The file already exists as a **scaffold**: headings, all 28 words as empty bullets, and a self-check list at the bottom. Typing the words is not the learning, so that part is done for you. The definitions are yours.
 
 **Why.** Every ticket in a payment backlog is written in these words, and an interviewer hears in one sentence whether you have used them or only read them. Mixing up "void" and "refund" is the classic tell, because they feel similar and are not: one cancels a hold, the other moves money back. Writing the lines yourself is the work — copying a definition teaches nothing.
 
-**Do.** Cover these:
+**Do.** Open the file and fill every bullet:
+
+```bash
+open labs/00-setup-and-glossary/GLOSSARY.md
+```
+
+The words, for reference:
 
 **Money movement:** authorise · capture · void · refund · partial refund · reversal · chargeback · representment · settlement · payout
 

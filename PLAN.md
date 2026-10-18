@@ -334,6 +334,9 @@ Decided things only. Open findings, fix-later items, questions and ideas live in
 
 - **Rule from 2026-10-18: `CARRY-FORWARD.md` is the inbox.** One-line rows with a `CF-NNN` id and a date: findings, fix-later, open questions, ideas. This section 8 holds **decided** things only. An item graduates from the inbox to here, to a lab `README.md`, or it is dropped — never both places. At the end of each lab, the lab's `WORKBENCH.md` "Notes while you work" moves into the inbox and the inbox gets groomed. Only the user decides a graduation.
 
+- **Rule from 2026-10-18: scaffolds.** When a lab deliverable is a document the user must write in their own words, the agent creates it at the start of the lab as **structure only** — headings, one empty bullet per item, the rule the content must pass, a self-check list — and never fills the content. The file says `Written by: **you**`. First one: `labs/00-setup-and-glossary/GLOSSARY.md` (28 words, empty). Also applies to Lab 10's migration note and Lab 18's design doc.
+- **Rule from 2026-10-18: `QA.md` is read twice.** Before a lab, the **questions only** (`grep -E '^\*\*Q' …/QA.md`), 5 minutes, answers covered. After the lab, answer out loud, check, mark the misses, and re-do the marked ones next session. Both are steps in every `WORKBENCH.md` (Step 0 and the step before "Close the lab"). Reading the answers upfront turns recall into recognition, which does not survive an interview.
+
 ## 9. Environment checklist
 
 - `dotnet --version` → `10.0.302` ✓
