@@ -2,3 +2,8 @@ bin/
 obj/
 .env
 *.user
+
+# test runner output: logs, .trx reports, coverage. Rebuilt on every run
+TestResults/
+*.trx
+*.coverage

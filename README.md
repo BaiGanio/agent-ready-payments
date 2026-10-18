@@ -51,6 +51,18 @@ In short: strong backend fundamentals, plus knowing what changes when the caller
 | 18 | System design capstone |
 | 19 | Human-in-the-loop approval UI *(optional)* |
 
-Where you are right now: [`PROGRESS.md`](PROGRESS.md) — the status board, one row per lab.
+## Where things live
 
-Full details: [`PLAN.md`](PLAN.md). Inputs and constraints: [`SPEC.md`](SPEC.md). Open findings, ideas and fix-later items: [`CARRY-FORWARD.md`](CARRY-FORWARD.md). Every command you need, in one place: [`EVERYDAY-COMMANDS.md`](EVERYDAY-COMMANDS.md).
+| Path | What | When you open it |
+|---|---|---|
+| [`docs/PROGRESS.md`](docs/PROGRESS.md) | the status board, one row per lab | first, every session |
+| [`docs/EVERYDAY-COMMANDS.md`](docs/EVERYDAY-COMMANDS.md) | every command you need | whenever you forget one |
+| [`labs/NN-…/WORKBENCH.md`](labs) | the bench sheet you work through | while you work |
+| [`docs/plan/PLAN.md`](docs/plan/PLAN.md) | the decisions (§7 open, §8 decided) | before you start a lab |
+| [`docs/plan/CARRY-FORWARD.md`](docs/plan/CARRY-FORWARD.md) | the inbox: findings, ideas, fix-later | start and end of a lab |
+| [`docs/plan/SPEC.md`](docs/plan/SPEC.md) | the inputs and limits this plan came from | rarely |
+| [`docs/aperio/`](docs/aperio) | the Aperio backbone: map, tour, talking points | when writing an interview answer |
+| [`db/README.md`](db/README.md) | the lab database plan | database labs |
+| `CLAUDE.md` | the rules the agent follows | when the agent gets it wrong |
+
+The root holds two `.md` files, this one and `CLAUDE.md`. Everything else lives under [`docs/`](docs).

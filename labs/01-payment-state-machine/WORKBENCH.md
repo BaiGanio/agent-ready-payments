@@ -586,11 +586,11 @@ docs(lab-01): write the TDD notes
 
 ## Step 16 — Close the lab
 
-**Goal.** Lab 01 is on `develop`, `main` has the `lab-01` tag, `develop` is level with `main`, the feature branch is gone, and `PROGRESS.md` says `Done`.
+**Goal.** Lab 01 is on `develop`, `main` has the `lab-01` tag, `develop` is level with `main`, the feature branch is gone, and `docs/PROGRESS.md` says `Done`.
 
 **Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work instead of loose commits. Before that, the lab's notes move into the inbox, because a finding written in a workbench file is lost the moment the next lab starts. Every lab repeats this, so the shape stays the same.
 
-**Do.** Run the full Done-when list in `README.md` first. Then move every line from **Notes while you work** below into `CARRY-FORWARD.md` as a `CF-NNN` row with the date, and groom the inbox. Set the Lab 01 row in `PROGRESS.md` to `Done` with the tag, and tick its list. Then:
+**Do.** Run the full Done-when list in `README.md` first. Then move every line from **Notes while you work** below into `CARRY-FORWARD.md` as a `CF-NNN` row with the date, and groom the inbox. Set the Lab 01 row in `docs/PROGRESS.md` to `Done` with the tag, and tick its list. Then:
 
 ```bash
 git status --short      # must be empty
@@ -621,7 +621,7 @@ git log --oneline develop..main   # empty: develop is level with main
 
 The history must show a `test(lab-01)` commit before the `feat(lab-01)` commits. That is the TDD evidence you point at in the interview.
 
-**Commit.** The grooming and the board are one commit, on the feature branch, **before** the merges. Stage `CARRY-FORWARD.md` and `PROGRESS.md`:
+**Commit.** The grooming and the board are one commit, on the feature branch, **before** the merges. Stage `CARRY-FORWARD.md` and `docs/PROGRESS.md`:
 
 ```
 docs(plan): groom the inbox and close lab 01 on the board

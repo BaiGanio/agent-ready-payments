@@ -103,7 +103,7 @@ grep -E '^\*\*Q' labs/NN-short-name/QA.md
 
 ## Step N — Close the lab
 
-**Goal.** The lab is merged to `develop`, `main` carries the `lab-NN` tag, `develop` is level with `main`, the feature branch is gone, and `PROGRESS.md` says `Done`.
+**Goal.** The lab is merged to `develop`, `main` carries the `lab-NN` tag, `develop` is level with `main`, the feature branch is gone, and `docs/PROGRESS.md` says `Done`.
 
 **Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work. A branch name is only a pointer at one commit, so deleting a merged feature branch drops the pointer and never the work — the tag is the bookmark after that. Every lab repeats this, so the shape stays the same.
 

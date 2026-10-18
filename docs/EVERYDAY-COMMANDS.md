@@ -18,9 +18,9 @@ Replace `NN` with the lab number and `short-name` with the lab folder name. The 
 | Find a trap in **any** lab by error word | `grep -rn -i 'healthy' labs/*/WORKBENCH.md` |
 | See one step only (step 4 here) | `sed -n '/^## Step 4/,/^## Step 5/p' labs/NN-short-name/WORKBENCH.md` |
 | Read the QA **questions**, not the answers | `grep -E '^\*\*Q' labs/NN-short-name/QA.md` |
-| See where I am across all labs | `open PROGRESS.md` |
-| See the open inbox | `open CARRY-FORWARD.md` |
-| See what is already decided | `open PLAN.md` |
+| See where I am across all labs | `open docs/PROGRESS.md` |
+| See the open inbox | `open docs/plan/CARRY-FORWARD.md` |
+| See what is already decided | `open docs/plan/PLAN.md` |
 
 The `sed -n '/A/,/B/p' file` shape means: print from the line that matches `A` down to the line that matches `B`.
 
@@ -105,6 +105,18 @@ Run `migrate` **twice**. The second run must say there are no new scripts. That 
 `dotnet test` needs the `test.runner` block in `global.json`. .NET 10 dropped the old VSTest host, and xUnit v3 test projects run on **Microsoft.Testing.Platform**. Without it you get "Testing with VSTest target is no longer supported". The filter is a plain substring of the test name, so `--filter "RefundTests"` runs one class and `--filter "Refund"` runs everything with that word in it.
 
 `dotnet watch test` is the red-green loop: leave it running in one terminal, edit in the other, and the tests re-run on every save.
+
+### The `TestResults/` folder
+
+The test runner creates it by itself on `dotnet test`. Inside: a `.trx` file (one XML report of every test and its outcome) and, if you asked for coverage, a coverage file.
+
+You do not need it. The terminal already prints `total / failed / succeeded`, and that is the whole proof a lab asks for. The folder only earns its place when a **CI server** must publish a report another tool reads, or when you want a coverage percentage. Neither happens in these labs yet.
+
+It is git-ignored, nothing depends on it, and the next run rebuilds it. Delete it whenever it annoys you:
+
+```bash
+rm -rf TestResults
+```
 
 ---
 

@@ -2,20 +2,37 @@
 
 Rules for agents in this repo. Short and strict. We add, change and remove rules as the labs go.
 
+## Where things live
+
+| Path | What |
+|---|---|
+| `README.md` | the front door |
+| `CLAUDE.md` | these rules |
+| `docs/PROGRESS.md` | the status board: where every lab stands |
+| `docs/EVERYDAY-COMMANDS.md` | the user's command cheat sheet |
+| `docs/plan/PLAN.md` | decisions (§7 open, §8 decided) |
+| `docs/plan/SPEC.md` | inputs and limits |
+| `docs/plan/CARRY-FORWARD.md` | the inbox: findings, fix-later, questions, ideas |
+| `docs/aperio/` | the Aperio backbone: map, tour, talking points, agent-ready notes |
+| `labs/NN-…/` | three files per lab: `README.md`, `WORKBENCH.md`, `QA.md` |
+| `db/README.md` | the lab database plan |
+
+**The repo root holds two `.md` files only: `README.md` and `CLAUDE.md`.** Every other document lives under `docs/`. A new reference doc goes in `docs/plan/` or `docs/aperio/`, or flat in `docs/` if it is neither, and it gets a row in this table and in the one in `README.md`, in the same commit. Never add a `.md` file to the root.
+
 ## What this repo is
 
 - Hands-on **labs**, not an app. Goal: prepare for a senior .NET payment backend role with AI agents.
-- Read these first, in this order: `README.md` → `PLAN.md` section 8 (**Decided**) → `CARRY-FORWARD.md` (the open inbox) → the lab's `README.md`, `WORKBENCH.md` and `QA.md`.
-- `SPEC.md` holds the inputs and limits. `PLAN.md` holds the decisions. If they disagree, `PLAN.md` wins (it is newer).
-- `EVERYDAY-COMMANDS.md` is the user's command cheat sheet. When a lab introduces a command the user will run again, add a row there in the same commit.
+- Read these first, in this order: `README.md` → `docs/plan/PLAN.md` section 8 (**Decided**) → `docs/plan/CARRY-FORWARD.md` (the open inbox) → the lab's `README.md`, `WORKBENCH.md` and `QA.md`.
+- `docs/plan/SPEC.md` holds the inputs and limits. `docs/plan/PLAN.md` holds the decisions. If they disagree, `docs/plan/PLAN.md` wins (it is newer).
+- `docs/EVERYDAY-COMMANDS.md` is the user's command cheat sheet. When a lab introduces a command the user will run again, add a row there in the same commit.
 
 ## Carry-forward
 
-`CARRY-FORWARD.md` is the **inbox**: findings, fix-later, open questions, ideas for later. `PLAN.md` section 8 is **decided** things only. An item never lives in both.
+`docs/plan/CARRY-FORWARD.md` is the **inbox**: findings, fix-later, open questions, ideas for later. `docs/plan/PLAN.md` section 8 is **decided** things only. An item never lives in both.
 
-- Noticed something outside the current lab's scope? Add a **one-line row** to `CARRY-FORWARD.md` with the next free `CF-NNN` id and the date. Do not widen the current lab to deal with it.
-- If it needs a paragraph, it is a decision. Put it in `PLAN.md` section 8 instead.
-- At the end of each lab: move the lab's **"Notes while you work"** into `CARRY-FORWARD.md`, then groom the inbox. An item graduates to `PLAN.md` §8, to a lab `README.md`, or it is dropped. Set its status, move the row to **Closed**, and never reuse the id.
+- Noticed something outside the current lab's scope? Add a **one-line row** to `docs/plan/CARRY-FORWARD.md` with the next free `CF-NNN` id and the date. Do not widen the current lab to deal with it.
+- If it needs a paragraph, it is a decision. Put it in `docs/plan/PLAN.md` section 8 instead.
+- At the end of each lab: move the lab's **"Notes while you work"** into `docs/plan/CARRY-FORWARD.md`, then groom the inbox. An item graduates to `docs/plan/PLAN.md` §8, to a lab `README.md`, or it is dropped. Set its status, move the row to **Closed**, and never reuse the id.
 - The agent may add and groom rows. Only the user decides a graduation.
 
 ## Who writes the code
@@ -30,7 +47,7 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 ## Tech rules
 
 - Runnable code is **.NET 10**. .NET Framework is paper-only (Lab 10). It cannot run on macOS.
-- Data access: **Dapper** first. **Bare ADO.NET** in Lab 05. **EF Core** only where `PLAN.md` ("Dapper vs EF Core") says so.
+- Data access: **Dapper** first. **Bare ADO.NET** in Lab 05. **EF Core** only where `docs/plan/PLAN.md` ("Dapper vs EF Core") says so.
 - Databases: **Postgres** for the API, Docker and k3s path. **SQL Server** (amd64 under Rosetta) for stored procedures and locking. **Never** target SQL Server at the Pi.
 - Migrations: **DbUp** with plain `.sql` files. One migration per lab. See `db/README.md`.
 - Tests: xUnit v3 (default until Lab 01 decides). Testcontainers for Postgres. Respawn between tests.
@@ -50,7 +67,7 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 
 - Plain, simple English. Short sentences. Active voice. One idea per sentence.
 - Explain a payment or agent word the first time it shows up.
-- Every lab `README.md` opens with: **What we solve / Simple example / Why it matters for a payment platform**. Add an everyday picture (see `AGENT-READY-BACKEND.md`).
+- Every lab `README.md` opens with: **What we solve / Simple example / Why it matters for a payment platform**. Add an everyday picture (see `docs/aperio/AGENT-READY-BACKEND.md`).
 - Every lab `README.md` has an **"Aperio comparison"** table. Every `QA.md` ends with **Q-APERIO**.
 - **Three files per lab.** `README.md` = the spec (what we solve, Aperio comparison, what you deliver, hard requirements, "Done when"). `WORKBENCH.md` = the ordered bench sheet the user follows with their hands. `QA.md` = interview questions. Steps live in `WORKBENCH.md` only, never in both.
 - Every `WORKBENCH.md` step has five parts: **Goal** (one line), **Why** (3–4 sentences: what we accomplish and why it is done this way), **Do** (exact commands and files), **Proof** (how you know it worked), **Commit** (the suggested commit message for this step). The `Why` is the point of the file — never drop it. End the file with a **Traps** table and a **Notes while you work** section.
@@ -100,7 +117,7 @@ Gitflow. The repo itself shows it.
 - **Always back-merge `main` into `develop`.** Anything that lands on `main` — the lab merge commit, a hotfix, a release — is not on `develop` until you merge it back. Skip it and `develop` falls behind, every new feature branch starts from a stale base, and the next merge fights over commits that are already on `main`. The "Close the lab" step does it in one line: `git checkout develop && git merge main`.
 - **Never commit lab work straight to `main`.** Lab prep (spec, bench sheet, tests, scaffolds) is lab work: it belongs on `feature/lab-NN-…`, same as the code.
 
-Keep [`PROGRESS.md`](PROGRESS.md) true. It is the status board: one row per lab plus a tick list for the lab in flight. The row changes in the same commit as the work it describes, and a lab becomes `Done` only in its "Close the lab" step.
+Keep [`docs/PROGRESS.md`](docs/PROGRESS.md) true. It is the status board: one row per lab plus a tick list for the lab in flight. The row changes in the same commit as the work it describes, and a lab becomes `Done` only in its "Close the lab" step.
 
 Commits use **Conventional Commits**:
 
@@ -117,5 +134,5 @@ Commits use **Conventional Commits**:
 
 ## Decisions
 
-- When the user decides something, add it to `PLAN.md` section 7 or 8 with the date.
+- When the user decides something, add it to `docs/plan/PLAN.md` section 7 or 8 with the date.
 - Do not re-open a decision that is marked **Decided**.

@@ -291,7 +291,7 @@ The repo itself is the Gitflow evidence.
 
 | Decision | When | Default if nobody decides |
 |---|---|---|
-| Unit test framework: xUnit vs NUnit | Before Lab 01 tests are written | **xUnit v3** + FluentAssertions-free plain asserts (Shouldly optional). NUnit is common in older Framework shops; mention you know both. |
+| ~~Unit test framework~~ | **Decided 2026-10-18** | **xUnit v3**, plain asserts, no assertion library. NUnit is common in older .NET Framework shops; mention you know both in the interview. |
 | BDD tool: Reqnroll vs SpecFlow | Lab 07 | **Reqnroll**. SpecFlow is end-of-life; Reqnroll is its open-source fork with the same Gherkin and bindings. |
 | How deep BDD goes | After Lab 03 | One feature file, 5–8 scenarios, against the real API. |
 | ~~Integration test DB~~ | **Decided 2026-10-17** | Testcontainers for Postgres; compose SQL Server with one database per test class; Respawn between tests. See `db/README.md`. |
@@ -338,7 +338,12 @@ Decided things only. Open findings, fix-later items, questions and ideas live in
 - **Rule from 2026-10-18: `QA.md` is read twice.** Before a lab, the **questions only** (`grep -E '^\*\*Q' …/QA.md`), 5 minutes, answers covered. After the lab, answer out loud, check, mark the misses, and re-do the marked ones next session. Both are steps in every `WORKBENCH.md` (Step 0 and the step before "Close the lab"). Reading the answers upfront turns recall into recognition, which does not survive an interview.
 
 - **Rule from 2026-10-18: always back-merge `main` into `develop`.** Merging `develop` into `main` leaves a merge commit that lives only on `main`, so `develop` is behind from that moment. Every "Close the lab" step now ends with `git checkout develop && git merge main`, and the proof is `git log --oneline develop..main` being empty. Lab work — including the lab's spec, bench sheet and tests — never goes straight to `main`; it goes on `feature/lab-NN-…`. Found when the Lab 01 prep was committed on `main` and `develop` sat five commits behind.
-- **Rule from 2026-10-18: [`PROGRESS.md`](PROGRESS.md) is the status board.** One row per lab with a status (`Done` / `In progress` / `Prepared` / `Spec only`), the tag, and a one-line "what is left", plus a tick list for the lab in flight. The row changes in the same commit as the work. A lab turns `Done` only in its "Close the lab" step. One line only — anything longer is a `CF-NNN` row or a decision here.
+- **Rule from 2026-10-18: [`docs/PROGRESS.md`](../PROGRESS.md) is the status board.** One row per lab with a status (`Done` / `In progress` / `Prepared` / `Spec only`), the tag, and a one-line "what is left", plus a tick list for the lab in flight. The row changes in the same commit as the work. A lab turns `Done` only in its "Close the lab" step. One line only — anything longer is a `CF-NNN` row or a decision here.
+
+- **Rule from 2026-10-18:** `TestResults/`, `*.trx` and `*.coverage` are git-ignored. The test runner writes that folder itself on every `dotnet test` — a `.trx` report and, with `--coverage`, a coverage file. The terminal already shows pass and fail counts, so in these labs the folder is noise. It matters only when a CI server has to publish a report, or when you want a coverage number. Delete it whenever; it comes back on the next run and nothing depends on it.
+
+- **Decided 2026-10-18: xUnit v3** is the unit test framework for every lab. Plain `Assert`, no assertion library. It needs the `test.runner` block in `global.json`, because .NET 10 dropped the old VSTest host and xUnit v3 test projects run on Microsoft.Testing.Platform. Lab 01's 160 tests are written in it. Reqnroll (Lab 07) and Testcontainers (Lab 02) both work with it.
+- **Decided 2026-10-18 (docs layout, final):** the root keeps **two** files — `README.md` and `CLAUDE.md`. Everything else is under `docs/`: `docs/PROGRESS.md`, `docs/EVERYDAY-COMMANDS.md`, `docs/plan/` (plan, spec, inbox), `docs/aperio/` (map, tour, talking points, agent-ready notes). Moved with `git mv`, so history follows. The map is a table in `README.md` and in `CLAUDE.md`; a new doc gets a row in both.
 
 ## 9. Environment checklist
 

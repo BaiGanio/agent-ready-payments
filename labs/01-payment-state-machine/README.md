@@ -202,6 +202,10 @@ git log --oneline | head -20                   # a test(...) commit before the f
 - `TDD-NOTES.md` is filled in, in your own words.
 - You can answer every question in `QA.md` without looking.
 
+## Test framework
+
+**xUnit v3**, decided 2026-10-18 (`docs/plan/PLAN.md` §8). Plain `Assert`, no assertion library. `global.json` carries the `test.runner` opt-in, because .NET 10 dropped the old VSTest host.
+
 ## The tests are given, once
 
 The 160 tests in `tests/Payments.Domain.Tests` were written for you — this is the **last** lab where that happens. They are the worked example of what good test code looks like: one act per test, behaviour names, the whole matrix in one `[Theory]`, a hand-written `TimeProvider` instead of a mocking library. Read them. From Lab 02 you write the tests yourself (`CLAUDE.md` → "Who writes the code").
