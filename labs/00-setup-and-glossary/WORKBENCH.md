@@ -394,6 +394,6 @@ git tag        # lab-00
 
 ## Notes while you work
 
-Write what surprised you here. It feeds `PLAN.md` section 8 and the next lab.
+Write what surprised you here, as it happens. At the end of the lab these move into `CARRY-FORWARD.md` (the inbox) as `CF-NNN` rows. From there each one graduates to `PLAN.md` section 8, to a lab `README.md`, or it is dropped.
 
 -

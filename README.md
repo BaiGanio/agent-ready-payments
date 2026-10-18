@@ -51,4 +51,4 @@ In short: strong backend fundamentals, plus knowing what changes when the caller
 | 18 | System design capstone |
 | 19 | Human-in-the-loop approval UI *(optional)* |
 
-Full details: [`PLAN.md`](PLAN.md). Inputs and constraints: [`SPEC.md`](SPEC.md).
+Full details: [`PLAN.md`](PLAN.md). Inputs and constraints: [`SPEC.md`](SPEC.md). Open findings, ideas and fix-later items: [`CARRY-FORWARD.md`](CARRY-FORWARD.md).

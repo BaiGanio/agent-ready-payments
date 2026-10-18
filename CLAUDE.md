@@ -5,8 +5,17 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 ## What this repo is
 
 - Hands-on **labs**, not an app. Goal: prepare for a senior .NET payment backend role with AI agents.
-- Read these first, in this order: `README.md` → `PLAN.md` (section 8, "Carry-forward notes") → the lab's `README.md` and `QA.md`.
+- Read these first, in this order: `README.md` → `PLAN.md` section 8 (**Decided**) → `CARRY-FORWARD.md` (the open inbox) → the lab's `README.md`, `WORKBENCH.md` and `QA.md`.
 - `SPEC.md` holds the inputs and limits. `PLAN.md` holds the decisions. If they disagree, `PLAN.md` wins (it is newer).
+
+## Carry-forward
+
+`CARRY-FORWARD.md` is the **inbox**: findings, fix-later, open questions, ideas for later. `PLAN.md` section 8 is **decided** things only. An item never lives in both.
+
+- Noticed something outside the current lab's scope? Add a **one-line row** to `CARRY-FORWARD.md` with the next free `CF-NNN` id and the date. Do not widen the current lab to deal with it.
+- If it needs a paragraph, it is a decision. Put it in `PLAN.md` section 8 instead.
+- At the end of each lab: move the lab's **"Notes while you work"** into `CARRY-FORWARD.md`, then groom the inbox. An item graduates to `PLAN.md` §8, to a lab `README.md`, or it is dropped. Set its status, move the row to **Closed**, and never reuse the id.
+- The agent may add and groom rows. Only the user decides a graduation.
 
 ## Who writes the code
 

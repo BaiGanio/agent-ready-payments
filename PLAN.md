@@ -303,17 +303,18 @@ The repo itself is the Gitflow evidence.
 
 ---
 
-## 8. Carry-forward notes (read at the start of every session)
+## 8. Decided (read at the start of every session)
+
+Decided things only. Open findings, fix-later items, questions and ideas live in [`CARRY-FORWARD.md`](CARRY-FORWARD.md), the inbox. An item never sits in both files.
 
 - **Best payments bridge in Aperio:** `db_execute` is confirm-gated, then does an atomic claim — `UPDATE … WHERE status IN ('approved','edited')`. A capture stored procedure uses the same trick (`WHERE Status = 'Authorised'`). It is story 6 in `TALKING-POINTS.md`.
-- **Gap to own, not hide:** Aperio has no time limit for a whole agent turn. The step cap of 6 is the only hard bound. It is in the weak-points list.
 - **The MCP server** is `src/Payments.Mcp`. Lab 08 builds it with 3 tools. It calls the API over HTTP and never touches the database.
 - **Sketches + everyday pictures** (restaurant, vending machine, card double-tap, hotel reception, IKEA label, approval gate) live in `AGENT-READY-BACKEND.md`. Reuse them in lab READMEs and in answers.
 - **EF Core** is the alternative where it fits — see "Dapper vs EF Core" above.
 - **Decided 2026-10-17 (agentic coverage, option A):** added **Lab 13** (durable chargeback workflow: workflow vs agent, human gate, deadline, compensation, resume) and **Lab 14** (OpenTelemetry + audit). Tightened Lab 08 (API key per agent with scopes + audit row per tool call), Lab 09 (crash/resume test + two-agents-one-refund test), Lab 12 (prompt-injection test).
 - **Added 2026-10-17:** **Lab 15** (KV cache, trimming, pinned task state, offload, tool cache) and **Lab 16** (network failures, in-doubt tool calls, resume, task contracts with expected outcomes).
 - **Added 2026-10-17:** **Lab 17 — cold start** at every layer (.NET, DB, EF, MCP, model, KV cache, agent context, data). Key Aperio facts: llama-server `/health` is green before the model loads; the first message used to pay minutes until `modelPreload.js` moved it to boot.
-- **Stance 2026-10-17:** we don't know if the company uses local or cloud models — ask them. Design provider-agnostic (`IChatClient`); labs run local; the model is picked by Lab 09's evaluation set over a ladder from Aperio's `011_model_facts.sql`. Agents may also be *merchants'* agents calling the platform (agentic commerce).
+- **Stance 2026-10-17:** design provider-agnostic (`IChatClient`); labs run local; the model is picked by Lab 09's evaluation set over a ladder from Aperio's `011_model_facts.sql`. The open questions — local or cloud at the company, and whose agents call the platform — are `CF-001` and `CF-002`.
 - **Added 2026-10-17:** optional **Lab 19 — human-in-the-loop UI** (approval screen). Reuses frontend patterns, not files, from `BaiGanio/scrooge-financing` (Svelte). Do it after Lab 13.
 - **Added 2026-10-17:** **Lab 18 — system design capstone**, and a "concurrency and atomic transactions" index in this plan.
 - **Rule from 2026-10-17: Aperio is the backbone.** Every lab README has an **"Aperio comparison"** table (has / partly / no, file, what the lab adds), and every `QA.md` ends with **Q-APERIO "Have you solved this before?"**. The overview is `APERIO-MAP.md`. Verify every Aperio claim against the code before writing it.
@@ -330,6 +331,8 @@ The repo itself is the Gitflow evidence.
 
 - **Rule from 2026-10-18: `WORKBENCH.md` is written at the start of its own lab**, never in advance, from the blueprint `labs/_TEMPLATE/WORKBENCH.md`. A workbench written three labs early is wrong by the time you reach it. When a lab teaches a better shape, the blueprint changes in the same commit.
 - **Rule from 2026-10-18: Mermaid diagrams everywhere.** The user learns from visuals. Mermaid only (renders on GitHub, diffs as text). Every lab `README.md` has at least one diagram; every `WORKBENCH.md` opens with a **"The target state"** diagram before step 1, and adds one inside any step whose shape is hard to hold in your head. Type per shape and the "label every arrow" rule are in `CLAUDE.md` → Diagrams. Lab 00 is the worked example: target state (`flowchart`), Gitflow (`gitGraph`), one `migrate` run (`sequenceDiagram`), payment life (`stateDiagram-v2`), four-party model (`flowchart`).
+
+- **Rule from 2026-10-18: `CARRY-FORWARD.md` is the inbox.** One-line rows with a `CF-NNN` id and a date: findings, fix-later, open questions, ideas. This section 8 holds **decided** things only. An item graduates from the inbox to here, to a lab `README.md`, or it is dropped — never both places. At the end of each lab, the lab's `WORKBENCH.md` "Notes while you work" moves into the inbox and the inbox gets groomed. Only the user decides a graduation.
 
 ## 9. Environment checklist
 
