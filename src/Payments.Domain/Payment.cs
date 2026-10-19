@@ -3,8 +3,7 @@ public sealed class Payment
 {
     private readonly List<PaymentOperation> _operations = [];
     private readonly TimeProvider _clock;
-
-    // TODO: private constructor. Create() validates and is the only door in.
+    
     private Payment(string id, Money amount, TimeProvider clock)
     {
         _clock = clock;
@@ -79,7 +78,7 @@ public sealed class Payment
 
     public Money CapturableRemaining => Amount - CapturedTotal;
 
-    public Money RefundableRemaining => throw new NotImplementedException();
+    public Money RefundableRemaining => CapturedTotal - RefundedTotal;
 
     public IReadOnlyCollection<PaymentAction> AllowedActions => throw new NotImplementedException();
 
@@ -115,7 +114,26 @@ public sealed class Payment
         return Ok();
     }
 
-    public Result<Payment, PaymentError> Refund(Money amount) => throw new NotImplementedException();
+    public Result<Payment, PaymentError> Refund(Money amount)
+    {
+        if(Status is not (PaymentStatus.PartiallyCaptured or PaymentStatus.Captured or PaymentStatus.PartiallyRefunded))
+            return Fail(PaymentErrorCode.IllegalTransition, $"Cannot refund a payment that is {Status}");
+
+        if(amount.Currency != Amount.Currency)
+            return Fail(PaymentErrorCode.CurrencyMismatch, $"Cannot mix {amount.Currency} and {Amount.Currency}");
+
+        if(amount.IsZero)
+            return Fail(PaymentErrorCode.AmountNotPositive, $"Cannot refund non positive amount {amount.Amount}");
+
+        if(amount > RefundableRemaining)
+            return Fail(PaymentErrorCode.AmountExceedsCaptured,  $"Cannot refund {amount.Amount} when only {RefundableRemaining.Amount} was captured and not yet refunded");
+
+        Record(PaymentAction.Refund, amount);
+        RefundedTotal += amount;
+        Status = RefundedTotal == CapturedTotal ? PaymentStatus.Refunded : PaymentStatus.PartiallyRefunded;
+
+        return Ok();
+    }
 
     // ----- helpers -----
     private void Record(PaymentAction kind, Money amount) 
