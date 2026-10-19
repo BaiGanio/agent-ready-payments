@@ -2,7 +2,7 @@
 
 The status board. One row per lab. This is the only place that says where you are.
 
-Updated 2026-10-18.
+Updated 2026-10-19.
 
 ## How to read it
 
@@ -25,8 +25,8 @@ Rules:
 | # | Lab | Status | Tag | What is left |
 |---|---|---|---|---|
 | 00 | [Setup + glossary](../labs/00-setup-and-glossary) | **Done** | `lab-00` | — |
-| 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Prepared** | — | Write `src/Payments.Domain` until the 160 tests are green |
-| 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | Spec only | — | Bench sheet + test list, then the lab |
+| 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Done** | `lab-01` | — |
+| 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **Prepared** | — | Build the API, write the tests from `TEST-LIST.md` |
 | 03 | [Idempotency](../labs/03-idempotency) | Spec only | — | Bench sheet + test list, then the lab |
 | 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | Spec only | — | Bench sheet + test list, then the lab |
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
@@ -57,23 +57,38 @@ Every lab from 02 on needs three files before it can start: `WORKBENCH.md`, the 
 - [x] `GLOSSARY.md`, 28 words, in your own words
 - [x] `QA.md` answered out loud
 
-## Lab 01 — Prepared
+## Lab 01 — Done, tag `lab-01`
 
-Written for you:
+- [x] `global.json`: SDK pin + the Microsoft.Testing.Platform opt-in
+- [x] `README.md`, `WORKBENCH.md` (17 steps), `TDD-NOTES.md`
+- [x] `src/Payments.Domain`: `Money`, `Result`, the enums, `PaymentOperation`, `Payment`
+- [x] 160 tests green
+- [x] The four purity greps in `README.md` → "Done when"
+- [x] `TDD-NOTES.md` filled in
+- [x] `QA.md` answered out loud, misses marked
+- [x] Merged, tagged `lab-01`, back-merged into `develop`, branch deleted
 
-- [x] `README.md`: spec, state diagram, the 40-case transition table, the public shape, 9 hard requirements
-- [x] `WORKBENCH.md`: 17 steps, target-state diagram, 13 traps
-- [x] `TDD-NOTES.md`: scaffold, empty on purpose
-- [x] `tests/Payments.Domain.Tests`: 160 tests, red (xUnit v3, decided 2026-10-18)
+Left undone on purpose: the step 12 refactor onto one transition table. It is `CF-013` in the inbox, to be done in a later lab where a second aggregate shares the rule.
+
+## Lab 02 — Prepared
+
+Written for you (2026-10-19):
+
+- [x] `README.md`: the spec — decisions table, HTTP surface, error map, DTO, 12 hard requirements, Done-when
+- [x] `WORKBENCH.md`: 22 steps (core 1–13, stretch A 14–16, stretch B 17–19), 4 diagrams, 24 traps
+- [x] `TEST-LIST.md`: 56 test names in 10 groups, with the rule each one must check
+- [x] `STORE-NOTES.md`: scaffold, empty on purpose
 
 Left for you:
 
-- [ ] `global.json`: SDK pin + the Microsoft.Testing.Platform opt-in
-- [ ] `src/Payments.Domain`: `Money`, `Result`, the enums, `PaymentOperation`, `Payment`
-- [x] 160 tests green (the Step 12 refactor onto one transition table is carried forward as CF-013)
-- [ ] The four purity greps in `README.md` → "Done when"
-- [ ] `TDD-NOTES.md` filled in
-- [ ] `QA.md` answered out loud, misses marked
-- [ ] Close the lab: merge, tag `lab-01`, back-merge `main` into `develop`, delete the branch
+- [ ] Step 2: `Payment.Id` becomes a `Guid`; the 160 domain tests stay green
+- [ ] Step 3: `db/postgres/0001_merchant_payment.sql`
+- [ ] Steps 4–8: `src/Payments.Api` — project, ProblemDetails mapper, contracts, Dapper store, create + get
+- [ ] Step 9: `tests/Payments.Api.Tests` harness — Testcontainers + DbUp + Respawn + `WebApplicationFactory`
+- [ ] Steps 10–13: every test in `TEST-LIST.md` (you write the bodies) and the five command endpoints
+- [ ] Steps 14–16 *(stretch A)*: keyset paging and the opaque cursor
+- [ ] Steps 17–19 *(stretch B)*: the EF Core store, both stores under one test, `STORE-NOTES.md`
+- [ ] Step 20: `QA.md` answered out loud, misses marked
+- [ ] Step 21: close the lab — merge, tag `lab-02`, back-merge, delete the branch
 
-Nothing is blocked. The test framework is decided: **xUnit v3** (`plan/PLAN.md` §8).
+Nothing is blocked. The four lab 02 decisions — merchant placement, the `Guid` id, replay loading and `snake_case` in Postgres — are in `plan/PLAN.md` §8, dated 2026-10-19.

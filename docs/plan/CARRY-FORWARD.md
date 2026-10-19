@@ -44,6 +44,10 @@ Things we learned that are not a decision yet.
 |---|---|---|---|---|
 | CF-003 | 2026-10-18 | this machine | `dotnet` here is `10.0.401`, not the `10.0.302` in `PLAN.md` §9. Harmless, but pin the SDK with a `global.json` if a lab ever behaves differently. | Open |
 | CF-004 | 2026-10-18 | Aperio | `llama-server` `/health` goes green **before** the model is loaded. So a readiness probe on `/health` lies. Lab 17 owns the fix; keep it in mind earlier. | → lab 17 |
+| CF-015 | 2026-10-19 | lab 02 decision | Replay loading costs N domain calls per read, and a row written under an older rule can refuse to replay at all. Watch it in labs 05 and 06 (bulk, 1M rows) and decide then whether a `Payment.Rehydrate(...)` factory earns its place. | Open |
+| CF-016 | 2026-10-19 | lab 02 step 9 | The test fixture repeats `RepoRoot()` and the DbUp builder from `src/Payments.Db/Program.cs`. Third copy and it needs lifting — same shape as `CF-009`. | Open |
+| CF-017 | 2026-10-19 | lab 02 prep | `db/README.md` gave `PaymentOperation` a `Result` and an `ErrorCode` column, but the lab 01 domain only records operations that **succeeded**, so both would always say `Ok`. Lab 02 leaves them out. Decide in lab 14 (audit) whether refused attempts get rows of their own, and where — `PaymentOperation` or an audit table. | Open |
+| CF-018 | 2026-10-19 | lab 02 prep | Lab 02 names the error code `amount_exceeds_captured`, derived straight from `PaymentErrorCode.AmountExceedsCaptured`. Labs 04, 07, 08, 09 and 18 were written earlier with `refund_exceeds_captured`. Lab 02's name wins (it is mechanical, with no hand-kept mapping); align each of those labs when its own bench sheet is written. | Open |
 
 ## Fix later
 
@@ -67,6 +71,7 @@ Labs, tools or experiments. Cheap to write down, no promise to build.
 | CF-007 | 2026-10-18 | PLAN §8 | Aperio has **no time limit for a whole agent turn** — the step cap of 6 is the only bound. Own this gap: add a turn deadline in Lab 09 or 16 and talk about it. | Open |
 | CF-008 | 2026-10-18 | db/README | A `seed --size large` of 1M rows is planned for Lab 05. Check it does not make the Docker volume painful on this Mac before relying on it in Lab 06. | Open |
 | CF-009 | 2026-10-18 | lab 00 step 6 | Practice exercise once there are 3+ projects: lift Lab 01's `Result<TValue, TError>` into a shared project and make `Payments.Db` return it instead of an exit code — a refactor across layers, done with the tests already green. | Open |
+| CF-014 | 2026-10-19 | lab 02 prep | Move `MerchantId` into the `Payment` aggregate, once a rule actually needs it (per-merchant refund limits, per-merchant currency). Today it lives only in the database and the API. Could be a small lab of its own: a domain change driven by a new rule, with 160 green tests as the net. | Open |
 
 ---
 

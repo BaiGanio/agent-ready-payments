@@ -14,7 +14,7 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 | `docs/plan/SPEC.md` | inputs and limits |
 | `docs/plan/CARRY-FORWARD.md` | the inbox: findings, fix-later, questions, ideas |
 | `docs/aperio/` | the Aperio backbone: map, tour, talking points, agent-ready notes |
-| `labs/NN-…/` | three files per lab: `README.md`, `WORKBENCH.md`, `QA.md` |
+| `labs/NN-…/` | three files per lab: `README.md`, `WORKBENCH.md`, `QA.md`. From lab 02 also `TEST-LIST.md`, plus any scaffold (`TDD-NOTES.md`, `STORE-NOTES.md`) |
 | `db/README.md` | the lab database plan |
 
 **The repo root holds two `.md` files only: `README.md` and `CLAUDE.md`.** Every other document lives under `docs/`. A new reference doc goes in `docs/plan/` or `docs/aperio/`, or flat in `docs/` if it is neither, and it gets a row in this table and in the one in `README.md`, in the same commit. Never add a `.md` file to the root.
@@ -38,7 +38,7 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 ## Who writes the code
 
 - **The user writes all lab code — tests included.** This is a learning repo. The code is the evidence. Writing the tests yourself is the learning; reading someone else's tests is not.
-- The agent writes: lab specs (`labs/NN-…/README.md`), `QA.md`, docs, plans, and the **test list** — one line per test name, grouped, with the rule each test must check. The agent does **not** write the test bodies.
+- The agent writes: lab specs (`labs/NN-…/README.md`), `QA.md`, docs, plans, and the **test list** — `labs/NN-…/TEST-LIST.md`: one line per test name, grouped, with the rule each test must check. The agent does **not** write the test bodies.
 - **Exception, Lab 01 only:** the agent wrote the test bodies in `tests/Payments.Domain.Tests/` before this rule changed (2026-10-18). They stay as the worked example of what good test code looks like. From Lab 02 the user writes the tests.
 - The agent writes implementation code **only when the user asks for it**, for that one task. The permission ends with the task.
 - When the user is stuck: give a hint first, then a small snippet, then the full answer. Go one step at a time.

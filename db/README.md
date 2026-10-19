@@ -37,7 +37,7 @@ erDiagram
     Payment {
         uuid Id PK
         uuid MerchantId FK
-        string Status "Authorised|Captured|PartiallyRefunded|Refunded|Voided|Declined"
+        string Status "Created|Authorised|Declined|Voided|PartiallyCaptured|Captured|PartiallyRefunded|Refunded"
         string Currency "ISO 4217"
         decimal AuthorisedAmount
         decimal CapturedAmount
@@ -52,8 +52,6 @@ erDiagram
         uuid PaymentId FK
         string Type "Authorise|Capture|Void|Refund"
         decimal Amount
-        string Result "Ok|Rejected"
-        string ErrorCode
         datetime CreatedUtc
     }
     IdempotencyKey {
@@ -146,8 +144,8 @@ erDiagram
 |---|---|---|
 | 00 | both | Empty databases + the migration runner. No tables yet. |
 | 01 | — | Nothing. The domain is pure; no database. |
-| 02 | Postgres | `Merchant`, `Payment`, `PaymentOperation` |
-| 03 | Postgres | `IdempotencyKey` + unique index `(MerchantId, IdempotencyKey)` on `Payment` |
+| 02 | Postgres | `merchant`, `payment`, `payment_operation` + the index `(merchant_id, created_at desc, id desc)` for keyset paging |
+| 03 | Postgres | `idempotency_key` + unique index `(merchant_id, idempotency_key)` on `payment` |
 | 04 | SQL Server | Same three tables (lockstep) + `RowVer`, `usp_CapturePayment`, `usp_ClaimNextBatch`; RCSI switched on |
 | 05 | SQL Server | `StagingSettlementFile` (a heap for `SqlBulkCopy`) + a TVP type |
 | 06 | SQL Server | `SettlementBatch`, `SettlementItem`, `SettlementPoison` |
@@ -158,6 +156,20 @@ erDiagram
 | 14 | Postgres | Nothing new. It uses `AgentAudit.TraceId` from Lab 08. |
 | 15 | Postgres | `ToolResult` (offloaded big results: id, run id, tool, content, created) |
 | 16 | Postgres | `AgentStep` gets `Status` (`Planned/Started/Completed/Failed/InDoubt`), `IdempotencyKey`, `StartedUtc`; `AgentRun` gets `NextWakeUtc` and `ToolSchemaHash` |
+
+## Naming: `snake_case` in Postgres, `PascalCase` in SQL Server
+
+Decided 2026-10-19 (`plan/PLAN.md` §8). Postgres folds an unquoted identifier to lower case, so `PascalCase` there means `"quotes"` on every line of SQL forever. SQL Server has no such habit and keeps `PascalCase`.
+
+So the **lockstep rule is about columns, types and rules — not about spelling**. `payment.captured_amount numeric(19,4)` in Postgres and `Payment.CapturedAmount decimal(19,4)` in SQL Server are the same column. The diagram above uses `PascalCase` for readability; the Postgres scripts are the truth for Postgres.
+
+Dapper bridges it with one alias per column, written in the query that depends on it:
+
+```sql
+select created_at as "CreatedAt", captured_amount as "CapturedAmount" from payment
+```
+
+The global switch `DefaultTypeMap.MatchNamesWithUnderscores = true` also works, and is rejected on purpose: it changes how every query in the process maps, from one line far away that nobody reads.
 
 ## Migrations: DbUp
 

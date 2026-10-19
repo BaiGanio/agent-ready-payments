@@ -58,6 +58,7 @@ In short: strong backend fundamentals, plus knowing what changes when the caller
 | [`docs/PROGRESS.md`](docs/PROGRESS.md) | the status board, one row per lab | first, every session |
 | [`docs/EVERYDAY-COMMANDS.md`](docs/EVERYDAY-COMMANDS.md) | every command you need | whenever you forget one |
 | [`labs/NN-…/WORKBENCH.md`](labs) | the bench sheet you work through | while you work |
+| [`labs/NN-…/TEST-LIST.md`](labs) | the test names and the rule each one checks — you write the bodies | from lab 02 on, while you work |
 | [`docs/plan/PLAN.md`](docs/plan/PLAN.md) | the decisions (§7 open, §8 decided) | before you start a lab |
 | [`docs/plan/CARRY-FORWARD.md`](docs/plan/CARRY-FORWARD.md) | the inbox: findings, ideas, fix-later | start and end of a lab |
 | [`docs/plan/SPEC.md`](docs/plan/SPEC.md) | the inputs and limits this plan came from | rarely |

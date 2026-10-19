@@ -11,8 +11,8 @@ A: Same input + same state → same output, every time. Concretely: explicit typ
 A: An agent reads your schema and your error text to decide what to do next. Vague errors make it guess. Hidden state makes its plan wrong. A deterministic API lets the agent recover from errors by reading a code, not by trial and error.
 
 **Q3. How do you return errors?**
-A: RFC 9457 **ProblemDetails** (`application/problem+json`) with a stable `type` URI and a machine code extension, e.g. `"code": "refund_exceeds_captured"`. Status codes: 400 bad shape, 404 unknown id, 409 illegal state transition, 422 business rule failed.
-Trap: "409 or 422 for refund too large?" → Pick one rule and document it. I use 409 for state conflicts and 422 for valid-shape-but-rule-failed input. Consistency matters more than the choice.
+A: RFC 9457 **ProblemDetails** (`application/problem+json`) with a stable `type` URI and a machine code extension, e.g. `"code": "amount_exceeds_captured"`. Status codes: 400 bad shape, 404 unknown id, 409 illegal state transition, 422 business rule failed.
+Trap: "409 or 422 for refund too large?" → Pick one rule and document it. Mine: **409 is "not now"** (the state forbids it, the same body may work later), **422 is "not like that"** (the shape is fine, the number is wrong). A refund that is too large is 422. Consistency matters more than the choice. In my lab the `type` is a URN — `urn:payments-labs:error:amount_exceeds_captured` — because RFC 9457 wants a URI but a made-up `https://` domain that serves nothing is worse than saying so.
 
 **Q4. Why not return exceptions' messages?**
 A: They leak internals, change between versions and are not stable. The `code` is the contract; the `detail` is for humans.

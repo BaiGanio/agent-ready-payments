@@ -144,6 +144,46 @@ The debug run loads `.env`, so `MSSQL_SA_PASSWORD` is there. Start the databases
 
 ---
 
+## The API (from lab 02)
+
+| I want to | Command |
+|---|---|
+| Run the API | `dotnet run --project src/Payments.Api --urls http://localhost:5080` |
+| Is it alive? | `curl -i http://localhost:5080/health` |
+| Create a payment | `curl -i -X POST http://localhost:5080/payments -H 'Content-Type: application/json' -d '{"merchantId":"11111111-1111-1111-1111-111111111111","amount":100.00,"currency":"EUR"}'` |
+| Read one payment | `curl -s http://localhost:5080/payments/<id> \| python3 -m json.tool` |
+| Authorise / void it | `curl -i -X POST http://localhost:5080/payments/<id>/authorise` |
+| Capture or refund part of it | `curl -i -X POST http://localhost:5080/payments/<id>/capture -H 'Content-Type: application/json' -d '{"amount":40.00,"currency":"EUR"}'` |
+| List a merchant's payments | `curl -s 'http://localhost:5080/payments?merchant=11111111-1111-1111-1111-111111111111&limit=5' \| python3 -m json.tool` |
+| See the headers only | add `-I`, or keep `-i` to get headers **and** body |
+| Pretty-print any response | pipe it to `python3 -m json.tool` |
+
+`-i` prints the status line and the headers with the body. That matters here: this lab's whole point is the status code, so a body alone is half the answer.
+
+A failure body is `application/problem+json` and always carries a `code`. Read that field, not the English:
+
+```bash
+curl -s -X POST http://localhost:5080/payments/<id>/refund \
+  -H 'Content-Type: application/json' -d '{"amount":9999.00,"currency":"EUR"}' \
+  | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["status"], d["code"])'
+```
+
+---
+
+## Integration tests with containers (from lab 02)
+
+| I want to | Command |
+|---|---|
+| Run only the API tests | `dotnet test tests/Payments.Api.Tests` |
+| Run one group | `dotnet test tests/Payments.Api.Tests --filter "RefundTests"` |
+| See the throwaway containers while tests run | `docker ps` |
+| Kill a container a crashed test left behind | `docker rm -f <container id>` |
+| Check what Docker socket the library will find | `docker context ls` |
+
+The first run pulls `pgvector/pgvector:pg17` and takes about a minute. Later runs are seconds, because the image is cached. Testcontainers removes its own containers; if a fixture crashes before cleanup, its Ryuk reaper clears them within minutes, and `docker rm -f` is the impatient version.
+
+---
+
 ## Git (Gitflow)
 
 You run every git command. The agent never commits, merges, pushes or tags.
