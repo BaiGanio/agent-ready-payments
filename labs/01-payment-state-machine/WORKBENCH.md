@@ -483,6 +483,8 @@ feat(lab-01): add AllowedActions and the remaining amounts
 
 ## Step 12 — Refactor, with the tests green
 
+> **Skipped on 2026-10-19 and carried forward as CF-013.** Lab 01 closes green at step 11. Do this refactor in a later lab, where a second aggregate shares the same rule and the duplication is worth removing. Read the step anyway — the argument for the third TDD beat is the lesson.
+
 **Goal.** The five methods share one transition check, and `dotnet test` is still 160 green.
 
 **Why.** This is the third beat of TDD, and the one people skip. Right now the legal-move rule is written twice — once in each method's first `if`, and once in `AllowedActions` — so the two can drift. Moving both onto one table makes the rule exist in exactly one place, which is the whole argument against `bool` flags in the first place. Do it only now, because green tests are what makes a refactor safe: if anything turns red, the last edit did it.
