@@ -18,16 +18,16 @@ public class AuthoriseTests
     }
 
     [Fact]
-    public void Create_refuses_an_empty_id()
+    public void An_empty_id_is_refused()
     {
-        Assert.Throws<ArgumentException>(() => Payment.Create("  ", TestData.Eur100, new FixedClock()));
+        Assert.Throws<ArgumentException>(() => Payment.Create(Guid.Empty, TestData.Eur100, new FixedClock()));
     }
 
     [Fact]
     public void Create_refuses_a_zero_amount()
     {
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => Payment.Create("pay_1", Money.Zero(TestData.Eur), new FixedClock()));
+            () => Payment.Create(Guid.NewGuid(), Money.Zero(TestData.Eur), new FixedClock()));
     }
 
     [Fact]

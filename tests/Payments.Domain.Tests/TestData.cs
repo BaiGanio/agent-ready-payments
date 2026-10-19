@@ -12,7 +12,7 @@ public static class TestData
 
     /// <summary>A brand new payment of EUR 100, status <c>Created</c>.</summary>
     public static Payment NewPayment(TimeProvider? clock = null) =>
-        Payment.Create("pay_1", Eur100, clock ?? new FixedClock());
+        Payment.Create(Guid.NewGuid(), Eur100, clock ?? new FixedClock());
 
     /// <summary>An authorised payment of EUR 100.</summary>
     public static Payment Authorised(TimeProvider? clock = null)
