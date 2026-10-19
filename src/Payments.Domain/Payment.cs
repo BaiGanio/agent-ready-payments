@@ -104,7 +104,16 @@ public sealed class Payment
         return Ok();
     }
 
-    public Result<Payment, PaymentError> Void() => throw new NotImplementedException();
+    public Result<Payment, PaymentError> Void()
+    {
+        if(Status != PaymentStatus.Authorised)
+             return Fail(PaymentErrorCode.IllegalTransition, $"Cannot void a payment that is {Status}");
+
+        Record(PaymentAction.Void, Amount);
+        Status = PaymentStatus.Voided;
+
+        return Ok();
+    }
 
     public Result<Payment, PaymentError> Refund(Money amount) => throw new NotImplementedException();
 
