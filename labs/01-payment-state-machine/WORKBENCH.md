@@ -313,9 +313,11 @@ public sealed class Payment
         //       CreatedAt = clock.GetUtcNow()
 
     public IReadOnlyList<PaymentOperation> Operations => _operations.AsReadOnly();
-    //       AsReadOnly() returns a wrapper that is NOT an ICollection<T>, which is
-    //       exactly what The_history_cannot_be_changed_from_outside checks.
+    //       AsReadOnly() wraps the list so Add and Remove throw NotSupportedException,
+    //       which is what The_history_cannot_be_changed_from_outside checks.
     //       Returning _operations directly passes every other test and fails that one.
+    //       The wrapper IS still an ICollection<T> — ReadOnlyCollection<T> implements
+    //       IList<T>. It refuses at run time, not at compile time.
 
     // TODO: Authorise() : only from Created. Append one Authorise operation for the
     //       full Amount, stamped with _clock.GetUtcNow(). Return Ok(this).

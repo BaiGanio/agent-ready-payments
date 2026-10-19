@@ -50,7 +50,10 @@ public class ClockAndHistoryTests
     {
         var payment = TestData.Captured();
 
-        Assert.IsNotAssignableFrom<ICollection<PaymentOperation>>(payment.Operations);
+        var asCollection = Assert.IsAssignableFrom<ICollection<PaymentOperation>>(payment.Operations);
+
+        Assert.True(asCollection.IsReadOnly);
+        Assert.Throws<NotSupportedException>(() => asCollection.Add(payment.Operations[0]));
     }
 
     [Fact]

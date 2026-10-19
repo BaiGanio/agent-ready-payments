@@ -54,6 +54,7 @@ Known debt. Each one needs a lab or a commit, not a discussion.
 | CF-005 | 2026-10-18 | lab 00 | No `global.json`, so the SDK version floats. Add one if a version difference ever bites. | Open |
 | CF-006 | 2026-10-18 | lab 00 | No CI. Nothing checks that `migrate` still runs on a clean machine. Decide later whether this repo gets a workflow at all. | Open |
 | CF-010 | 2026-10-18 | lab 00 build | `dotnet build` warns NU1903: `System.Security.Cryptography.Pkcs` 9.0.11 pulled in by `dbup-sqlserver` has a high severity advisory. Bump or pin the transitive package. | Open |
+| CF-012 | 2026-10-19 | lab 01 step 11 | `The_history_cannot_be_changed_from_outside` asserted `Operations` is not an `ICollection<T>`, which no BCL wrapper satisfies — `ReadOnlyCollection<T>` implements `IList<T>`. Test now asserts `IsReadOnly` and that `Add` throws. `README.md` and `WORKBENCH.md` corrected in the same commit. | Open |
 | CF-011 | 2026-10-18 | lab 01 setup | Lab 01 adds `global.json` (SDK pin + `test.runner` = Microsoft.Testing.Platform), because `dotnet test` on .NET 10 refuses the old VSTest host. That is what `CF-003` and `CF-005` asked for, so both can close. | Open |
 
 ## Ideas for later
