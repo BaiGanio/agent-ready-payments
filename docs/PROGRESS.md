@@ -70,7 +70,7 @@ Left for you:
 
 - [ ] `global.json`: SDK pin + the Microsoft.Testing.Platform opt-in
 - [ ] `src/Payments.Domain`: `Money`, `Result`, the enums, `PaymentOperation`, `Payment`
-- [ ] 160 tests green, then the Step 12 refactor onto one transition table
+- [x] 160 tests green (the Step 12 refactor onto one transition table is carried forward as CF-013)
 - [ ] The four purity greps in `README.md` → "Done when"
 - [ ] `TDD-NOTES.md` filled in
 - [ ] `QA.md` answered out loud, misses marked

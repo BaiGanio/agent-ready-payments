@@ -149,7 +149,7 @@ public sealed class CurrencyMismatchException(string message) : Exception(messag
 | `Money RefundableRemaining` | `CapturedTotal - RefundedTotal` while refund is allowed, else zero |
 | `string? DeclineReason` | set by `Decline`, else `null` |
 | `DateTimeOffset CreatedAt` | from the clock |
-| `IReadOnlyList<PaymentOperation> Operations` | in the order things happened; the returned object must **not** be castable to `ICollection<PaymentOperation>` |
+| `IReadOnlyList<PaymentOperation> Operations` | in the order things happened; the returned object must **refuse** `Add` and `Remove` (`IsReadOnly` is true, mutation throws `NotSupportedException`) |
 | `IReadOnlyCollection<PaymentAction> AllowedActions` | what is legal right now; empty on `Declined`, `Voided`, `Refunded` |
 | `Authorise()`, `Decline(string reason)`, `Capture(Money)`, `Void()`, `Refund(Money)` | all return `Result<Payment, PaymentError>`; on success the value is the **same** instance |
 
