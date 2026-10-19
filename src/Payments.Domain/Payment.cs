@@ -76,11 +76,26 @@ public sealed class Payment
 
     // ---- steps 8 to 11: stubs, so the test project compiles ----
 
-    public Money CapturableRemaining => Amount - CapturedTotal;
+    public Money CapturableRemaining 
+        => AllowedActions.Contains(PaymentAction.Capture)
+        ? Amount - CapturedTotal
+        : Money.Zero(Amount.Currency);
 
-    public Money RefundableRemaining => CapturedTotal - RefundedTotal;
+    public Money RefundableRemaining 
+        => AllowedActions.Contains(PaymentAction.Refund)
+        ? CapturedTotal - RefundedTotal
+        : Money.Zero(Amount.Currency);
 
-    public IReadOnlyCollection<PaymentAction> AllowedActions => throw new NotImplementedException();
+    /// <summary>What an agent may do next. Derived from the status, so it can never drift.</summary>
+    public IReadOnlyCollection<PaymentAction> AllowedActions => Status switch
+    {
+        PaymentStatus.Created => [PaymentAction.Authorise, PaymentAction.Decline],
+        PaymentStatus.Authorised => [PaymentAction.Capture, PaymentAction.Void],
+        PaymentStatus.PartiallyCaptured => [PaymentAction.Capture, PaymentAction.Refund],
+        PaymentStatus.Captured => [PaymentAction.Refund],
+        PaymentStatus.PartiallyRefunded => [PaymentAction.Refund],
+        PaymentStatus.Declined or PaymentStatus.Voided or PaymentStatus.Refunded => [],
+    };
 
     public Result<Payment, PaymentError> Capture(Money amount)
     {
