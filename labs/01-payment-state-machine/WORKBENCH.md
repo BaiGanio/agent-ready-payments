@@ -313,9 +313,11 @@ public sealed class Payment
         //       CreatedAt = clock.GetUtcNow()
 
     public IReadOnlyList<PaymentOperation> Operations => _operations.AsReadOnly();
-    //       AsReadOnly() returns a wrapper that is NOT an ICollection<T>, which is
-    //       exactly what The_history_cannot_be_changed_from_outside checks.
+    //       AsReadOnly() wraps the list so Add and Remove throw NotSupportedException,
+    //       which is what The_history_cannot_be_changed_from_outside checks.
     //       Returning _operations directly passes every other test and fails that one.
+    //       The wrapper IS still an ICollection<T> — ReadOnlyCollection<T> implements
+    //       IList<T>. It refuses at run time, not at compile time.
 
     // TODO: Authorise() : only from Created. Append one Authorise operation for the
     //       full Amount, stamped with _clock.GetUtcNow(). Return Ok(this).
@@ -480,6 +482,8 @@ feat(lab-01): add AllowedActions and the remaining amounts
 ---
 
 ## Step 12 — Refactor, with the tests green
+
+> **Skipped on 2026-10-19 and carried forward as CF-013.** Lab 01 closes green at step 11. Do this refactor in a later lab, where a second aggregate shares the same rule and the duplication is worth removing. Read the step anyway — the argument for the third TDD beat is the lesson.
 
 **Goal.** The five methods share one transition check, and `dotnet test` is still 160 green.
 
