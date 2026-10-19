@@ -39,16 +39,20 @@ grep -E '^\*\*Q' labs/NN-short-name/QA.md
 
 ---
 
-## Step 1 — <short title>
+## Step 1 — <short title: start the lab>
 
 **Goal.** One line. What exists when this step is done.
 
-**Why.** 3–4 sentences. What we accomplish, and why it is done this way and not another way. Name the thing that goes wrong if you skip it. This is the part that teaches; never shorten it to one line.
+**Why.** 3–4 sentences. What we accomplish, and why it is done this way and not another way. Name the thing that goes wrong if you skip it. This is the part that teaches; never shorten it to one line. When this step cuts the feature branch, say why the back-merge comes first: a branch cut from a stale `develop` is missing whatever already landed on `main`.
 
-**Do.**
+**Do.** The first step of every lab back-merges before it branches.
 
 ```bash
-# exact commands
+git checkout develop
+git merge main                       # the back-merge: develop must not be behind main
+git log --oneline develop..main      # must print nothing
+git checkout -b feature/lab-NN-short-name
+# then the rest of this step's exact commands
 ```
 
 **Proof.** The command or output that shows it worked.

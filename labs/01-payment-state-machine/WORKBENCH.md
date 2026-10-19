@@ -54,12 +54,14 @@ grep -E '^\*\*Q' labs/01-payment-state-machine/QA.md
 
 **Goal.** You are on `feature/lab-01-state-machine`, and `global.json` exists.
 
-**Why.** One feature branch per lab is the Gitflow rule this repo demonstrates, and it keeps the 15 commits of this lab readable as one unit. `global.json` does two jobs at once: it pins the SDK so the labs behave the same in six months, and it turns on the new test runner. .NET 10 dropped the old VSTest host, and xUnit v3 test projects are plain executables that run on **Microsoft.Testing.Platform**. Without the `test` block, `dotnet test` stops with "Testing with VSTest target is no longer supported".
+**Why.** First bring `develop` level with `main`, then branch. Anything that landed on `main` — the Lab 00 merge commit, a doc fix, a hotfix — is not on `develop` until you merge it back, so a branch cut from a stale `develop` starts life missing part of the history and fights over those same commits when it merges. One feature branch per lab is the Gitflow rule this repo demonstrates, and it keeps the 15 commits of this lab readable as one unit. `global.json` does two jobs at once: it pins the SDK so the labs behave the same in six months, and it turns on the new test runner. .NET 10 dropped the old VSTest host, and xUnit v3 test projects are plain executables that run on **Microsoft.Testing.Platform**. Without the `test` block, `dotnet test` stops with "Testing with VSTest target is no longer supported".
 
 **Do.**
 
 ```bash
 git checkout develop
+git merge main                       # the back-merge: develop must not be behind main
+git log --oneline develop..main      # must print nothing
 git checkout -b feature/lab-01-state-machine
 ```
 
@@ -82,8 +84,9 @@ Create `global.json` at the repo root:
 **Proof.**
 
 ```bash
-git branch --show-current     # feature/lab-01-state-machine
-dotnet --version              # 10.0.401
+git log --oneline develop..main   # empty: develop is level with main
+git branch --show-current         # feature/lab-01-state-machine
+dotnet --version                  # 10.0.401
 ```
 
 **Commit.** Stage `global.json`.
@@ -646,6 +649,7 @@ The merges are the record of the rest of this step.
 | `DateTimeOffset.UtcNow` in the domain | Clock tests fail, or pass only on a fast machine | Take the time from the injected `TimeProvider` |
 | 8 tests pass at Step 3 | Looks like free progress | They are the allowed pairs of `A_refused_move_changes_nothing`, which returns early. A test that asserts nothing is not a passing test |
 | Lab work committed straight to `main` | `develop` is behind, and the next feature branch starts from a stale base | Commit lab work on `feature/lab-01-state-machine`. If it already landed on `main`, fast-forward `develop`: `git checkout develop && git merge --ff-only main` |
+| Branched from a stale `develop` | `git log --oneline develop..main` printed commits before you branched, so your feature branch misses part of `main` | Back-merge first: `git checkout develop && git merge main`, then cut the branch |
 | The back-merge skipped at the end | `git log --oneline develop..main` is not empty, so `develop` is behind `main` | `git checkout develop && git merge main`. Do it every lab |
 | Editing a test to make it pass | The lab is pointless, and the interview answer becomes a lie | Never. If a test looks wrong, ask — `CLAUDE.md` says the agent must ask before changing a test |
 | `NU1903` warnings during `dotnet test` | A transitive package in `Payments.Db` has an advisory. Not this lab's problem | It is `CF-010` in the inbox. Do not widen Lab 01 to fix it |
