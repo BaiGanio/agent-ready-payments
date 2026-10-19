@@ -75,7 +75,38 @@ public sealed class Payment
         return Ok();
     }
 
+    // ---- steps 8 to 11: stubs, so the test project compiles ----
 
+    public Money CapturableRemaining => Amount - CapturedTotal;
+
+    public Money RefundableRemaining => throw new NotImplementedException();
+
+    public IReadOnlyCollection<PaymentAction> AllowedActions => throw new NotImplementedException();
+
+    public Result<Payment, PaymentError> Capture(Money amount)
+    {
+        if(Status != PaymentStatus.Authorised && Status != PaymentStatus.PartiallyCaptured)
+            return Fail(PaymentErrorCode.IllegalTransition, $"Cannot capture a payment that is {Status}");
+
+        if(amount.Currency != Amount.Currency)
+            return Fail(PaymentErrorCode.CurrencyMismatch, $"Cannot mix {amount.Currency} and {Amount.Currency}");
+
+        if(amount.IsZero)
+            return Fail(PaymentErrorCode.AmountNotPositive, $"Cannot capture non positive amount {amount.Amount}");
+
+        if(amount > CapturableRemaining)
+            return Fail(PaymentErrorCode.AmountExceedsAuthorised,$"Cannot capture {amount.Amount} when only {CapturableRemaining.Amount} is left to capture");
+
+        Record(PaymentAction.Capture, amount);
+        CapturedTotal += amount;
+        Status = CapturedTotal == Amount ? PaymentStatus.Captured : PaymentStatus.PartiallyCaptured;       
+
+        return Ok();
+    }
+
+    public Result<Payment, PaymentError> Void() => throw new NotImplementedException();
+
+    public Result<Payment, PaymentError> Refund(Money amount) => throw new NotImplementedException();
 
     // ----- helpers -----
     private void Record(PaymentAction kind, Money amount) 
