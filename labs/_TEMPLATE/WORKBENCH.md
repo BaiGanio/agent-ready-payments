@@ -113,11 +113,13 @@ git checkout -b feature/lab-NN-short-name
 
 **Do.** Run the full Done-when list in `README.md` first. Every step above is already committed, so this step only merges and tags.
 
+Git opens an editor for each `--no-ff` merge message; `--no-edit` keeps git's own default and opens nothing. If vim is on your screen anyway, `:wq` then **Enter** saves and finishes, `:q!` then **Enter** cancels. See [`docs/EVERYDAY-COMMANDS.md`](../../docs/EVERYDAY-COMMANDS.md).
+
 ```bash
 git checkout develop
-git merge --no-ff feature/lab-NN-short-name
+git merge --no-ff --no-edit feature/lab-NN-short-name
 git checkout main
-git merge --no-ff develop
+git merge --no-ff --no-edit develop
 git tag lab-NN
 git checkout develop
 git merge main                 # the back-merge. Without it develop is behind main

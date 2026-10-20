@@ -206,19 +206,43 @@ You run every git command. The agent never commits, merges, pushes or tags.
 | Delete a merged feature branch | `git branch -d feature/lab-NN-short-name` |
 | Go to the end of a finished lab | `git checkout lab-NN` (then `git checkout develop` to come back) |
 | Finish a lab | see the "Close the lab" step in that lab's `WORKBENCH.md` |
+| Get out of vim when git opens it | `:wq` then **Enter** to save, or `:q!` then **Enter** to cancel |
+| Stop git opening an editor at all | add `--no-edit` to the merge, or set a kinder editor once (below) |
 
 Closing a lab, in full:
 
 ```bash
 git checkout develop
-git merge --no-ff feature/lab-NN-short-name
+git merge --no-ff --no-edit feature/lab-NN-short-name
 git checkout main
-git merge --no-ff develop
+git merge --no-ff --no-edit develop
 git tag lab-NN
 git checkout develop
 git merge main                 # the back-merge
 git branch -d feature/lab-NN-short-name
 ```
+
+### The editor that opens on a merge
+
+`git merge --no-ff` wants a commit message, so it opens your editor. Out of the box that is **vim**, which is a dark screen full of `~` and no way out that it tells you about. Two ways to never meet it:
+
+- **`--no-edit`** on the merge, as above. Git keeps its own default message — `Merge branch 'feature/…' into develop` — which is exactly what you want for a lab merge. Nothing opens.
+- **A kinder editor**, set once, for every git command that needs one:
+
+```bash
+git config --global core.editor "nano"
+```
+
+Nano lists its keys at the bottom of the screen: `Ctrl+O` then **Enter** saves, `Ctrl+X` exits.
+
+If vim is already on your screen right now, the default message on line 1 is already correct:
+
+| You want | Type | Then |
+|---|---|---|
+| Keep the message and finish the merge | `:wq` | **Enter** |
+| Cancel — an empty message aborts the commit | `:q!` | **Enter** |
+
+`:` opens vim's command line at the bottom, `w` writes, `q` quits, `!` means "even though I changed nothing".
 
 **The back-merge is not optional.** Merging `develop` into `main` makes a merge commit that lives only on `main`, so `develop` is behind from that second on. The next feature branch would then start from a base missing `main`'s history, and a hotfix made on `main` would never reach `develop` at all. Check with `git log --oneline develop..main` — empty means level.
 

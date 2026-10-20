@@ -1129,12 +1129,14 @@ Two answers must come out without a pause, because they are this lab's claim: **
 
 **Do.** Run the full Done-when list in `README.md` first. Then move every line from **Notes while you work** below into `docs/plan/CARRY-FORWARD.md` as a `CF-NNN` row with the date, and groom the inbox. Set the lab 02 row in `docs/PROGRESS.md` to `Done` with the tag. Then:
 
+Git opens an editor for each `--no-ff` merge message; `--no-edit` keeps git's own default and opens nothing. If vim is on your screen anyway, `:wq` then **Enter** saves and finishes, `:q!` then **Enter** cancels. See [`docs/EVERYDAY-COMMANDS.md`](../../docs/EVERYDAY-COMMANDS.md).
+
 ```bash
 git status --short      # must be empty
 git checkout develop
-git merge --no-ff feature/lab-02-minimal-api-dapper
+git merge --no-ff --no-edit feature/lab-02-minimal-api-dapper
 git checkout main
-git merge --no-ff develop
+git merge --no-ff --no-edit develop
 git tag lab-02
 git checkout develop
 git merge main          # the back-merge. Without it develop is behind main
