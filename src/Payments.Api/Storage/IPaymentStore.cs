@@ -10,7 +10,7 @@ public interface IPaymentStore
 
     Task InsertAsync(Payment payment, Guid merchantId, CancellationToken ct);
 
-    co(Payment payment, int persistedOperationCount, CancellationToken ct);
+    Task UpdateAsync(Payment payment, int persistedOperationCount, CancellationToken ct);
 }
 
 public sealed record Loaded(

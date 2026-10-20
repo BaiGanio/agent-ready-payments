@@ -40,7 +40,7 @@ flowchart TB
     EP -->|"bad shape"| VAL
     EP -->|"valid"| CMD
     EP -->|"reads"| QRY
-    CMD -->|"load and save"| ST
+    CMD -->|"load and update"| ST
     CMD -->|"calls the rules"| AGG
     CMD -->|"Fail(error)"| MAP
     ST -.->|"one of two"| DAP
@@ -379,7 +379,7 @@ Write `src/Payments.Api/Storage/IPaymentStore.cs`:
 // TODO: Task<Guid?> FindMerchantAsync(Guid merchantId, CancellationToken ct);
 // TODO: Task<Loaded?> LoadAsync(Guid paymentId, CancellationToken ct);
 // TODO: Task InsertAsync(Payment payment, Guid merchantId, CancellationToken ct);
-// TODO: Task SaveAsync(Payment payment, int persistedOperationCount, CancellationToken ct);
+// TODO: Task UpdateAsync(Payment payment, int persistedOperationCount, CancellationToken ct);
 //
 // TODO: public sealed record Loaded(Payment Payment, Guid MerchantId,
 //                                   int OperationCount, DateTimeOffset UpdatedAt);
@@ -399,7 +399,7 @@ feat(lab-02): add the request, DTO and store contracts
 
 ## Step 7 — The Dapper store: write and replay
 
-**Goal.** `DapperPaymentStore` inserts a payment, loads it back by replaying its operations, and saves new operations in one transaction.
+**Goal.** `DapperPaymentStore` inserts a payment, loads it back by replaying its operations, and updates it in one transaction with only the new operations.
 
 **Why.** This is the heaviest step, and the most interesting one. The aggregate can only be built by `Payment.Create`, so a half-captured payment is rebuilt by replaying its operation rows through the real `Capture` and `Refund` methods — the state machine stays the single source of truth, and every read re-proves it. That needs the stored timestamps back, so a tiny `ReplayClock` hands them out in order; this is what the injected `TimeProvider` was for in lab 01, cashed in. The replay is then checked against the stored `status` column, and a disagreement throws: that column is a cache, and a cache you never verify is just a lie waiting. The cost is real — N method calls per read, and a row written under an older rule can refuse to replay. That is `CF-015`, taken on purpose.
 
@@ -423,7 +423,7 @@ sequenceDiagram
     S-->>H: Loaded(payment, merchantId, N, updatedAt)
     H->>A: Refund(money)
     A-->>H: Ok or Fail
-    H->>S: SaveAsync(payment, persistedOperationCount = N)
+    H->>S: UpdateAsync(payment, persistedOperationCount = N)
     S->>PG: BEGIN
     S->>PG: UPDATE payment SET status, captured_amount,<br/>refunded_amount, updated_at WHERE id = @Id
     S->>PG: INSERT the operations from index N on
@@ -471,7 +471,7 @@ Write `src/Payments.Api/Storage/DapperPaymentStore.cs`:
 //       6. if (payment.Status.ToString() != row.Status) throw
 //       7. return new Loaded(payment, row.MerchantId, operations.Count, row.UpdatedAt)
 //
-// TODO: SaveAsync(payment, persistedOperationCount): one transaction.
+// TODO: UpdateAsync(payment, persistedOperationCount): one transaction.
 //       1. update payment set status=@Status, captured_amount=@Captured,
 //          refunded_amount=@Refunded, decline_reason=@Reason, updated_at=@Now
 //          where id=@Id
@@ -660,7 +660,7 @@ test(lab-02): add create, get and validation tests
 
 **Goal.** `POST /payments/{id}/authorise` and `/void` work, and their tests are green.
 
-**Why.** These two are the cheapest commands — no body, no amount, no money rules — so they isolate one thing: the handler shape that every command shares. Load, act, map the failure, save, return the DTO. Void is also the first genuine `409`: voiding a captured payment is not a bad request and not a server fault, it is a legal request at the wrong time, and the same body would have worked a minute earlier. Getting the handler shape right here means capture and refund are a copy with one line changed.
+**Why.** These two are the cheapest commands — no body, no amount, no money rules — so they isolate one thing: the handler shape that every command shares. Load, act, map the failure, update, return the DTO. Void is also the first genuine `409`: voiding a captured payment is not a bad request and not a server fault, it is a legal request at the wrong time, and the same body would have worked a minute earlier. Getting the handler shape right here means capture and refund are a copy with one line changed.
 
 **Do.** In `PaymentEndpoints.cs`:
 
@@ -669,7 +669,7 @@ test(lab-02): add create, get and validation tests
 //   1. var loaded = await store.LoadAsync(id, ct); null -> 404 payment_not_found
 //   2. var result = loaded.Payment.Authorise();
 //   3. result.IsFailure -> ProblemMapper.ToProblem(result.Error, http)
-//   4. await store.SaveAsync(loaded.Payment, loaded.OperationCount, ct);
+//   4. await store.UpdateAsync(loaded.Payment, loaded.OperationCount, ct);
 //   5. Results.Ok(PaymentDto.From(…))
 //
 // TODO: group.MapPost("/{id:guid}/void", …)  — the same five lines, calling Void()
@@ -911,9 +911,9 @@ dotnet add src/Payments.Api.EfCore package Npgsql.EntityFrameworkCore.PostgreSQL
 //   is how a schema ends up in two shapes.
 //
 // TODO: class EfCorePaymentStore : IPaymentStore
-//   LoadAsync: ctx.Payments.AsNoTracking()? NO — the save needs tracking.
+//   LoadAsync: ctx.Payments.AsNoTracking()? NO — the update needs tracking.
 //              Include(p => p.Operations) ordered, then the same replay.
-//   SaveAsync: update the tracked row's fields, Add the new operation rows,
+//   UpdateAsync: update the tracked row's fields, Add the new operation rows,
 //              await ctx.SaveChangesAsync(ct);   // one transaction, no BEGIN written by you
 ```
 
@@ -1066,8 +1066,9 @@ The merge commits are the record of the rest of this step.
 | xUnit warning `xUnit1051` on every `await client.GetAsync(...)` | The analyzer wants a cancellation token | Pass `TestContext.Current.CancellationToken`. It is a warning, not an error, but fix it once and the noise is gone |
 | Dapper maps every column to `null` or `0` | Postgres returns `created_at`, your type wants `CreatedAt`, and Dapper matches by name | Alias in the SQL: `select created_at as "CreatedAt"`. The double quotes are needed, or Postgres lower-cases the alias too |
 | `payment_not_found` for an id that is really there | `QueryFirstAsync` on a filtered query that returned nothing throws instead of returning null | Use `QuerySingleOrDefaultAsync` for "zero or one", and let `Single` shout if a duplicate id ever appears |
-| `SaveAsync` inserts nothing | `OperationCount` was read **after** the domain call, so the new operation is already counted | Read the count from `Loaded` before calling the domain method. The handler's order is: load, count, act, save |
-| `SaveAsync` inserts the same operation twice | The count was 0 because the store re-loaded the payment instead of using the loaded one | One load per request. Pass the aggregate down; do not reload to save |
+| A refused command still wrote a row | `UpdateAsync` was called before checking the `Result`, so a `409` or a `422` saved the unchanged aggregate anyway | Only an `Ok` result reaches the store. Return from the failure branch first — `UpdateAsync` is **not** the last line of every handler |
+| `UpdateAsync` inserts nothing | `OperationCount` was read **after** the domain call, so the new operation is already counted | Read the count from `Loaded` before calling the domain method. The handler's order is: load, count, act, update |
+| `UpdateAsync` inserts the same operation twice | The count was 0 because the store re-loaded the payment instead of using the loaded one | One load per request. Pass the aggregate down; do not reload to update |
 | Replay throws `The replay asked for more timestamps` | The stamp list and the operation count do not match: you forgot that `Payment.Create` itself takes one stamp | The list is `[created_at, at1, at2, …]`, so its length is operations + 1 |
 | Replay throws on a legal-looking row | An operation row is out of order, so `Refund` arrives before `Capture` | `order by at, id` — `at` alone can tie when a capture and a refund share a timestamp in a test |
 | The stored status and the replay disagree | A write updated the row but not the operations, or the other way round | Both statements must be in the same transaction. That check is doing its job — do not soften it into a log line |

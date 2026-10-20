@@ -24,7 +24,7 @@ flowchart LR
     H -->|"payment.Refund(money)"| A
     A -->|"Fail(IllegalTransition)"| P409["409 illegal_transition"]
     A -->|"Fail(AmountExceedsCaptured)"| P422["422 amount_exceeds_captured"]
-    A -->|"Ok(payment)"| W["save: one transaction<br/>update row + insert operation"]
+    A -->|"Ok(payment)"| W["update: one transaction<br/>update row + insert operation"]
     W --> S2["Postgres<br/>payment, payment_operation"]
     W -->|"200 with allowedActions"| OK["payment DTO"]
     E -->|"GET /payments?merchant=…"| Q["query service<br/>Dapper to DTO, keyset paging"]
@@ -38,7 +38,7 @@ flowchart LR
 Code sketches: `AGENT-READY-BACKEND.md` §4 (bad vs good endpoint) and §6 (one error shape).
 
 ## EF Core angle (stretch)
-Write a second `IPaymentStore` with EF Core. Run the **same** integration tests against both. You will see where EF saves code (aggregate save) and where Dapper is clearer (hand-written list query).
+Write a second `IPaymentStore` with EF Core. Run the **same** integration tests against both. You will see where EF saves code (aggregate update) and where Dapper is clearer (hand-written list query).
 
 ## API shape
 Minimal API with `MapGroup`. **CQRS-lite:** commands (create, capture, refund) go through the domain; queries (get, list) are Dapper straight to DTOs. Validation starts with .NET 10 built-in validation; FluentValidation comes in Lab 03. See PLAN.md "API shape".
@@ -158,7 +158,7 @@ The split is the rule you must be able to defend: **409 is "not now"** (the stat
 | 1 | `Payment.Id` is a `Guid`; the 160 lab 01 tests are still green | `src/Payments.Domain` |
 | 2 | First migration: `merchant`, `payment`, `payment_operation` + the paging index | `db/postgres/0001_merchant_payment.sql` |
 | 3 | `Payments.Api`: 7 endpoints in one `MapGroup`, ProblemDetails from one mapper | `src/Payments.Api` |
-| 4 | `IPaymentStore` + a Dapper implementation (insert, replay-load, save-in-one-transaction) | `src/Payments.Api/Storage` |
+| 4 | `IPaymentStore` + a Dapper implementation (insert, replay-load, update-in-one-transaction) | `src/Payments.Api/Storage` |
 | 5 | Integration tests against a real Postgres (Testcontainers + DbUp + Respawn + `WebApplicationFactory`) | `tests/Payments.Api.Tests` |
 | 6 | *Stretch A:* `GET /payments` with keyset paging and an opaque cursor | `src/Payments.Api` |
 | 7 | *Stretch B:* a second `IPaymentStore` on EF Core, and the same tests run against both | `src/Payments.Api.EfCore` |
