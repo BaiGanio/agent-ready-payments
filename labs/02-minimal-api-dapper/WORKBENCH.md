@@ -433,17 +433,25 @@ sequenceDiagram
 **Do.** Write `src/Payments.Api/Storage/ReplayClock.cs`:
 
 ```csharp
-// TODO: sealed class ReplayClock(IEnumerable<DateTimeOffset> stamps) : TimeProvider
+// TODO: sealed class ReplayClock(IEnumerable<DateTimeOffset> stamps, TimeProvider afterReplay)
+//       : TimeProvider
 //       a queue of the stored timestamps.
 //       GetUtcNow() dequeues the next one.
-//       empty queue -> throw InvalidOperationException("The replay asked for more
-//       timestamps than the database had"), because that means the replay is out of step.
+//       empty queue -> afterReplay.GetUtcNow()
 ```
+
+The second clock is not optional, and the reason is easy to miss. The queue holds exactly `created_at` plus one stamp per operation, so the replay drains it to empty. The aggregate a command then acts on **is** that replayed one, so `loaded.Payment.Authorise()` asks for one stamp more than the database had. Throw there and every command endpoint dies on its first line. The fallback lets a real `Authorise` stamp with the real now, which is correct — it is happening now.
+
+Write the condition happy-path first: `_stamps.TryDequeue(out var next) ? next : afterReplay.GetUtcNow()`. Invert it by accident and it still compiles, with no warning, because `out var` is assigned either way.
+
+Nothing is lost by not throwing. The guard that catches a corrupt row is the status check in step 4 below, and it is the stronger one: it compares the whole replayed state against the stored column, not just a count of stamps.
 
 Write `src/Payments.Api/Storage/DapperPaymentStore.cs`:
 
 ```csharp
-// TODO: ctor takes the connection string. Open a connection per method:
+// TODO: ctor takes the connection string AND a TimeProvider (the ReplayClock's
+//       fallback). Program.cs already registers TimeProvider.System.
+//       Open a connection per method:
 //       await using var conn = new NpgsqlConnection(_cs);
 //       The Npgsql pool makes that cheap. Never hold one in a field.
 //
@@ -459,7 +467,9 @@ Write `src/Payments.Api/Storage/DapperPaymentStore.cs`:
 //       1. select the payment row. No row -> return null. QuerySingleOrDefaultAsync,
 //          not QueryFirst: two rows with one id would be a bug, and Single says so.
 //       2. select the operation rows, "order by at, id".
-//       3. build the ReplayClock from [created_at, then each at]
+//       3. build the ReplayClock from [created_at, then each at], plus the injected clock
+//          Name the local replayClock, or it shadows the ctor's clock and the fallback
+//          becomes the ReplayClock itself.
 //       4. Payment.Create(id, Money.Of(authorised_amount, currency), clock)
 //       5. foreach row: switch on kind ->
 //            "Authorise" -> payment.Authorise()
@@ -811,6 +821,15 @@ Second, one place that names an engine — in `ApiTestBase`:
 
 There is a `switch` on engine names here, and that is fine — this is wiring, not a test body. Step 18 adds the `"ef"` arm and nothing inside a test changes.
 
+Third, two helpers for the tests that must go behind the store's back — in `ApiTestBase`:
+
+```csharp
+// TODO: protected Task ExecuteSqlAsync(string sql, object? parameters = null)
+//         for arranging rows no store would ever write
+// TODO: protected Task<T> QuerySqlAsync<T>(string sql, object? parameters = null)
+//         for checking what a store really wrote
+```
+
 Now write the four tests. What the replay is doing, and why the timestamps survive:
 
 ```mermaid
@@ -844,7 +863,11 @@ Four notes, one per test:
 dotnet test tests/Payments.Api.Tests --filter "StoreTests"
 ```
 
-**Proof.** All four pass. Then feel the clock: in `DapperPaymentStore.LoadAsync`, replace `new ReplayClock([…])` with `TimeProvider.System`. The round-trip test goes red on `createdAt` with today's date. Put it back. It is the best thirty seconds in this lab.
+**Proof.** All four pass. Then feel the clock: in `DapperPaymentStore.LoadAsync`, replace `new ReplayClock([…], clock)` with `TimeProvider.System`. The round-trip test goes red on `createdAt` with today's date. Put it back. It is the best thirty seconds in this lab.
+
+Then prove the rollback test bites, because a weak version of it passes on a broken store: move `tx.CommitAsync` **above** `InsertOperationsAsync`. The `status` assert goes red with `PartiallyCaptured`, while the row count alone would still have read 1. Put it back.
+
+**This step found a real bug on 2026-10-20**, and it is the one to tell in an interview: `Update_inserts_only_the_new_operations` is the first test that acts on a **loaded** aggregate, and it threw `The replay asked for more timestamps than the database had`. That is the fallback clock above. Four groups of HTTP tests had passed without noticing, because every one of them acted on a freshly created payment.
 
 **Commit.** Stage `tests/Payments.Api.Tests/`.
 
@@ -1156,7 +1179,8 @@ The merge commits are the record of the rest of this step.
 | A refused command still wrote a row | `UpdateAsync` was called before checking the `Result`, so a `409` or a `422` saved the unchanged aggregate anyway | Only an `Ok` result reaches the store. Return from the failure branch first — `UpdateAsync` is **not** the last line of every handler |
 | `UpdateAsync` inserts nothing | `OperationCount` was read **after** the domain call, so the new operation is already counted | Read the count from `Loaded` before calling the domain method. The handler's order is: load, count, act, update |
 | `UpdateAsync` inserts the same operation twice | The count was 0 because the store re-loaded the payment instead of using the loaded one | One load per request. Pass the aggregate down; do not reload to update |
-| Replay throws `The replay asked for more timestamps` | The stamp list and the operation count do not match: you forgot that `Payment.Create` itself takes one stamp | The list is `[created_at, at1, at2, …]`, so its length is operations + 1 |
+| A command on a loaded payment throws `The replay asked for more timestamps` | The stamp queue holds exactly `created_at` plus one per operation, so the replay drains it — and then `loaded.Payment.Authorise()` asks for one more | `ReplayClock` takes a second `TimeProvider` and falls back to it when the queue is empty. The list is still `[created_at, at1, at2, …]`, length operations + 1; what changes is what happens after the last one |
+| `ReplayClock` returns `0001-01-01`, or today | The `TryDequeue` condition is inverted — `!_stamps.TryDequeue(out var next) ? next : …` compiles with no warning, because `out var` is assigned either way | Happy path first: `_stamps.TryDequeue(out var next) ? next : afterReplay.GetUtcNow()`. The round-trip store test catches it on `createdAt` |
 | Replay throws on a legal-looking row | An operation row is out of order, so `Refund` arrives before `Capture` | `order by at, id` — `at` alone can tie when a capture and a refund share a timestamp in a test |
 | The stored status and the replay disagree | A write updated the row but not the operations, or the other way round | Both statements must be in the same transaction. That check is doing its job — do not soften it into a log line |
 | `numeric(19,4)` silently rounds | `0.00005` goes in, `0.0001` comes back, a total is one cent out and no error was raised | Four decimals is the column's promise. Refuse more at the edge, or widen the column on purpose in a new migration |

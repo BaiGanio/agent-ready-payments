@@ -3,7 +3,7 @@ using Npgsql;
 using Payments.Domain;
 
 namespace Payments.Api.Storage;
-public sealed class DapperPaymentStore(string connectionString) : IPaymentStore
+public sealed class DapperPaymentStore(string connectionString, TimeProvider clock) : IPaymentStore
 {
     private const string PaymentColumns = """
     id                as "Id",
@@ -80,11 +80,11 @@ public sealed class DapperPaymentStore(string connectionString) : IPaymentStore
             new { Id = paymentId },
             cancellationToken: ct))).AsList();
 
-        var clock = new ReplayClock([new DateTimeOffset(row.CreatedAt), .. operations.Select(o =>  new DateTimeOffset(o.At))]);
+        var replayClock = new ReplayClock([new DateTimeOffset(row.CreatedAt), .. operations.Select(o =>  new DateTimeOffset(o.At))], clock);
         var payment = Payment.Create(
             row.Id,
             Money.Of(row.AuthorisedAmount, row.Currency),
-            clock);
+            replayClock);
 
         foreach (var operation in operations)
         {

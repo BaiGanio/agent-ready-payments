@@ -26,7 +26,7 @@ Rules:
 |---|---|---|---|---|
 | 00 | [Setup + glossary](../labs/00-setup-and-glossary) | **Done** | `lab-00` | — |
 | 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Done** | `lab-01` | — |
-| 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **In flight** | — | Closing short of the spec: the store and its tests are done, the command endpoints are `CF-021` |
+| 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **Done** | `lab-02` | Closed short of the spec: the store and its tests are done, the command endpoints are `CF-021` |
 | 03 | [Idempotency](../labs/03-idempotency) | Spec only | — | Bench sheet + test list, then the lab |
 | 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | Spec only | — | Bench sheet + test list, then the lab |
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
@@ -70,12 +70,12 @@ Every lab from 02 on needs three files before it can start: `WORKBENCH.md`, the 
 
 Left undone on purpose: the step 12 refactor onto one transition table. It is `CF-013` in the inbox, to be done in a later lab where a second aggregate shares the rule.
 
-## Lab 02 — In flight
+## Lab 02 — Done
 
 Written for you (2026-10-19, step 13b added 2026-10-20):
 
 - [x] `README.md`: the spec — decisions table, HTTP surface, error map, DTO, 12 hard requirements, Done-when
-- [x] `WORKBENCH.md`: 23 steps (core 1–13b, stretch A 14–16, stretch B 17–19), 4 diagrams, 27 traps
+- [x] `WORKBENCH.md`: 23 steps (core 1–13b, stretch A 14–16, stretch B 17–19), 4 diagrams, 28 traps
 - [x] `TEST-LIST.md`: 56 test names in 10 groups, with the rule each one must check
 - [x] `STORE-NOTES.md`: scaffold, empty on purpose
 
@@ -86,12 +86,13 @@ Done by you:
 - [x] Steps 4–8: `src/Payments.Api` — project, `ProblemMapper`, contracts, the Dapper store, create + get
 - [x] Step 9: `tests/Payments.Api.Tests` harness — Testcontainers + DbUp + Respawn + `WebApplicationFactory`
 - [x] Step 10: `CreatePaymentTests` and `GetPaymentTests`, plus the shared helpers in `ApiTestBase`
-- [x] Step 13b: `SteppingClock`, `StoreFor`, and the `StoreTests` group
+- [x] Step 13b: `SteppingClock`, `StoreFor`, the SQL helpers and all four `StoreTests`
+- [x] `ReplayClock` takes a fallback clock — the bug step 13b found, `CF-024`, closed the same day
 
-Left for you:
+Yours to finish, by hand:
 
 - [ ] Step 20: `QA.md` answered out loud, misses marked
-- [ ] Step 21: close the lab — merge, tag `lab-02`, back-merge, delete the branch
+- [ ] Step 21: merge, tag `lab-02`, back-merge `main` into `develop`, delete the branch
 
 Dropped on purpose, each with a carry-forward row:
 

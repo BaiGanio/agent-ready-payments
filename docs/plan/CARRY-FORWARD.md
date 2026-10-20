@@ -86,4 +86,4 @@ Keep the row. The history is the point.
 
 | Id | Raised | Closed | Item | Went to |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| CF-024 | 2026-10-20 | 2026-10-20 | A loaded payment could not be acted on: `ReplayClock`'s queue holds exactly `created_at` plus one stamp per operation, so the replay drained it and the next domain call threw. Every command endpoint would have died on its first line. Found by `StoreTests.Update_inserts_only_the_new_operations`, the first test to act on a loaded aggregate. Fixed the same day: the clock takes a fallback `TimeProvider`. | `plan/PLAN.md` §8, and the lab 02 `WORKBENCH.md` steps 7 and 13b |
