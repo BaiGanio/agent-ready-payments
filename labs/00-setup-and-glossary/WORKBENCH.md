@@ -568,11 +568,13 @@ docs(lab-00): fill the payments glossary
 
 **Do.** Run the full Done-when list in `README.md` first. Every step above is already committed, so nothing is left to commit here. Check that with `git status --short` — it must be empty — then:
 
+Git opens an editor for each `--no-ff` merge message; `--no-edit` keeps git's own default and opens nothing. If vim is on your screen anyway, `:wq` then **Enter** saves and finishes, `:q!` then **Enter** cancels. See [`docs/EVERYDAY-COMMANDS.md`](../../docs/EVERYDAY-COMMANDS.md).
+
 ```bash
 git checkout develop
-git merge --no-ff feature/lab-00-setup
+git merge --no-ff --no-edit feature/lab-00-setup
 git checkout main
-git merge --no-ff develop
+git merge --no-ff --no-edit develop
 git tag lab-00
 git checkout develop
 git merge main          # the back-merge. Without it develop is behind main
