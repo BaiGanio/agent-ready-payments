@@ -143,4 +143,5 @@ public sealed class StoreTests(ApiFixture fixture) : ApiTestBase(fixture)
                 drop function if exists test_block_operation_insert();
                 """);
         }
+    }
 }
