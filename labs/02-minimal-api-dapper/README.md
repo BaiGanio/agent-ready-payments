@@ -24,7 +24,7 @@ flowchart LR
     H -->|"payment.Refund(money)"| A
     A -->|"Fail(IllegalTransition)"| P409["409 illegal_transition"]
     A -->|"Fail(AmountExceedsCaptured)"| P422["422 amount_exceeds_captured"]
-    A -->|"Ok(payment)"| W["save: one transaction<br/>update row + insert operation"]
+    A -->|"Ok(payment)"| W["update: one transaction<br/>update row + insert operation"]
     W --> S2["Postgres<br/>payment, payment_operation"]
     W -->|"200 with allowedActions"| OK["payment DTO"]
     E -->|"GET /payments?merchant=…"| Q["query service<br/>Dapper to DTO, keyset paging"]
@@ -38,7 +38,7 @@ flowchart LR
 Code sketches: `AGENT-READY-BACKEND.md` §4 (bad vs good endpoint) and §6 (one error shape).
 
 ## EF Core angle (stretch)
-Write a second `IPaymentStore` with EF Core. Run the **same** integration tests against both. You will see where EF saves code (aggregate save) and where Dapper is clearer (hand-written list query).
+Write a second `IPaymentStore` with EF Core. Run the **same** integration tests against both. You will see where EF saves code (aggregate update) and where Dapper is clearer (hand-written list query).
 
 ## API shape
 Minimal API with `MapGroup`. **CQRS-lite:** commands (create, capture, refund) go through the domain; queries (get, list) are Dapper straight to DTOs. Validation starts with .NET 10 built-in validation; FluentValidation comes in Lab 03. See PLAN.md "API shape".
@@ -70,6 +70,21 @@ Create / capture / refund / get endpoints work; integration tests run against a 
 
 ---
 
+## What actually shipped (2026-10-20)
+
+The spec below is unchanged — it is still what the lab asks for. This is what the branch closed with, so the next reader is not surprised.
+
+| Shipped | Skipped, and where it went |
+|---|---|
+| Migration `0001`, the Dapper store with replay, `ProblemMapper`, the contracts | — |
+| `POST /payments`, `GET /payments/{id}` | the five command endpoints → `CF-021` (lab 03 needs `refund` first) |
+| `HealthTests`, `CreatePaymentTests`, `GetPaymentTests`, `StoreTests` | `ValidationTests` → `CF-020`; the four command groups → `CF-021` |
+| `StoreTests` written as a `[Theory]` on the engine, so stretch B is one `[InlineData]` away | stretch A paging → `CF-022`; stretch B EF Core and `STORE-NOTES.md` → `CF-023` |
+
+The store contract is the part that got the full treatment, and it is the part the later labs lean on.
+
+---
+
 # The spec
 
 Written 2026-10-19. Steps live in [`WORKBENCH.md`](WORKBENCH.md). Test names live in [`TEST-LIST.md`](TEST-LIST.md). Questions live in [`QA.md`](QA.md).
@@ -80,7 +95,7 @@ Written 2026-10-19. Steps live in [`WORKBENCH.md`](WORKBENCH.md). Test names liv
 |---|---|---|
 | Where does `MerchantId` live? | **Persistence and API only.** The lab 01 aggregate is not reopened for it. | The state machine never reads the merchant. Putting it in the aggregate for later per-merchant rules is `CF-014`. |
 | `Payment.Id` type | **`Guid`**, end to end: `Guid` in the domain, `uuid` in Postgres, a uuid string in JSON. Lab 01's `Payment.Create` and 4 test call sites change in step 2. | One type, no parsing, no "pay_1" reaching the database. The `uuid` column keeps the narrow index that labs 03, 04 and 12 assume. |
-| How is a stored payment rebuilt? | **Replay.** Load the operation rows in order and re-apply `Authorise` / `Capture` / `Void` / `Refund` through the real domain methods, with a `ReplayClock` that hands back the stored timestamps. Then check the replayed status equals the stored status. | The state machine is the one source of truth, and every read proves it. The cost — N method calls per read, and a row written under an older rule can refuse to replay — is paid on purpose, and is `CF-015`. |
+| How is a stored payment rebuilt? | **Replay.** Load the operation rows in order and re-apply `Authorise` / `Capture` / `Void` / `Refund` through the real domain methods, with a `ReplayClock` that hands back the stored timestamps. Then check the replayed status equals the stored status. | The state machine is the one source of truth, and every read proves it. The cost — N method calls per read, and a row written under an older rule can refuse to replay — is paid on purpose, and is `CF-015`. **Amended 2026-10-20:** `ReplayClock` falls back to a real `TimeProvider` once the stored stamps run out, because the replayed aggregate is the one a command then acts on. |
 | Postgres naming | **`snake_case`** tables and columns, no quoting. SQL Server keeps `PascalCase` (lab 04). | Unquoted identifiers fold to lower case in Postgres, so `PascalCase` would need `"quotes"` on every line forever. |
 | Concurrency | **Not in scope.** Two refunds at the same moment can both pass. | Idempotency is lab 03, row versions and locking are lab 04. Do not solve it early. |
 
@@ -158,7 +173,7 @@ The split is the rule you must be able to defend: **409 is "not now"** (the stat
 | 1 | `Payment.Id` is a `Guid`; the 160 lab 01 tests are still green | `src/Payments.Domain` |
 | 2 | First migration: `merchant`, `payment`, `payment_operation` + the paging index | `db/postgres/0001_merchant_payment.sql` |
 | 3 | `Payments.Api`: 7 endpoints in one `MapGroup`, ProblemDetails from one mapper | `src/Payments.Api` |
-| 4 | `IPaymentStore` + a Dapper implementation (insert, replay-load, save-in-one-transaction) | `src/Payments.Api/Storage` |
+| 4 | `IPaymentStore` + a Dapper implementation (insert, replay-load, update-in-one-transaction) | `src/Payments.Api/Storage` |
 | 5 | Integration tests against a real Postgres (Testcontainers + DbUp + Respawn + `WebApplicationFactory`) | `tests/Payments.Api.Tests` |
 | 6 | *Stretch A:* `GET /payments` with keyset paging and an opaque cursor | `src/Payments.Api` |
 | 7 | *Stretch B:* a second `IPaymentStore` on EF Core, and the same tests run against both | `src/Payments.Api.EfCore` |

@@ -4,7 +4,7 @@ public sealed class Payment
     private readonly List<PaymentOperation> _operations = [];
     private readonly TimeProvider _clock;
     
-    private Payment(string id, Money amount, TimeProvider clock)
+    private Payment(Guid id, Money amount, TimeProvider clock)
     {
         _clock = clock;
 
@@ -16,7 +16,7 @@ public sealed class Payment
         CreatedAt = clock.GetUtcNow();
     }
 
-    public string Id { get; }
+    public Guid Id { get; }
     public Money Amount { get; }
     public PaymentStatus Status { get; private set; }
     public Money CapturedTotal { get; private set; }
@@ -25,9 +25,9 @@ public sealed class Payment
     public string? DeclineReason { get; private set; }
     public IReadOnlyList<PaymentOperation> Operations => _operations.AsReadOnly();
 
-    public static Payment Create(string id, Money amount, TimeProvider clock)
+    public static Payment Create(Guid id, Money amount, TimeProvider clock)
     {
-        if(string.IsNullOrWhiteSpace(id))
+        if (id == Guid.Empty) 
             throw new ArgumentException("An id is required", nameof(id));
 
         if(amount.IsZero)
@@ -38,15 +38,6 @@ public sealed class Payment
         
         return new Payment(id, amount, clock);
     }
-    // TODO: Status = Created, CapturedTotal = RefundedTotal = Money.Zero(currency),
-    //       CreatedAt = clock.GetUtcNow()
-
-
-
-    // TODO: Authorise() : only from Created. Append one Authorise operation for the
-    //       full Amount, stamped with _clock.GetUtcNow(). Return Ok(this).
-    // TODO: Decline(reason) : only from Created. Blank reason -> ArgumentException.
-    //       Keep the reason. The operation amount is Money.Zero(currency).
 
     public Result<Payment, PaymentError> Authorise()
     {
