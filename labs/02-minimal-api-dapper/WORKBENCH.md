@@ -642,6 +642,22 @@ Write one method per line in those three groups. The rule next to each name is w
 
 Read a body back with `await res.Content.ReadFromJsonAsync<PaymentDto>()`, and a problem with `ReadFromJsonAsync<ProblemDetails>()` plus a check on the `code` extension.
 
+Three helpers belong in `ApiTestBase`, not in one test class, because every later group needs them:
+
+```csharp
+// TODO: protected static readonly Guid SeededMerchant = …1111;   the first seeded merchant
+// TODO: protected Task<PaymentDto> CreatePaymentAsync(decimal amount = 100m, string currency = "EUR")
+//         posts a good body, asserts the 201, returns the DTO
+// TODO: protected static Task<string?> ErrorCodeAsync(HttpResponseMessage res)
+//         reads problem.Extensions["code"] — it deserialises as a JsonElement, never a string
+// TODO: protected Task<long> CountRowsAsync(string table)
+//         opens an NpgsqlConnection on Fixture.ConnectionString, Dapper ExecuteScalarAsync<long>
+```
+
+`CreatePaymentAsync` asserts the `201` itself, so the test **of** the `201` cannot use it — that test would be checking the helper. Every other test is free to.
+
+Two traps this group will hand you. `A_created_payment_can_be_read_back` cannot assert `updatedAt`: the POST handler takes it from `DateTimeOffset.Now` while the store writes `updated_at = created_at`, so the two endpoints answer that field from different clocks (`CF-019`). Leave the field unasserted and fix the code later. And `createdAt` needs the tolerance overload, `Assert.Equal(a, b, TimeSpan.FromMilliseconds(1))`, because `timestamptz` keeps microseconds and .NET keeps ticks.
+
 ```bash
 dotnet test tests/Payments.Api.Tests
 ```
@@ -764,6 +780,77 @@ feat(lab-02): add the refund endpoint and drop the demo problem route
 ```
 
 **The core lab is complete here.** If you stop now: jump to step 20, and move stretches A and B to `CARRY-FORWARD.md` as rows of their own.
+
+---
+
+## Step 13b — The store's own tests
+
+**Goal.** The `StoreTests` group from `TEST-LIST.md` is written and green, with the engine as a test parameter.
+
+**Why.** Every other group talks to the API over `HttpClient`, because routing, binding, JSON and ProblemDetails are part of what the endpoints promise. The store makes three promises that **no HTTP response can show you**: a timestamp written in March still reads back as March; the `status` column still agrees with the operation rows; two statements commit together or not at all. You cannot see a half-written row through a `200`, and the API only ever shows you a payment created seconds ago. So this is the one group allowed to call a store directly — and it is a letter, not a number, because it is a different kind of test, not the next endpoint.
+
+The engine is a `[Theory]` parameter from the first line, even while only Dapper exists. That is what turns stretch B (step 18) from a refactor into one extra `[InlineData]`.
+
+**Do.** First, a clock you control. `FixedClock` lives in `Payments.Domain.Tests`, and you do **not** reference that project from here — write a small one of your own in `tests/Payments.Api.Tests/SteppingClock.cs`:
+
+```csharp
+// TODO: sealed class SteppingClock(DateTimeOffset start, TimeSpan step) : TimeProvider
+//   GetUtcNow() returns the current value, then advances by one step.
+//   Default start: a date in the PAST, on a whole second — new(2026, 3, 1, 9, 0, 0, TimeSpan.Zero)
+```
+
+Both choices are load-bearing. **Whole seconds**, because Postgres `timestamptz` keeps microseconds and .NET keeps 100-nanosecond ticks: a stamp with sub-second digits is rounded on the way in, and the round trip then needs a tolerance. **A date in the past**, because a stamp close to now would still roughly pass with the replay broken.
+
+Second, one place that names an engine — in `ApiTestBase`:
+
+```csharp
+// TODO: protected IPaymentStore StoreFor(string engine) => engine switch
+//   "dapper" => new DapperPaymentStore(Fixture.ConnectionString),
+//   _ => throw new ArgumentOutOfRangeException(…)
+```
+
+There is a `switch` on engine names here, and that is fine — this is wiring, not a test body. Step 18 adds the `"ef"` arm and nothing inside a test changes.
+
+Now write the four tests. What the replay is doing, and why the timestamps survive:
+
+```mermaid
+sequenceDiagram
+    participant L as LoadAsync
+    participant C as ReplayClock<br/>[09:00, 09:01, 09:02]
+    participant P as Payment
+
+    L->>C: build from created_at, then each operation.at
+    L->>P: Payment.Create(id, 100 EUR, clock)
+    P->>C: GetUtcNow()
+    C-->>P: 09:00, dequeued
+    Note over P: CreatedAt = 09:00, not today
+    L->>P: Authorise()
+    P->>C: GetUtcNow()
+    C-->>P: 09:01, dequeued
+    L->>P: Capture(40 EUR)
+    P->>C: GetUtcNow()
+    C-->>P: 09:02, dequeued
+    Note over P: queue empty, status derived from the history
+```
+
+Four notes, one per test:
+
+- **`A_round_trip_keeps_every_amount_and_timestamp`** — insert **then** update, so the `persistedOperationCount` skip is exercised; a plain insert never touches it. Compare against the live aggregate, not against literals: this test asks "did the store change anything?", not "do I remember the state machine?" — the 160 domain tests own that. `PaymentOperation` is a `record`, so one `Assert.Equal(payment.Operations, reloaded.Operations)` checks kind, amount and `At` for every row, in order. That single line is what `ReplayClock` exists for.
+- **`A_replayed_payment_matches_the_stored_status`** — you must lie to the database, so set up with raw SQL: a `payment` row saying `Captured` with one `Authorise` operation under it. Assert `InvalidOperationException`, and match the message loosely (`Assert.Contains("replayed to", …)`) — the sentence is for humans and may be reworded. `status` is a **cache**, kept so a list query need not replay a thousand payments, and every cache can go stale.
+- **`Update_inserts_only_the_new_operations`** — load the payment back and keep `loaded.OperationCount`, which is the honest "how many are already on disk". The count after one more capture is **3, not 5**. Pass `0` instead and watch it become 5: `InsertOperationsAsync` mints a fresh `Guid.CreateVersion7()` per row, so a duplicated history breaks no key and the database never complains. `Skip(skip)` is the only thing standing in the way.
+- **`A_failed_update_leaves_nothing_behind`** — the first statement must succeed and the second must fail, and no legal domain operation can do that: the only check on `payment_operation` is the `kind` list. So attack the database, not the C#. Add a `before insert` trigger that raises, call `UpdateAsync`, expect the throw, then assert **both** halves rolled back — the operation count is unchanged **and** `payment.status` and `captured_amount` still show the pre-capture values. Drop the trigger in a `finally`: Respawn deletes rows, not schema objects. Attacking the real database rather than mocking the connection is the point — the identical test passes against EF Core's `SaveChangesAsync` with nothing changed, while a mocked-connection version would prove only that you can mock.
+
+```bash
+dotnet test tests/Payments.Api.Tests --filter "StoreTests"
+```
+
+**Proof.** All four pass. Then feel the clock: in `DapperPaymentStore.LoadAsync`, replace `new ReplayClock([…])` with `TimeProvider.System`. The round-trip test goes red on `createdAt` with today's date. Put it back. It is the best thirty seconds in this lab.
+
+**Commit.** Stage `tests/Payments.Api.Tests/`.
+
+```
+test(lab-02): add the store tests, parameterised by engine
+```
 
 ---
 
@@ -1083,6 +1170,9 @@ The merge commits are the record of the rest of this step.
 | EF Core creates its own tables | `EnsureCreated()` or `Migrate()` was called somewhere | Delete the call. DbUp owns the schema; EF only maps onto it |
 | EF Core cannot materialise `Payment` | The aggregate has a private constructor with arguments and an injected `TimeProvider` | That is the lesson, not a bug. EF maps the row classes; the aggregate is rebuilt by replay |
 | A store test has `if (store == "ef")` in it | The abstraction is decoration, and the test proves nothing about the contract | Any difference belongs in the store, not the test. If it truly cannot be hidden, it is a finding for the inbox |
+| `$"/payments/{Guid.NewGuid}"` compiles | The `()` is missing, so that is the method, not a guid. The route does not match, you get the `404` you asserted, and the test passes for the wrong reason | Call it: `Guid.NewGuid()`. A green test that proves nothing is worse than a red one |
+| A read-back test fails on `updatedAt` | Two clocks: the POST handler uses `DateTimeOffset.Now`, the store writes `updated_at = created_at` | `CF-019`. Leave the field out of the assert; fix the handler to return what the store wrote |
+| A timestamp round trip is off by a fraction | `timestamptz` keeps microseconds, `DateTimeOffset` keeps 100-nanosecond ticks | Either assert with a `TimeSpan` tolerance, or stamp on whole seconds so there is nothing to round |
 | Lab work committed straight to `main` | `develop` is behind, and the next feature branch starts from a stale base | Commit on `feature/lab-02-minimal-api-dapper`. If it already landed, `git checkout develop && git merge --ff-only main` |
 | An exception message in a response body | Internals leak, and the text changes between versions, so callers bind to a moving target | ProblemDetails only. `code` is the contract, `detail` is for humans |
 | Editing a test to make it pass | The lab is pointless, and the interview answer becomes a lie | Never. If a test looks wrong, ask — `CLAUDE.md` says the agent must ask before changing a test |

@@ -55,6 +55,10 @@ Known debt. Each one needs a lab or a commit, not a discussion.
 
 | Id | Raised | From | What | Status |
 |---|---|---|---|---|
+| CF-020 | 2026-10-20 | lab 02 step 10 | The `ValidationTests` group (8 tests) was not written — commit `02dba21` names it but the file does not exist. Nothing checks that a missing `currency`, a `"EURO"`, a negative amount or malformed JSON is a `400` with the field named. Write it in the lab that next touches the create endpoint; lab 03 (idempotency) is the natural home. | Open |
+| CF-021 | 2026-10-20 | lab 02 steps 11–13 | The five command endpoints — `authorise`, `void`, `capture`, `refund` — and their four test groups were skipped. Lab 02 ships with `POST /payments` and `GET /payments/{id}` only. Lab 03 needs `refund` for the `Idempotency-Key`, so it builds the endpoint and its tests first. The `409` against `422` rule is specified in the lab 02 `README.md` and still stands. | → lab 03 |
+| CF-022 | 2026-10-20 | lab 02 steps 14–16 | Stretch A, keyset paging with an opaque cursor and the 9 `PagingTests`, was skipped. The `payment_by_merchant_newest` index that serves it already exists in migration `0001`. Lab 05 (bulk, 1M rows) is where paging starts to matter. | Open |
+| CF-023 | 2026-10-20 | lab 02 steps 17–19 | Stretch B, the EF Core store, was skipped, so `STORE-NOTES.md` is still empty and the Dapper-against-EF comparison is unmade. `StoreTests` is already a `[Theory]` with the engine as a parameter, and `ApiTestBase.StoreFor` holds a commented-out `"ef"` arm, so the work is: build the store, uncomment, add one `[InlineData("ef")]` per test. | Open |
 | CF-005 | 2026-10-18 | lab 00 | No `global.json`, so the SDK version floats. Add one if a version difference ever bites. | Open |
 | CF-006 | 2026-10-18 | lab 00 | No CI. Nothing checks that `migrate` still runs on a clean machine. Decide later whether this repo gets a workflow at all. | Open |
 | CF-010 | 2026-10-18 | lab 00 build | `dotnet build` warns NU1903: `System.Security.Cryptography.Pkcs` 9.0.11 pulled in by `dbup-sqlserver` has a high severity advisory. Bump or pin the transitive package. | Open |

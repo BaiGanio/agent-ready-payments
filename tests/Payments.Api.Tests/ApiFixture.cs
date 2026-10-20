@@ -6,6 +6,7 @@ using DbUp;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
+using Payments.Api.Storage;
 using Respawn;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -141,4 +142,15 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
 
         return await connection.ExecuteScalarAsync<long>($"select count(*) from {table}");
     }
+
+     /// <summary>Builds a store by engine name. The only place a test names an engine.</summary>
+    protected IPaymentStore StoreFor(string engine) => engine switch
+    {
+        "dapper" => new DapperPaymentStore(Fixture.ConnectionString),
+        // "ef" => new EfCorePaymentStore(new PaymentsDbContext(
+        //     new DbContextOptionsBuilder<PaymentsDbContext>()
+        //         .UseNpgsql(Fixture.ConnectionString).Options)),
+        _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, "Unknown store engine.")
+    };
+
 }

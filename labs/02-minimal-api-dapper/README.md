@@ -70,6 +70,21 @@ Create / capture / refund / get endpoints work; integration tests run against a 
 
 ---
 
+## What actually shipped (2026-10-20)
+
+The spec below is unchanged — it is still what the lab asks for. This is what the branch closed with, so the next reader is not surprised.
+
+| Shipped | Skipped, and where it went |
+|---|---|
+| Migration `0001`, the Dapper store with replay, `ProblemMapper`, the contracts | — |
+| `POST /payments`, `GET /payments/{id}` | the five command endpoints → `CF-021` (lab 03 needs `refund` first) |
+| `HealthTests`, `CreatePaymentTests`, `GetPaymentTests`, `StoreTests` | `ValidationTests` → `CF-020`; the four command groups → `CF-021` |
+| `StoreTests` written as a `[Theory]` on the engine, so stretch B is one `[InlineData]` away | stretch A paging → `CF-022`; stretch B EF Core and `STORE-NOTES.md` → `CF-023` |
+
+The store contract is the part that got the full treatment, and it is the part the later labs lean on.
+
+---
+
 # The spec
 
 Written 2026-10-19. Steps live in [`WORKBENCH.md`](WORKBENCH.md). Test names live in [`TEST-LIST.md`](TEST-LIST.md). Questions live in [`QA.md`](QA.md).
