@@ -100,16 +100,16 @@ One group is one file in `tests/Payments.Api.Tests`. Every group except `StoreTe
 | `Refunding_in_another_currency_is_422_currency_mismatch` | Currency is checked before the amount |
 | `The_error_body_is_problem_json_with_a_code` | `Content-Type` is `application/problem+json`; `type` is `urn:payments-labs:error:<code>`; `code` matches; and `detail` holds no stack trace and no word `Exception` |
 
-### StoreTests (4) — step 13, doubled by stretch B
+### StoreTests (4) — step 13b, doubled by stretch B
 
 These are the only tests that may talk to the store directly, because what they check is the store's own contract.
 
 | Test | The rule it must check |
 |---|---|
-| `A_round_trip_keeps_every_amount_and_timestamp` | Save then load: status, all three amounts, `createdAt` and every operation `At` come back unchanged. The `ReplayClock` is what makes the timestamps survive |
+| `A_round_trip_keeps_every_amount_and_timestamp` | Insert, update, then load: status, all three amounts, `createdAt` and every operation `At` come back unchanged. The `ReplayClock` is what makes the timestamps survive |
 | `A_replayed_payment_matches_the_stored_status` | Hand-write a `payment` row whose `status` disagrees with its operation rows, then load: it throws. That column is a cache, and this is the check that keeps it honest |
-| `Save_inserts_only_the_new_operations` | Load a payment with 2 operations, capture once, save: the table has 3 rows, not 5 |
-| `A_failed_save_leaves_nothing_behind` | Force the second statement to fail and both are rolled back: no half-written payment |
+| `Update_inserts_only_the_new_operations` | Load a payment with 2 operations, capture once, update: the table has 3 rows, not 5 |
+| `A_failed_update_leaves_nothing_behind` | Force the second statement to fail and both are rolled back: no half-written payment |
 
 ### PagingTests (9) — *stretch A*, step 16
 

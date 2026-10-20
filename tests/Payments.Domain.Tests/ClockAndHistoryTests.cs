@@ -59,6 +59,6 @@ public class ClockAndHistoryTests
     [Fact]
     public void Create_refuses_a_missing_clock()
     {
-        Assert.Throws<ArgumentNullException>(() => Payment.Create("pay_1", TestData.Eur100, null!));
+        Assert.Throws<ArgumentNullException>(() => Payment.Create(Guid.NewGuid(), TestData.Eur100, null!));
     }
 }
