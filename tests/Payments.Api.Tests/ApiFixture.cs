@@ -146,11 +146,26 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
      /// <summary>Builds a store by engine name. The only place a test names an engine.</summary>
     protected IPaymentStore StoreFor(string engine) => engine switch
     {
-        "dapper" => new DapperPaymentStore(Fixture.ConnectionString),
+        "dapper" => new DapperPaymentStore(Fixture.ConnectionString, TimeProvider.System),
         // "ef" => new EfCorePaymentStore(new PaymentsDbContext(
         //     new DbContextOptionsBuilder<PaymentsDbContext>()
         //         .UseNpgsql(Fixture.ConnectionString).Options)),
         _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, "Unknown store engine.")
     };
 
+     /// <summary>Reads one value straight from Postgres, to check what a store really wrote.</summary>
+    protected async Task<T> QuerySqlAsync<T>(string sql, object? parameters = null)
+    {
+        await using var connection = new NpgsqlConnection(Fixture.ConnectionString);
+
+        return await connection.QuerySingleAsync<T>(sql, parameters);
+    }
+
+    /// <summary>Runs SQL straight at Postgres. For arranging rows no store would ever write.</summary>
+    protected async Task ExecuteSqlAsync(string sql, object? parameters = null)
+    {
+        await using var connection = new NpgsqlConnection(Fixture.ConnectionString);
+
+        await connection.ExecuteAsync(sql, parameters);
+    }
 }

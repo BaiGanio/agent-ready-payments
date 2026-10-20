@@ -9,7 +9,7 @@ builder.Services.AddValidation();
 builder.Services.AddSingleton(TimeProvider.System);
 
 string cs = builder.Configuration.GetConnectionString("Postgres")!;
-builder.Services.AddScoped<IPaymentStore>(_ => new DapperPaymentStore(cs));
+builder.Services.AddScoped<IPaymentStore>(_ => new DapperPaymentStore(cs, TimeProvider.System));
 
 var app = builder.Build();
 
