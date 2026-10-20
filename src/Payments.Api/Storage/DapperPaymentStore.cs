@@ -80,7 +80,7 @@ public sealed class DapperPaymentStore(string connectionString) : IPaymentStore
             new { Id = paymentId },
             cancellationToken: ct))).AsList();
 
-        var clock = new ReplayClock([row.CreatedAt, .. operations.Select(o => o.At)]);
+        var clock = new ReplayClock([new DateTimeOffset(row.CreatedAt), .. operations.Select(o =>  new DateTimeOffset(o.At))]);
         var payment = Payment.Create(
             row.Id,
             Money.Of(row.AuthorisedAmount, row.Currency),
@@ -111,7 +111,7 @@ public sealed class DapperPaymentStore(string connectionString) : IPaymentStore
             throw new InvalidOperationException(
                 $"Payment {row.Id} replayed to {payment.Status} but the row says {row.Status}");
 
-        return new Loaded(payment, row.MerchantId, operations.Count, row.UpdatedAt);
+        return new Loaded(payment, row.MerchantId, operations.Count, new DateTimeOffset(row.UpdatedAt));
     }
 
     public async Task UpdateAsync(Payment payment, int persistedOperationCount, CancellationToken ct)
@@ -196,8 +196,8 @@ public sealed class DapperPaymentStore(string connectionString) : IPaymentStore
         decimal CapturedAmount,
         decimal RefundedAmount,
         string? DeclineReason,
-        DateTimeOffset CreatedAt,
-        DateTimeOffset UpdatedAt);
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
 
-    private sealed record OperationRow(string Kind, decimal Amount, DateTimeOffset At);
+    private sealed record OperationRow(string Kind, decimal Amount, DateTime At);
 }
