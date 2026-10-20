@@ -1,4 +1,9 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Dapper;
 using DbUp;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
 using Respawn;
@@ -20,18 +25,18 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        var pg = new PostgreSqlBuilder("pgvector/pgvector:pg17")
+        _pg = new PostgreSqlBuilder("pgvector/pgvector:pg17")
             .WithDatabase("payments_labs")
             .WithUsername("labs")
             .WithPassword("labs")
             .Build();
 
-        await pg.StartAsync();
+        await _pg.StartAsync();
 
         Migrate(_pg.GetConnectionString());
 
         Factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(b => b.UseSetting("ConnectionStrings:Postgres", pg.GetConnectionString()));
+            .WithWebHostBuilder(b => b.UseSetting("ConnectionStrings:Postgres", _pg.GetConnectionString()));
 
         _conn = new NpgsqlConnection(_pg.GetConnectionString());
         await _conn.OpenAsync();
@@ -101,5 +106,39 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
     {
         Client?.Dispose();
         return ValueTask.CompletedTask;
+    }
+
+      /// <summary>The first seeded merchant. Every happy-path test uses it.</summary>
+    protected static readonly Guid SeededMerchant = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+    /// <summary>Posts a valid body and returns the created payment. Fails the test if the API did not return 201.</summary>
+    protected async Task<PaymentDto> CreatePaymentAsync(decimal amount = 100m, string currency = "EUR")
+    {
+        var response = await Client.PostAsJsonAsync(
+            "/payments",
+            new CreatePaymentRequest(SeededMerchant, amount, currency),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        var dto = await response.Content.ReadFromJsonAsync<PaymentDto>(TestContext.Current.CancellationToken);
+
+        return dto!;
+    }
+
+    /// <summary>Reads the "code" extension out of a ProblemDetails body.</summary>
+    protected static async Task<string?> ErrorCodeAsync(HttpResponseMessage response)
+    {
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
+
+        return problem!.Extensions["code"] is JsonElement code ? code.GetString() : null;
+    }
+
+    /// <summary>Counts the rows in one table, straight from Postgres. Bypasses the API on purpose.</summary>
+    protected async Task<long> CountRowsAsync(string table)
+    {
+        await using var connection = new NpgsqlConnection(Fixture.ConnectionString);
+
+        return await connection.ExecuteScalarAsync<long>($"select count(*) from {table}");
     }
 }
