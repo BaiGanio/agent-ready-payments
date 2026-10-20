@@ -27,7 +27,7 @@ Rules:
 | 00 | [Setup + glossary](../labs/00-setup-and-glossary) | **Done** | `lab-00` | — |
 | 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Done** | `lab-01` | — |
 | 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **Done** | `lab-02` | Closed short of the spec: the store and its tests are done, the command endpoints are `CF-021` |
-| 03 | [Idempotency](../labs/03-idempotency) | Spec only | — | Bench sheet + test list, then the lab |
+| 03 | [Idempotency](../labs/03-idempotency) | Prepared | — | The lab: 17 steps, 65 tests. Then the CI gate, `CF-006` |
 | 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | Spec only | — | Bench sheet + test list, then the lab |
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
 | 06 | [Flow pipeline (Channels)](../labs/06-flow-pipeline-channels) | Spec only | — | Bench sheet + test list, then the lab |
@@ -102,3 +102,22 @@ Dropped on purpose, each with a carry-forward row:
 - Steps 17–19, stretch B EF Core and `STORE-NOTES.md` → `CF-023`
 
 Nothing is blocked. The four lab 02 decisions — merchant placement, the `Guid` id, replay loading and `snake_case` in Postgres — are in `plan/PLAN.md` §8, dated 2026-10-19. One finding is open against the shipped code: `CF-019`, `updatedAt` written by one clock and returned by another.
+
+## Lab 03 — Prepared
+
+Written for you (2026-10-20):
+
+- [x] `README.md`: the spec — 6 decisions, the header rules, the request flow, the key's life, the contracts, 4 new error codes, 11 hard requirements, Done-when
+- [x] `WORKBENCH.md`: 17 steps (0–16), 2 diagrams, 21 traps
+- [x] `TEST-LIST.md`: 65 test names in 12 groups, with the rule each one must check
+- [x] `QA.md`: Q26–Q31 added from the build; the EF Core questions marked paper-only
+
+Yours to do:
+
+- [ ] Steps 2–4: `ValidationTests`, then `authorise`, `capture`, `refund`, tests first
+- [ ] Steps 5–8: migration `0002`, the contracts, the key store, tests first
+- [ ] Steps 9–12: the key on create, then on the commands, tests first
+- [ ] Step 13: fifty at once — seen red once, then green
+- [ ] Steps 14–16: Done-when by hand, `QA.md` out loud, close the lab
+
+Decided for this lab (2026-10-20, `plan/PLAN.md` §8): own key table, two phases, the `Completed` mark in the payment write's transaction, no EF Core, no FluentValidation. The CI gate moved to after this lab.

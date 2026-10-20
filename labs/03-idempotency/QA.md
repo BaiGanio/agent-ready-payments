@@ -65,7 +65,30 @@ A: Same header on every state-changing POST. Plus the state machine itself helps
 **Q20. What would you monitor?**
 A: Replay rate, 409 in-progress rate, key reuse with different body (client bugs), table size, cleanup lag.
 
+## From the build (added 2026-10-20)
+
+**Q26. Why two phases, when one transaction would make the losers simply wait?**
+A: One transaction works only while the side effect lives in the same database. The moment the work is a call to an acquirer, you cannot hold a database transaction open across it, so the key must be claimed and committed first. Learning the two-phase shape on the easy case means lab 16 (in-doubt calls) is a small step, not a rewrite.
+Trap: "then the in_progress state is visible." Yes — that is the point. The client sees `409` + `Retry-After` and retries; it never gets a second charge.
+
+**Q27. Your replay says "Created", but the payment is now "Authorised". Bug?**
+A: No. A replay returns the answer the first request got, byte for byte. It is not a fresh read. A client that wants the current state calls `GET`.
+
+**Q28. Why is a `404` not stored, but a `422` is?**
+A: The `404` is decided before the claim, and it may stop being true — the payment can exist a second later. A `422` from the state machine is a final answer to that exact request. Store final business answers; never store "not found yet" or a `5xx`.
+
+**Q29. Where does the "key completed" update run, and why there?**
+A: Inside the payment write's own transaction, on the same connection, as a conditional update (`… where status = 'InProgress'`) that must change exactly one row. So the payment and its stored answer commit together or not at all. Two transactions would leave a window where the payment exists and the key still says in progress — the client then gets `409` forever.
+
+**Q30. A request crashes between phase 1 and phase 2. What happens to its key?**
+A: A handled exception releases it: the row is deleted, so the retry can really try again. A hard crash (process killed) leaves it `InProgress`, and nothing reclaims it in this lab. A real system stores a `locked_at` time and lets a stale claim be taken over after a timeout. That is `CF-026`, and lab 16's topic.
+
+**Q31. What is in your request hash, and why the path?**
+A: Method, path and the bound request record, through SHA-256. The path holds the payment id and the command. Without it, a key used for a capture and then for a refund would replay the capture's `200` for a refund that never ran.
+
 ## EF Core version
+
+Not built in this lab (decided 2026-10-20). Answer these from the sketch in `docs/aperio/AGENT-READY-BACKEND.md` §5, and say why: the unique key is the lesson, and Dapper showed it in full.
 
 **Q21. Show idempotency in EF Core.**
 A: Check for the key with `AsNoTracking`; if found, return it. Otherwise `Add` and `SaveChangesAsync`. Wrap the save in `catch (DbUpdateException ex) when (IsUniqueViolation(ex))` — a race lost to another request — then `ChangeTracker.Clear()` and read the winner. Sketch: `AGENT-READY-BACKEND.md` §5.

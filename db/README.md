@@ -42,7 +42,6 @@ erDiagram
         decimal AuthorisedAmount
         decimal CapturedAmount
         decimal RefundedAmount
-        string IdempotencyKey "unique per merchant"
         datetime CreatedUtc
         datetime UpdatedUtc
         rowversion RowVer "SQL Server only"
@@ -57,11 +56,13 @@ erDiagram
     IdempotencyKey {
         uuid MerchantId PK
         string Key PK
-        string RequestHash
+        string RequestHash "SHA-256 of method + path + body"
         string Status "InProgress|Completed"
         int ResponseCode
-        json ResponseBody
+        text ResponseBody "text, not json: replayed byte for byte"
+        string ResponseLocation
         datetime CreatedUtc
+        datetime CompletedUtc
     }
     SettlementBatch {
         uuid Id PK
@@ -145,7 +146,7 @@ erDiagram
 | 00 | both | Empty databases + the migration runner. No tables yet. |
 | 01 | — | Nothing. The domain is pure; no database. |
 | 02 | Postgres | `merchant`, `payment`, `payment_operation` + the index `(merchant_id, created_at desc, id desc)` for keyset paging |
-| 03 | Postgres | `idempotency_key` + unique index `(merchant_id, idempotency_key)` on `payment` |
+| 03 | Postgres | `idempotency_key` table, primary key `(merchant_id, key)`, with the request hash and the stored answer. Not a column on `payment`: a refund writes no `payment` row (decided 2026-10-20) |
 | 04 | SQL Server | Same three tables (lockstep) + `RowVer`, `usp_CapturePayment`, `usp_ClaimNextBatch`; RCSI switched on |
 | 05 | SQL Server | `StagingSettlementFile` (a heap for `SqlBulkCopy`) + a TVP type |
 | 06 | SQL Server | `SettlementBatch`, `SettlementItem`, `SettlementPoison` |

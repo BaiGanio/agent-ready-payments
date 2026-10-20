@@ -154,6 +154,8 @@ The debug run loads `.env`, so `MSSQL_SA_PASSWORD` is there. Start the databases
 | Read one payment | `curl -s http://localhost:5080/payments/<id> \| python3 -m json.tool` |
 | Authorise / void it | `curl -i -X POST http://localhost:5080/payments/<id>/authorise` |
 | Capture or refund part of it | `curl -i -X POST http://localhost:5080/payments/<id>/capture -H 'Content-Type: application/json' -d '{"amount":40.00,"currency":"EUR"}'` |
+| Send a POST with an idempotency key (lab 03) | add `-H 'Idempotency-Key: <any string>'`. Same key again → same answer and `Idempotent-Replayed: true` |
+| See the stored keys (lab 03) | `docker exec payments-postgres psql -U labs -d payments_labs -c "select key, status, response_code from idempotency_key;"` |
 | List a merchant's payments | `curl -s 'http://localhost:5080/payments?merchant=11111111-1111-1111-1111-111111111111&limit=5' \| python3 -m json.tool` |
 | See the headers only | add `-I`, or keep `-i` to get headers **and** body |
 | Pretty-print any response | pipe it to `python3 -m json.tool` |
