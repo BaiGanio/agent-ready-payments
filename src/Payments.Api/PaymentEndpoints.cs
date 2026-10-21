@@ -10,6 +10,21 @@ public static class PaymentEndpoints
     {
         var group = app.MapGroup("/payments").RequireApiKey();
 
+        group.MapGet("/", async (string? status, int? limit, IPaymentQueries queries, HttpContext http, CancellationToken ct) =>
+        {
+            int take = limit ?? 20;
+            
+            if (take is < 1 or > 20)
+                return ProblemMapper.BadRequest("limit_out_of_range", "The limit must be between 1 and 20.", http);
+            
+            if (status is not null
+                && !(Enum.TryParse<PaymentStatus>(status, ignoreCase: false, out var parsed) && Enum.IsDefined(parsed)))
+                return ProblemMapper.BadRequest("invalid_status", $"{status} is not a payment status.", http);
+
+            var list = await queries.ListAsync(http.Caller().MerchantId, status, take, ct);
+            return Results.Ok(list);
+        }).RequireScope("payments:read");
+
         group.MapPost("/", async (CreatePaymentRequest req, IPaymentStore store, TimeProvider clock, HttpContext http, CancellationToken ct) =>
         {
             var merchantId = await store.FindMerchantAsync(req.MerchantId, ct);

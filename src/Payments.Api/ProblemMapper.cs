@@ -29,6 +29,24 @@ namespace Payments.Api
                 extensions: new Dictionary<string, object?> { ["code"] = code }
             );
 
+        /// <summary>A 400 for a query parameter the caller can fix. Carries the "code" the client reads.</summary>
+        public static IResult BadRequest(string code, string detail, HttpContext http) =>
+            Results.Problem(
+                type: $"urn:payments-labs:error:{code}",
+                title: BadRequestTitle(code),
+                detail: detail,
+                statusCode: StatusCodes.Status400BadRequest,
+                instance: http.Request.Path,
+                extensions: new Dictionary<string, object?> { ["code"] = code }
+            );
+
+        private static string BadRequestTitle(string code) => code switch
+        {
+            "limit_out_of_range" => "The limit must be between 1 and 20.",
+            "invalid_status" => "That is not a payment status.",
+            _ => "The request was not valid."
+        };
+
         public static IResult Auth(int status, string code, string detail, HttpContext http,
             (string Key, object? Value)? extra = null)
         {
