@@ -199,7 +199,9 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
         _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, "Unknown store engine.")
     };
 
-     /// <summary>Reads one value straight from Postgres, to check what a store really wrote.</summary>
+    protected IIdempotencyStore IdempotencyStore() => new DapperIdempotencyStore(Fixture.ConnectionString);
+
+    /// <summary>Reads one value straight from Postgres, to check what a store really wrote.</summary>
     protected async Task<T> QuerySqlAsync<T>(string sql, object? parameters = null)
     {
         await using var connection = new NpgsqlConnection(Fixture.ConnectionString);
