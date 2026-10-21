@@ -44,6 +44,8 @@ Always pass both flags. `-f` says which file. `--env-file` says where the SQL Se
 
 Both lines of `ps` must say `Up (healthy)`. `Up` alone is not ready yet. SQL Server needs 30–60 seconds on a cold start.
 
+Ports on your Mac: Postgres is **55432**, SQL Server is **51433**. Inside the containers they stay 5432 and 1433. The odd host ports keep clear of any other database you already run. Docker Desktop shows the stack as **agent-ready-payments**.
+
 **Danger.** `down -v` also deletes the named volumes, so your databases are gone. Only use it when you want a clean slate.
 
 ---

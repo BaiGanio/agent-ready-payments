@@ -1,3 +1,6 @@
+# The Compose project name. Without it, Compose names the project after the folder (`docker`).
+name: agent-ready-payments
+
 services:
   payments-postgres:
     image: pgvector/pgvector:pg17
@@ -7,7 +10,7 @@ services:
       POSTGRES_PASSWORD: labs
       POSTGRES_DB: postgres
     ports:
-      - "5432:5432"
+      - "55432:5432"   # host 55432, so it does not clash with a Postgres already on 5432
     volumes:
       - payments-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +27,7 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
     ports:
-      - "1433:1433"
+      - "51433:1433"   # host 51433, so it does not clash with a SQL Server already on 1433
     volumes:
       - payments-mssql-data:/var/opt/mssql
     healthcheck:

@@ -183,6 +183,8 @@ agent-ready-payments/
 **2. Fill it.** Here is the shape. Copy it, then replace every `TODO` yourself — the `TODO` lines are the learning, the rest is plumbing.
 
 ```yaml
+name: agent-ready-payments   # the project name Docker Desktop shows. Without it, Compose uses the folder name: `docker`
+
 services:
   payments-postgres:
     image: pgvector/pgvector:pg17
@@ -192,7 +194,7 @@ services:
       POSTGRES_PASSWORD: labs
       POSTGRES_DB: postgres
     ports:
-      - "5432:5432"
+      - "55432:5432"   # host:container. Host 55432 does not clash with a Postgres already on 5432
     volumes:
       - payments-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -209,7 +211,7 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
     ports:
-      - "1433:1433"
+      - "51433:1433"   # host 51433 does not clash with a SQL Server already on 1433
     volumes:
       - payments-mssql-data:/var/opt/mssql
     healthcheck:
@@ -354,8 +356,8 @@ static string RepoRoot()
 
 // 3. Connection string per engine. The sa password comes from .env.
 // TODO: DotNetEnv.Env.Load(Path.Combine(RepoRoot(), ".env"));
-//       postgres  -> "Host=localhost;Port=5432;Database=payments_labs;Username=labs;Password=labs"
-//       sqlserver -> "Server=localhost,1433;Database=PaymentsLabs;User Id=sa;Password=" +
+//       postgres  -> "Host=localhost;Port=55432;Database=payments_labs;Username=labs;Password=labs"
+//       sqlserver -> "Server=localhost,51433;Database=PaymentsLabs;User Id=sa;Password=" +
 //                    Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD") + ";TrustServerCertificate=true"
 
 // 4. Make the database if it is missing. Safe to run again.

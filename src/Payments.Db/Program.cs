@@ -14,9 +14,9 @@ string cs = string.Empty;
 DotNetEnv.Env.Load(Path.Combine(RepoRoot(), ".env"));
 string pass = Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD");
 if(args[2] == "postgres")
-    cs = "Host=localhost;Port=5432;Database=payments_labs;Username=labs;Password=labs";
+    cs = "Host=localhost;Port=55432;Database=payments_labs;Username=labs;Password=labs";
 else
-    cs = $"Server=localhost,1433;Database=PaymentsLabs;User Id=sa;Password={pass};TrustServerCertificate=true";
+    cs = $"Server=localhost,51433;Database=PaymentsLabs;User Id=sa;Password={pass};TrustServerCertificate=true";
 
 // 4. Make the database if it is missing.
 if (args[2] == "postgres")

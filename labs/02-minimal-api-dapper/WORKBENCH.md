@@ -260,7 +260,7 @@ In `src/Payments.Api/Payments.Api.csproj` add, so the tests can see `Program`:
 // TODO: builder.Services.AddProblemDetails();
 // TODO: builder.Services.AddValidation();          // .NET 10, no package needed
 // TODO: the connection string from configuration, key "Postgres",
-//       default "Host=localhost;Port=5432;Database=payments_labs;Username=labs;Password=labs"
+//       default "Host=localhost;Port=55432;Database=payments_labs;Username=labs;Password=labs"
 // TODO: app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 // TODO: app.Run();
 ```

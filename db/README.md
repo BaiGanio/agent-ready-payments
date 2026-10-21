@@ -221,7 +221,7 @@ EF Core does **not** create these tables. In Labs 02–05, EF Core maps onto the
 
 | Engine | Connection string |
 |---|---|
-| Postgres | `Host=localhost;Port=5432;Database=payments_labs;Username=labs;Password=labs` |
-| SQL Server | `Server=localhost,1433;Database=PaymentsLabs;User Id=sa;Password=<from .env>;TrustServerCertificate=true` |
+| Postgres | `Host=localhost;Port=55432;Database=payments_labs;Username=labs;Password=labs` |
+| SQL Server | `Server=localhost,51433;Database=PaymentsLabs;User Id=sa;Password=<from .env>;TrustServerCertificate=true` |
 
 Passwords live in `.env`, which is git-ignored. `TrustServerCertificate=true` is for local development only.

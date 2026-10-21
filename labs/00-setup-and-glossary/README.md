@@ -83,7 +83,7 @@ Compose gives you a running **engine**. The runner creates the **database** and 
 
 | # | Requirement |
 |---|---|
-| 1 | Postgres is `pgvector/pgvector:pg17`, native arm64, on port 5432. SQL Server is `mcr.microsoft.com/mssql/server:2022-latest` with `platform: linux/amd64`, on port 1433. |
+| 1 | Postgres is `pgvector/pgvector:pg17`, native arm64, on host port 55432 (container port 5432). SQL Server is `mcr.microsoft.com/mssql/server:2022-latest` with `platform: linux/amd64`, on host port 51433 (container port 1433). The compose project is named `agent-ready-payments`. |
 | 2 | Each container has a named volume and a healthcheck. |
 | 3 | The `sa` password comes from `.env`. `.env` is git-ignored. `.env.example` is committed. |
 | 4 | Compose does **not** create the lab databases. `src/Payments.Db` creates them with DbUp's `EnsureDatabase`. |
