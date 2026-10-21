@@ -8,9 +8,9 @@ public interface IPaymentStore
 
     Task<Loaded?> LoadAsync(Guid paymentId, CancellationToken ct);
 
-    Task InsertAsync(Payment payment, Guid merchantId, CancellationToken ct);
+    Task InsertAsync(Payment payment, Guid merchantId, Completion? completion, CancellationToken ct);
 
-    Task UpdateAsync(Payment payment, int persistedOperationCount, CancellationToken ct);
+    Task UpdateAsync(Payment payment, int persistedOperationCount, Completion? completion, CancellationToken ct);
 }
 
 public sealed record Loaded(

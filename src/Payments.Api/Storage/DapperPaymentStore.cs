@@ -25,7 +25,7 @@ public sealed class DapperPaymentStore(string connectionString, TimeProvider clo
             "select id from merchant where id = @Id", new { Id = merchantId }, cancellationToken: ct));
     }
 
-    public async Task InsertAsync(Payment payment, Guid merchantId, CancellationToken ct)
+    public async Task InsertAsync(Payment payment, Guid merchantId, Completion? completion, CancellationToken ct)
     {
         await using var conn = new NpgsqlConnection(connectionString);
         await conn.OpenAsync(ct);
@@ -114,7 +114,7 @@ public sealed class DapperPaymentStore(string connectionString, TimeProvider clo
         return new Loaded(payment, row.MerchantId, operations.Count, new DateTimeOffset(row.UpdatedAt));
     }
 
-    public async Task UpdateAsync(Payment payment, int persistedOperationCount, CancellationToken ct)
+    public async Task UpdateAsync(Payment payment, int persistedOperationCount, Completion? completion, CancellationToken ct)
     {
         await using var conn = new NpgsqlConnection(connectionString);
         await conn.OpenAsync(ct);
