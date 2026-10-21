@@ -17,7 +17,7 @@ public static class PaymentEndpoints
 
             var payment = Payment.Create(Guid.CreateVersion7(), Money.Of(req.Amount, req.Currency), clock);
 
-            await store.InsertAsync(payment, req.MerchantId, ct);
+            await store.InsertAsync(payment, req.MerchantId, completion: null, ct);
 
             return Results.Created($"/payments/{payment.Id}", PaymentDto.From(payment, req.MerchantId, DateTimeOffset.Now));
         });
@@ -46,7 +46,7 @@ public static class PaymentEndpoints
             if(result.IsFailure)
                 return ProblemMapper.ToProblem(result.Error, http);
 
-            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, cancellationToken);
+            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, completion: null, cancellationToken);
 
             return Results.Ok(PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.UpdatedAt));
         });
@@ -63,7 +63,7 @@ public static class PaymentEndpoints
             if(result.IsFailure)
                 return ProblemMapper.ToProblem(result.Error, http);
 
-            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, cancellationToken);
+            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, completion: null, cancellationToken);
 
             return Results.Ok(PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.Payment.Operations[^1].At));
         });
@@ -80,7 +80,7 @@ public static class PaymentEndpoints
             if(result.IsFailure)
                 return ProblemMapper.ToProblem(result.Error, http);
 
-            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, cancellationToken);
+            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, completion: null, cancellationToken);
 
             return Results.Ok(PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.Payment.Operations[^1].At));
         });
