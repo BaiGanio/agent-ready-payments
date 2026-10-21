@@ -213,7 +213,8 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
     /// <summary>Reads the "code" extension out of a ProblemDetails body.</summary>
     protected static async Task<string?> ErrorCodeAsync(HttpResponseMessage response)
     {
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var problem = JsonSerializer.Deserialize<ProblemDetails>(body, JsonSerializerOptions.Web);
 
         return problem!.Extensions["code"] is JsonElement code ? code.GetString() : null;
     }

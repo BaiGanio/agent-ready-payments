@@ -78,8 +78,8 @@ public sealed class ScopeTests(ApiFixture fixture) : ApiTestBase(fixture)
     /// <summary>Reads the "required_scope" extension out of a ProblemDetails body.</summary>
     private static async Task<string?> RequiredScopeAsync(HttpResponseMessage response)
     {
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
-
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var problem = JsonSerializer.Deserialize<ProblemDetails>(body, JsonSerializerOptions.Web);
         return problem!.Extensions.TryGetValue("required_scope", out var scope) && scope is JsonElement json
             ? json.GetString()
             : null;
