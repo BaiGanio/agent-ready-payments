@@ -25,7 +25,12 @@ public sealed class McpHarness : IAsyncDisposable
 
     public StubApi Api { get; } = new();
 
-    public static async Task<McpHarness> StartAsync()
+    /// <param name="apiKey">
+    /// The value of PAYMENTS_API_KEY. Pass "" or null to start with no key: the in-memory
+    /// source is added last, so it wins over a real environment variable and the test holds
+    /// even when your shell has the key set.
+    /// </param>
+    public static async Task<McpHarness> StartAsync(string? apiKey = ApiKey)
     {
         var harness = new McpHarness();
 
@@ -37,20 +42,19 @@ public sealed class McpHarness : IAsyncDisposable
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["PAYMENTS_API_URL"] = "http://api.test/",
-            ["PAYMENTS_API_KEY"] = ApiKey,
+            ["PAYMENTS_API_KEY"] = apiKey ?? string.Empty,
         });
 
         builder.Services.AddSingleton<TimeProvider>(harness.Clock);
 
-        builder.Services.AddPaymentsMcp(builder.Configuration)
+        // The stub sits behind the API client, so a test sees every request the tools send.
+        // Step 13 registers that client; until then AddPaymentsMcp never calls this hook.
+        builder.Services.AddPaymentsMcp(
+                builder.Configuration,
+                api => api.ConfigurePrimaryHttpMessageHandler(() => harness.Api))
             .WithStreamServerTransport(
                 clientToServer.Reader.AsStream(),
                 serverToClient.Writer.AsStream());
-
-        // Step 13 hooks the API client up to the stub here, with something like:
-        //   builder.Services.AddHttpClient("payments")
-        //       .ConfigurePrimaryHttpMessageHandler(() => harness.Api);
-        // Until then nothing calls the API, and Api.Requests stays empty.
 
         harness._host = builder.Build();
 

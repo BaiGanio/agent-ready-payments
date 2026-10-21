@@ -6,7 +6,15 @@ namespace Payments.Mcp;
 
 public static class McpSetup
 {
-     public static IMcpServerBuilder AddPaymentsMcp(this IServiceCollection services, IConfiguration config)
+     /// <param name="configureApiClient">
+     /// A hook on the API client's builder. The tests use it to put the stub handler behind the
+     /// client, and step 18 uses it to point at the real API. Step 13 registers the client and
+     /// passes the builder here. Until then there is no client, so the hook is not called.
+     /// </param>
+     public static IMcpServerBuilder AddPaymentsMcp(
+        this IServiceCollection services,
+        IConfiguration config,
+        Action<IHttpClientBuilder>? configureApiClient = null)
         => services.AddMcpServer()
             .WithTools<PaymentTools>()
             .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (context, cancellationToken) =>
