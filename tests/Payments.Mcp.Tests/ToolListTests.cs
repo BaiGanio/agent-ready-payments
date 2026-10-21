@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using Xunit;
+using System.Text.RegularExpressions;
 
 namespace Payments.Mcp.Tests;
 
@@ -50,7 +51,13 @@ public sealed class ToolListTests
 
         var paymentId = properties.GetProperty("payment_id");
         Assert.Equal("string", paymentId.GetProperty("type").GetString());
-        Assert.Equal("uuid", paymentId.GetProperty("format").GetString());
+       
+        // The SDK emits no "format": "uuid", so the UUID shape is carried as a pattern.
+        // Check what the pattern does, not how it is spelt.
+        var pattern = new Regex(paymentId.GetProperty("pattern").GetString()!);
+        Assert.Matches(pattern, "0199c3f0-1a2b-7c3d-8e4f-5a6b7c8d9e0f");
+        Assert.DoesNotMatch(pattern, "42");
+        Assert.DoesNotMatch(pattern, "order-1234");
 
         Assert.Equal(new[] { "payment_id" }, RequiredOf(tool));
     }
