@@ -112,19 +112,65 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
       /// <summary>The first seeded merchant. Every happy-path test uses it.</summary>
     protected static readonly Guid SeededMerchant = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-    /// <summary>Posts a valid body and returns the created payment. Fails the test if the API did not return 201.</summary>
-    protected async Task<PaymentDto> CreatePaymentAsync(decimal amount = 100m, string currency = "EUR")
+    /// <summary>
+    /// Posts a valid body and returns the created payment. Fails the test if the API did not return 201.
+    /// Always sends an Idempotency-Key. Pass <paramref name="key"/> to reuse one on purpose.
+    /// </summary>
+    protected async Task<PaymentDto> CreatePaymentAsync(decimal amount = 100m, string currency = "EUR", string? key = null)
     {
-        var response = await Client.PostAsJsonAsync(
-            "/payments",
-            new CreatePaymentRequest(SeededMerchant, amount, currency),
-            TestContext.Current.CancellationToken);
+        var response = await PostAsync("/payments", new CreatePaymentRequest(SeededMerchant, amount, currency), key);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         var dto = await response.Content.ReadFromJsonAsync<PaymentDto>(TestContext.Current.CancellationToken);
 
         return dto!;
+    }
+
+    /// <summary>
+    /// Posts to any path with an Idempotency-Key and returns the raw response, so a test can assert a 409.
+    /// A fresh key every call unless the test names one. PostAsJsonAsync cannot add a header, so this
+    /// builds the request by hand.
+    /// </summary>
+    protected async Task<HttpResponseMessage> PostAsync(string path, object? body = null, string? key = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, path);
+
+        if (body is not null)
+            request.Content = JsonContent.Create(body, body.GetType());
+
+        request.Headers.Add("Idempotency-Key", key ?? Guid.NewGuid().ToString());
+
+        return await Client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Creates a payment and authorises it. Fails the test if either call did not succeed.</summary>
+    protected async Task<PaymentDto> AuthorisedPaymentAsync(decimal amount = 100m, string currency = "EUR")
+    {
+        var created = await CreatePaymentAsync(amount, currency);
+
+        var response = await PostAsync($"/payments/{created.Id}/authorise");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        return (await response.Content.ReadFromJsonAsync<PaymentDto>(TestContext.Current.CancellationToken))!;
+    }
+
+    /// <summary>
+    /// Creates, authorises and captures a payment. <paramref name="captured"/> defaults to the full amount,
+    /// so the payment ends Captured; pass less for a PartiallyCaptured one.
+    /// </summary>
+    protected async Task<PaymentDto> CapturedPaymentAsync(decimal amount = 100m, decimal? captured = null, string currency = "EUR")
+    {
+        var authorised = await AuthorisedPaymentAsync(amount, currency);
+
+        var response = await PostAsync(
+            $"/payments/{authorised.Id}/capture",
+            new AmountRequest(captured ?? amount, currency));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        return (await response.Content.ReadFromJsonAsync<PaymentDto>(TestContext.Current.CancellationToken))!;
     }
 
     /// <summary>Reads the "code" extension out of a ProblemDetails body.</summary>
@@ -153,7 +199,9 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
         _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, "Unknown store engine.")
     };
 
-     /// <summary>Reads one value straight from Postgres, to check what a store really wrote.</summary>
+    protected IIdempotencyStore IdempotencyStore() => new DapperIdempotencyStore(Fixture.ConnectionString);
+
+    /// <summary>Reads one value straight from Postgres, to check what a store really wrote.</summary>
     protected async Task<T> QuerySqlAsync<T>(string sql, object? parameters = null)
     {
         await using var connection = new NpgsqlConnection(Fixture.ConnectionString);

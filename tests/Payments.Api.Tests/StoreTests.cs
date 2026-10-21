@@ -22,11 +22,11 @@ public sealed class StoreTests(ApiFixture fixture) : ApiTestBase(fixture)
         var payment = Payment.Create(Guid.CreateVersion7(), Money.Of(100m, "EUR"), clock);
         Assert.True(payment.Authorise().IsSuccess);
 
-        await store.InsertAsync(payment, SeededMerchant, ct);
+        await store.InsertAsync(payment, SeededMerchant, completion: null, ct);
 
         Assert.True(payment.Capture(Money.Of(40m, "EUR")).IsSuccess);
 
-        await store.UpdateAsync(payment, persistedOperationCount: 1, ct);
+        await store.UpdateAsync(payment, persistedOperationCount: 1, completion: null, ct);
 
         var loaded = await store.LoadAsync(payment.Id, ct);
 
@@ -83,7 +83,7 @@ public sealed class StoreTests(ApiFixture fixture) : ApiTestBase(fixture)
         Assert.True(payment.Authorise().IsSuccess);
         Assert.True(payment.Capture(Money.Of(30m, "EUR")).IsSuccess);
 
-        await store.InsertAsync(payment, SeededMerchant, ct);
+        await store.InsertAsync(payment, SeededMerchant, completion: null, ct);
 
         Assert.Equal(2, await CountRowsAsync("payment_operation"));
 
@@ -92,7 +92,7 @@ public sealed class StoreTests(ApiFixture fixture) : ApiTestBase(fixture)
         Assert.NotNull(loaded);
         Assert.True(loaded.Payment.Capture(Money.Of(20m, "EUR")).IsSuccess);
 
-        await store.UpdateAsync(loaded.Payment, loaded.OperationCount, ct);
+        await store.UpdateAsync(loaded.Payment, loaded.OperationCount, completion: null, ct);
 
         Assert.Equal(3, await CountRowsAsync("payment_operation"));
     }
@@ -108,7 +108,7 @@ public sealed class StoreTests(ApiFixture fixture) : ApiTestBase(fixture)
         var payment = Payment.Create(Guid.CreateVersion7(), Money.Of(100m, "EUR"), clock);
         Assert.True(payment.Authorise().IsSuccess);
 
-        await store.InsertAsync(payment, SeededMerchant, ct);
+        await store.InsertAsync(payment, SeededMerchant, completion: null, ct);
 
         // The only check on payment_operation is the kind list, and the domain never
         // breaks it. So refuse the insert at the database instead.
@@ -127,7 +127,7 @@ public sealed class StoreTests(ApiFixture fixture) : ApiTestBase(fixture)
             Assert.True(payment.Capture(Money.Of(40m, "EUR")).IsSuccess);
 
             await Assert.ThrowsAsync<PostgresException>(
-                () => store.UpdateAsync(payment, persistedOperationCount: 1, ct));
+                () => store.UpdateAsync(payment, persistedOperationCount: 1, completion: null, ct));
 
             Assert.Equal(1, await CountRowsAsync("payment_operation"));
             Assert.Equal("Authorised", await QuerySqlAsync<string>(
