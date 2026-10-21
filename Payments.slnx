@@ -3,6 +3,7 @@
     <Project Path="src/Payments.Api/Payments.Api.csproj" />
     <Project Path="src/Payments.Db/Payments.Db.csproj" />
     <Project Path="src/Payments.Domain/Payments.Domain.csproj" />
+    <Project Path="src/Payments.Mcp/Payments.Mcp.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Payments.Api.Tests/Payments.Api.Tests.csproj" />
