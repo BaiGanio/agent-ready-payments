@@ -6,6 +6,7 @@ using DbUp;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
+using Payments.Api.Auth;
 using Payments.Api.Storage;
 using Respawn;
 using Testcontainers.PostgreSql;
@@ -100,7 +101,12 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         await Fixture.ResetAsync();
-        Client = Fixture.Factory.CreateClient();
+
+        // Respawn empties api_key before every test, so the default key is inserted every time.
+        Client = await ClientWith(
+            ["payments:read", "payments:write", "payments:refund"],
+            kind: "service",
+            merchant: SeededMerchant);
     }
 
     public ValueTask DisposeAsync()
@@ -111,6 +117,37 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
 
       /// <summary>The first seeded merchant. Every happy-path test uses it.</summary>
     protected static readonly Guid SeededMerchant = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+    /// <summary>The second seeded merchant. A key for one merchant must never see the other's payments.</summary>
+    protected static readonly Guid OtherMerchant = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+    /// <summary>
+    /// Inserts a key straight into api_key and returns the raw key. Only the hash is stored,
+    /// so the raw key lives only in the test. Defaults to an agent key for the seeded merchant.
+    /// </summary>
+    protected async Task<string> InsertKeyAsync(string[] scopes, string kind = "agent", Guid? merchant = null)
+    {
+        string raw = Guid.NewGuid().ToString("N");
+
+        await ExecuteSqlAsync(
+            """
+            insert into api_key (key_hash, name, merchant_id, kind, scopes)
+            values (@Hash, @Name, @Merchant, @Kind, @Scopes)
+            """,
+            new { Hash = ApiKeyHash.Of(raw), Name = raw, Merchant = merchant ?? SeededMerchant, Kind = kind, Scopes = scopes });
+
+        return raw;
+    }
+
+    /// <summary>A new client that sends a fresh key with these scopes on every request.</summary>
+    protected async Task<HttpClient> ClientWith(string[] scopes, string kind = "agent", Guid? merchant = null)
+    {
+        var client = Fixture.Factory.CreateClient();
+
+        client.DefaultRequestHeaders.Add("X-Api-Key", await InsertKeyAsync(scopes, kind, merchant));
+
+        return client;
+    }
 
     /// <summary>
     /// Posts a valid body and returns the created payment. Fails the test if the API did not return 201.
@@ -130,9 +167,9 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
     /// <summary>
     /// Posts to any path with an Idempotency-Key and returns the raw response, so a test can assert a 409.
     /// A fresh key every call unless the test names one. PostAsJsonAsync cannot add a header, so this
-    /// builds the request by hand.
+    /// builds the request by hand. Pass <paramref name="client"/> to post with another API key.
     /// </summary>
-    protected async Task<HttpResponseMessage> PostAsync(string path, object? body = null, string? key = null)
+    protected async Task<HttpResponseMessage> PostAsync(string path, object? body = null, string? key = null, HttpClient? client = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, path);
 
@@ -141,7 +178,7 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
 
         request.Headers.Add("Idempotency-Key", key ?? Guid.NewGuid().ToString());
 
-        return await Client.SendAsync(request, TestContext.Current.CancellationToken);
+        return await (client ?? Client).SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     /// <summary>Creates a payment and authorises it. Fails the test if either call did not succeed.</summary>
