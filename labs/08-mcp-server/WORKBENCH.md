@@ -405,6 +405,7 @@ build(mcp): add the Payments.Mcp server and its test project
 //   host.StartAsync(); then
 //   Client = await McpClient.CreateAsync(
 //       new StreamClientTransport(clientToServer.Writer.AsStream(), serverToClient.Reader.AsStream()));
+//   StreamClientTransport is in namespace ModelContextProtocol.Protocol, not .Client.
 //   A FakeTimeProvider registered as TimeProvider, exposed as harness.Clock.
 //
 // TODO: helpers: CallAsync(tool, args) -> (bool IsError, JsonElement Body)
