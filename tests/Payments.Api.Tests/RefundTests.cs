@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Xunit;
 
@@ -111,10 +112,11 @@ public sealed class RefundTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
 
+        // Read the body once. A second read of the same response hits a closed stream.
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
 
         Assert.Equal("urn:payments-labs:error:amount_exceeds_captured", problem!.Type);
-        Assert.Equal("amount_exceeds_captured", await ErrorCodeAsync(response));
+        Assert.Equal("amount_exceeds_captured", (problem.Extensions["code"] as JsonElement?)?.GetString());
         Assert.DoesNotContain("Exception", problem.Detail);
         Assert.DoesNotContain("   at ", problem.Detail);
     }

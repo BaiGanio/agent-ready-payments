@@ -34,5 +34,56 @@ public static class PaymentEndpoints
             return Results.Ok(dto);
         });
 
+        group.MapPost("/{id:guid}/authorise", async(Guid id, IPaymentStore store, HttpContext http, CancellationToken cancellationToken) =>
+        {
+            var loaded = await store.LoadAsync(id, cancellationToken);
+
+            if(loaded is null)
+                return ProblemMapper.NotFound("payment_not_found", $"Payment with Id: @{id} not found.", http);
+
+            var result = loaded.Payment.Authorise();
+
+            if(result.IsFailure)
+                return ProblemMapper.ToProblem(result.Error, http);
+
+            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, cancellationToken);
+
+            return Results.Ok(PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.UpdatedAt));
+        });
+
+        group.MapPost("/{id:guid}/capture", async(Guid id, AmountRequest req, IPaymentStore store, HttpContext http, CancellationToken cancellationToken) =>
+        {
+            var loaded = await store.LoadAsync(id, cancellationToken);
+
+            if(loaded is null)
+                return ProblemMapper.NotFound("payment_not_found", $"Payment with Id: @{id} not found.", http);
+
+            var result = loaded.Payment.Capture(Money.Of(req.Amount, req.Currency));
+
+            if(result.IsFailure)
+                return ProblemMapper.ToProblem(result.Error, http);
+
+            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, cancellationToken);
+
+            return Results.Ok(PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.Payment.Operations[^1].At));
+        });
+
+         group.MapPost("/{id:guid}/refund", async(Guid id, AmountRequest req, IPaymentStore store, HttpContext http, CancellationToken cancellationToken) =>
+        {
+            var loaded = await store.LoadAsync(id, cancellationToken);
+
+            if(loaded is null)
+                return ProblemMapper.NotFound("payment_not_found", $"Payment with Id: @{id} not found.", http);
+
+            var result = loaded.Payment.Refund(Money.Of(req.Amount, req.Currency));
+
+            if(result.IsFailure)
+                return ProblemMapper.ToProblem(result.Error, http);
+
+            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, cancellationToken);
+
+            return Results.Ok(PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.Payment.Operations[^1].At));
+        });
+
     }
 }
