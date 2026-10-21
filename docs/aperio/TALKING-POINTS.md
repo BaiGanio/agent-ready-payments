@@ -138,7 +138,7 @@ The tour brief asks for five. Stories 6–9 are strong bridges to payments, so t
 | Orchestrate workflows (durable) | Pending-confirmation state with expiry and claim (`008_agent_interrupts.sql`, `interruptService.js`); scheduler with overlap skip (`agent-scheduler.js`) | Durable workflow table + runner with `SKIP LOCKED` / `READPAST`; Temporal, Durable Task, Dapr Workflow, Elsa, MassTransit sagas (Lab 13) |
 | Workflow vs agent | Agent loop inside a turn; jobs and interrupts around it | "Code decides the steps, the model fills bounded steps" (Lab 13) |
 | Observability | Lifecycle traces and events (`lib/agent/lifecycle-trace.js`, `turn-diagnostics.js`); breaker events `tool_repeat_break`, `tool_step_limit` | OpenTelemetry `ActivitySource` / `Meter`, GenAI `gen_ai.*` spans, trace context across MCP (Lab 14) — **not in Aperio** |
-| Agent identity / least privilege | Tool profiles per agent (`lib/agent/tool-profiles.js`); taint gate on writes after untrusted content | API key per agent with scopes, enforced by the API; audit row per call (Lab 08) |
+| Agent identity / least privilege | Tool profiles per agent (`lib/agent/tool-profiles.js`); taint gate on writes after untrusted content | API key per agent with scopes and one merchant, enforced by the API (Lab 08); audit row per call (Lab 14) |
 | Config discipline | `lib/config.js` single registry, `npm run gen:env:check` CI gate | `IOptions<T>` with `ValidateOnStart()`, one options class per section |
 
 ---

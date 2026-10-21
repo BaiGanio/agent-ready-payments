@@ -22,7 +22,8 @@ erDiagram
     SettlementBatch ||--o{ SettlementItem : contains
     Payment ||--o| SettlementItem : "settled as"
     AgentRun ||--o{ AgentStep : records
-    AgentClient ||--o{ AgentAudit : "acts in"
+    Merchant ||--o{ ApiKey : owns
+    ApiKey ||--o{ AgentAudit : "acts in"
     Payment ||--o{ Chargeback : "disputed by"
     Chargeback ||--|| WorkflowInstance : "driven by"
     WorkflowInstance ||--o{ WorkflowStep : logs
@@ -93,15 +94,17 @@ erDiagram
         string ToolName
         string Outcome
     }
-    AgentClient {
-        uuid Id PK
+    ApiKey {
+        string KeyHash PK "SHA-256 hex"
         string Name
-        string KeyHash
-        string Scopes "payments:read payments:refund"
+        uuid MerchantId FK
+        string Kind "agent|service"
+        string Scopes "payments:read payments:write payments:refund"
+        datetime RevokedUtc
     }
     AgentAudit {
         uuid Id PK
-        uuid AgentClientId FK
+        string ApiKeyHash FK
         string Tool
         uuid TargetId
         json RedactedArgs
@@ -150,11 +153,11 @@ erDiagram
 | 04 | SQL Server | Same three tables (lockstep) + `RowVer`, `usp_CapturePayment`, `usp_ClaimNextBatch`; RCSI switched on |
 | 05 | SQL Server | `StagingSettlementFile` (a heap for `SqlBulkCopy`) + a TVP type |
 | 06 | SQL Server | `SettlementBatch`, `SettlementItem`, `SettlementPoison` |
-| 08 | Postgres | `AgentClient` (key hash, name, scopes) and `AgentAudit` (one row per agent tool call, with trace id) |
+| 08 | Postgres | `api_key`: SHA-256 hash, name, one merchant, kind (`agent` or `service`), scopes; a `check` keeps `payments:approve` off agent keys (decided 2026-10-21). `AgentAudit` moved to lab 14 |
 | 09 | Postgres | `AgentRun`, `AgentStep` (EF Core owns these two) |
 | 12 | Postgres | `CREATE EXTENSION vector`, `Policy` with an HNSW index and a full-text index |
 | 13 | Postgres | `Chargeback`, `WorkflowInstance` (state, JSON data, `NextWakeUtc`, version), `WorkflowStep` (step log), `Outbox`; `Payment.DisputeHold` column |
-| 14 | Postgres | Nothing new. It uses `AgentAudit.TraceId` from Lab 08. |
+| 14 | Postgres | `agent_audit`: one row per agent tool call, with the key, tool, payment, redacted arguments, result code, approver and trace id (moved from lab 08, 2026-10-21) |
 | 15 | Postgres | `ToolResult` (offloaded big results: id, run id, tool, content, created) |
 | 16 | Postgres | `AgentStep` gets `Status` (`Planned/Started/Completed/Failed/InDoubt`), `IdempotencyKey`, `StartedUtc`; `AgentRun` gets `NextWakeUtc` and `ToolSchemaHash` |
 

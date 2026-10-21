@@ -156,7 +156,7 @@ The debug run loads `.env`, so `MSSQL_SA_PASSWORD` is there. Start the databases
 | Capture or refund part of it | `curl -i -X POST http://localhost:5080/payments/<id>/capture -H 'Content-Type: application/json' -d '{"amount":40.00,"currency":"EUR"}'` |
 | Send a POST with an idempotency key (lab 03) | add `-H 'Idempotency-Key: <any string>'`. Same key again → same answer and `Idempotent-Replayed: true` |
 | See the stored keys (lab 03) | `docker exec payments-postgres psql -U labs -d payments_labs -c "select key, status, response_code from idempotency_key;"` |
-| List a merchant's payments | `curl -s 'http://localhost:5080/payments?merchant=11111111-1111-1111-1111-111111111111&limit=5' \| python3 -m json.tool` |
+| List the key's merchant's payments (lab 08) | `curl -s 'http://localhost:5080/payments?status=Captured&limit=5' -H "X-Api-Key: $PAYMENTS_DEV_KEY" \| python3 -m json.tool` — the merchant comes from the key, at most 20 rows |
 | See the headers only | add `-I`, or keep `-i` to get headers **and** body |
 | Pretty-print any response | pipe it to `python3 -m json.tool` |
 
@@ -169,6 +169,37 @@ curl -s -X POST http://localhost:5080/payments/<id>/refund \
   -H 'Content-Type: application/json' -d '{"amount":9999.00,"currency":"EUR"}' \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["status"], d["code"])'
 ```
+
+---
+
+## API keys (from lab 08)
+
+From lab 08 every `/payments` call needs `-H "X-Api-Key: $PAYMENTS_DEV_KEY"`. Without it the answer is `401`. `/health` needs no key. Load the keys into your shell first: `set -a; source .env; set +a`.
+
+| I want to | Command |
+|---|---|
+| Make a new raw key | `openssl rand -base64 24 \| tr '+/' '-_' \| tr -d '='` — put it in `.env`, never in git |
+| Store a service key for M1 (all write scopes) | `docker exec payments-postgres psql -U labs -d payments_labs -c "insert into api_key (key_hash, name, merchant_id, kind, scopes) values (encode(sha256(convert_to('$PAYMENTS_DEV_KEY','UTF8')),'hex'), 'dev-service', '11111111-1111-1111-1111-111111111111', 'service', '{payments:read,payments:write,payments:refund}');"` |
+| Store a refund agent key for M1 | the same insert with `$PAYMENTS_AGENT_KEY`, name `support-bot`, kind `agent`, scopes `{payments:read,payments:refund}` |
+| Store a read-only agent key for M1 | the same insert with `$PAYMENTS_READONLY_AGENT_KEY`, name `read-bot`, kind `agent`, scopes `{payments:read}` |
+| See the stored keys (hashes only) | `docker exec payments-postgres psql -U labs -d payments_labs -c "select name, kind, scopes, left(key_hash, 12), revoked_at from api_key;"` |
+| Revoke a key | `docker exec payments-postgres psql -U labs -d payments_labs -c "update api_key set revoked_at = now() where name = 'support-bot';"` |
+| Call the API with a key | add `-H "X-Api-Key: $PAYMENTS_DEV_KEY"` to any `curl` in "The API" above |
+
+The database stores only the SHA-256 of a key. `sha256(convert_to(…))` in Postgres and `ApiKeyHash.Of` in C# give the same lower-case hex, so a key stored by `psql` works in the API.
+
+---
+
+## The MCP server (from lab 08)
+
+| I want to | Command |
+|---|---|
+| Build it | `dotnet build src/Payments.Mcp` |
+| Prove nothing goes to stdout | `dotnet run --project src/Payments.Mcp < /dev/null 2>/dev/null \| wc -c` — must print `0` |
+| Run only the MCP tests | `dotnet test tests/Payments.Mcp.Tests` |
+| Drive the tools by hand (no model) | `npx @modelcontextprotocol/inspector -e PAYMENTS_API_URL=http://localhost:5080 -e PAYMENTS_API_KEY="$PAYMENTS_AGENT_KEY" dotnet "$PWD/src/Payments.Mcp/bin/Debug/net10.0/Payments.Mcp.dll"` |
+
+The Inspector starts the built `.dll`, never `dotnet run`: `dotnet run` can print `Using launch settings from …` on stdout, and stdout is the protocol. The API must be running first.
 
 ---
 

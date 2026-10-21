@@ -32,7 +32,7 @@ The audit table also has a row saying that agent `support-bot` refunded €80 on
 - **Model-call spans** with the OpenTelemetry GenAI conventions (`gen_ai.*`): model name, token counts, duration. **No prompt text in spans by default**, because prompts can contain customer data.
 - **Metrics:** tool calls per tool, tool error rate, step-cap hits, approval reject rate, model latency.
 - **A local viewer** in Docker: the .NET Aspire dashboard (standalone) or Jaeger.
-- **Audit** (the table is added in Lab 08): one row per agent tool call, with trace id, agent key, scope, tool, redacted arguments, result code and approver.
+- **Audit** (the table is built **here** — moved from lab 08 on 2026-10-21): one `agent_audit` row per agent tool call, written by the **API**, with trace id, agent key, scope, tool, redacted arguments, result code and approver. A `403 insufficient_scope` is audited too. Every agent call leaves exactly one row.
 
 ## Why it matters for a payment platform
 The ad says the platform *"increasingly interacts with AI agents and orchestration layers"*. In a regulated payments company, "the agent did it" is not an answer. You must show who, what, when, why and with whose approval. Tracing also finds slow hops and runaway agents.
@@ -50,6 +50,7 @@ The ad says the platform *"increasingly interacts with AI agents and orchestrati
 ## Done when
 - One refund through the agent produces **one** trace with spans from all three processes and SQL.
 - The audit row and the trace share the same trace id.
+- Every agent call leaves exactly one audit row, and a read-only key's refused refund is one of them.
 - A test shows that card numbers and prompt text never appear in spans or logs.
 - The metrics show a step-cap hit after you run a looping fake model.
 
