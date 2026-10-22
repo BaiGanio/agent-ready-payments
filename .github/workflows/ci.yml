@@ -1,0 +1,28 @@
+name: ci
+
+# The gate. A pull request into main cannot merge until this passes.
+# Pushes to develop run it too, so a problem shows up before you open the PR.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [develop]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # global.json pins the SDK, so the runner uses the same one as this Mac.
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build Payments.slnx --configuration Release
+
+      # The runner has Docker, so Testcontainers starts Postgres by itself.
+      # runs=local marks the tests that cannot run here. Nothing carries it yet.
+      - name: Test
+        run: dotnet test Payments.slnx --configuration Release --filter-not-trait runs=local
