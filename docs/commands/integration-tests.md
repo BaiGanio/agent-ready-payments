@@ -15,6 +15,7 @@ Testcontainers runs, and the containers they leave behind.
 | Check what Docker socket the library will find | `docker context ls` |
 | Run one class | `dotnet test tests/Payments.Api.Tests --filter-class "Payments.Api.Tests.ConcurrencyTests"` |
 | Run one test | `dotnet test tests/Payments.Api.Tests --filter-method "*A_created_payment_can_be_read_back*"` |
+| Run only the SQL Server tests (lab 04) | `dotnet test tests/Payments.Data.SqlServer.Tests` |
 | Run a race test ten times | `for i in $(seq 1 10); do dotnet test Payments.slnx --configuration Release --filter-not-trait runs=local; done` |
 
 The first run pulls `pgvector/pgvector:pg17` and takes about a minute. Later runs are seconds, because the image is cached. Testcontainers removes its own containers; if a fixture crashes before cleanup, its Ryuk reaper clears them within minutes, and `docker rm -f` is the impatient version.

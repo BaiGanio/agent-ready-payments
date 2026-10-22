@@ -31,7 +31,7 @@ My earlier Svelte app ([BaiGanio/scrooge-financing](https://github.com/BaiGanio/
 - Upgrade on the way: Svelte 4 → Svelte 5.
 
 ## The shape (kept small)
-- **API (C#):** `GET /approvals?status=pending` (keyset paged, Lab 02), `GET /approvals/{token}`, `POST /approvals/{token}/approve`, `POST /approvals/{token}/reject` with `{ reason }`. The approve call sends `If-Match` with the version that the person saw (Lab 04).
+- **API (C#):** `GET /approvals?status=pending` (keyset paged, Lab 02), `GET /approvals/{token}`, `POST /approvals/{token}/approve`, `POST /approvals/{token}/reject` with `{ reason }`. The approve call sends `If-Match` with the version that the person saw (Lab 20).
 - **Auth:** the person logs in. The API checks the scope `payments:approve`. An **agent key can never call approve** (`403`). A person cannot approve a proposal that they started themselves (four-eyes).
 - **UI:** one list, one card, two buttons. A countdown to expiry. Clear states for `stale_version`, `expired`, `already_decided` and `forbidden`, each from the ProblemDetails `code`.
 - **Lab 13 link:** the chargeback *Submit / Accept loss* decision uses the same card with different buttons.

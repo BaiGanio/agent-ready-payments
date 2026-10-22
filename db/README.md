@@ -17,6 +17,7 @@ The shared tables (`Merchant`, `Payment`, `PaymentOperation`) exist in **both** 
 erDiagram
     Merchant ||--o{ Payment : has
     Payment ||--o{ PaymentOperation : "history of"
+    Payment ||--o{ PaymentJob : "queued as"
     Merchant ||--o{ IdempotencyKey : scopes
     Merchant ||--o{ SettlementBatch : "settled in"
     SettlementBatch ||--o{ SettlementItem : contains
@@ -45,6 +46,7 @@ erDiagram
         decimal RefundedAmount
         datetime CreatedUtc
         datetime UpdatedUtc
+        uuid DuplicateOf "SQL Server only, lab 04"
         rowversion RowVer "SQL Server only"
     }
     PaymentOperation {
@@ -64,6 +66,14 @@ erDiagram
         string ResponseLocation
         datetime CreatedUtc
         datetime CompletedUtc
+    }
+    PaymentJob {
+        bigint Id PK "SQL Server only, lab 04"
+        uuid PaymentId FK
+        string Kind "Settle"
+        string Status "Ready|Claimed|Done"
+        string ClaimedBy
+        datetime ClaimedAt
     }
     SettlementBatch {
         uuid Id PK
@@ -150,7 +160,7 @@ erDiagram
 | 01 | — | Nothing. The domain is pure; no database. |
 | 02 | Postgres | `merchant`, `payment`, `payment_operation` + the index `(merchant_id, created_at desc, id desc)` for keyset paging |
 | 03 | Postgres | `idempotency_key` table, primary key `(merchant_id, key)`, with the request hash and the stored answer. Not a column on `payment`: a refund writes no `payment` row (decided 2026-10-20) |
-| 04 | SQL Server | Same three tables (lockstep) + `RowVer`, `usp_CapturePayment`, `usp_ClaimNextBatch`; RCSI switched on |
+| 04 | SQL Server | One file, `0001_payments_procs_locking.sql`: the same three tables (lockstep) + `RowVer` and `DuplicateOf` on `Payment` (SQL Server only), the `PaymentJob` queue, and `usp_CapturePayment`, `usp_MarkDuplicatePair`, `usp_ClaimNextBatch`. RCSI is switched on by `Migrator`, not by a script (decided 2026-10-22) |
 | 05 | SQL Server | `StagingSettlementFile` (a heap for `SqlBulkCopy`) + a TVP type |
 | 06 | SQL Server | `SettlementBatch`, `SettlementItem`, `SettlementPoison` |
 | 08 | Postgres | `api_key`: SHA-256 hash, name, one merchant, kind (`agent` or `service`), scopes; a `check` keeps `payments:approve` off agent keys (decided 2026-10-21). `AgentAudit` moved to lab 14 |
@@ -189,12 +199,13 @@ db/
 │   └── …
 └── sqlserver/
     ├── 0000_baseline.sql                (Lab 00)   ← on disk today
-    ├── 0001_merchant_payment.sql        (Lab 04, lockstep with postgres/0001)
-    ├── 0002_procs_capture_claim.sql     (Lab 04)
+    ├── 0001_payments_procs_locking.sql  (Lab 04: lockstep tables + PaymentJob + 3 procs)
     └── …
 ```
 
-The runner is a tiny console app, `src/Payments.Db`: `dotnet run --project src/Payments.Db -- migrate --engine postgres`.
+The runner is a tiny console app, `src/Payments.Db`, over the `Payments.Migrations` library (lab 04): `dotnet run --project src/Payments.Db -- migrate --engine postgres`.
+
+**A lab in flight may rewrite its own script** (decided 2026-10-22): drop the dev database and migrate again. Once the lab is tagged, the file is frozen and a change is a new numbered script.
 
 EF Core does **not** create these tables. In Labs 02–05, EF Core maps onto the existing tables ("database-first"), just like it would in a real payment codebase. The only exception is Lab 09: EF Core owns `AgentRun` and `AgentStep`, but they still ship as a DbUp script that you write from the EF model.
 
@@ -216,7 +227,7 @@ EF Core does **not** create these tables. In Labs 02–05, EF Core maps onto the
 ## Tests: a clean database every time
 
 - **Postgres:** **Testcontainers** starts a throwaway `pgvector/pgvector:pg17` container per test run, runs the migrations, and drops it at the end.
-- **SQL Server:** we use the compose container. Starting it fresh per run is too slow under Rosetta. Each test class creates its own database (`PaymentsLabs_Test_<guid>`), migrates it and drops it at the end.
+- **SQL Server:** we use the compose container, and every test class carries `[Trait("runs", "local")]`, so CI skips it. Starting it fresh per run is too slow under Rosetta. Each test class creates its own database (`PaymentsLabs_Test_<guid>`), migrates it and drops it at the end.
 - **Between tests:** **Respawn** deletes all rows quickly but keeps the schema. Each test then seeds only what it needs.
 - Tests never use the demo seed. Each test arranges its own data, so test order never matters.
 

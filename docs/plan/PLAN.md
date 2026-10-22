@@ -38,7 +38,8 @@ Rules from the spec, short form:
 | 16 | `labs/16-failure-recovery-outcomes` | **Failures, recovery and expected outcomes:** model and network retries, circuit breaker, write-ahead `Started` steps, **in-doubt tool calls** replayed with the same idempotency key, MCP restart, task contract with checkpoints and postconditions | 4, 3 | 3 h | 09, 03 (+ 15) | Chaos test drops the refund response after processing → exactly one refund; early "Done" fails the postcondition |
 | 17 | `labs/17-cold-start` | **Cold start at every layer:** .NET (JIT vs ReadyToRun vs Native AOT), DB pool, EF model, MCP process, model weights, KV cache, agent context, data. Warm-up service, **live vs ready**, `startupProbe`, honest "starting up" status, no retry storm | 4, 1 | 2–3 h | 09, 14, 15 | Startup timeline cold vs warm; `/health/ready` false until warm; 10 parallel first requests → one warm-up, no timeouts |
 | 18 | `labs/18-system-design-capstone` | **System design capstone:** an agent-ready payment platform on a whiteboard — components, data flow, consistency and transactions, concurrency, scaling, failure modes, LLM gateway (local vs cloud), security and audit. Mock interview | all | 3 h | 03, 04, 09, 13 (ideally all) | A one-page design doc + diagram in your own words; 45-minute mock interview with the agent as the interviewer |
-| 19 | `labs/19-human-in-the-loop-ui` *(optional)* | **The human in the loop:** an approval screen for agent proposals. The person sees the exact action, evidence and expiry, then approves exactly that version (`If-Match`). Four-eyes, `payments:approve` scope (never on agent keys), no "edit" for money. Svelte 5; patterns reused from `scrooge-financing` | 4, UI | 3 h | 08, 09 (+ 04 stretch, 13) | Pending list + card against the real API; tests for stale (`412`), expired, double click, agent key `403`, `four_eyes_required` |
+| 19 | `labs/19-human-in-the-loop-ui` *(optional)* | **The human in the loop:** an approval screen for agent proposals. The person sees the exact action, evidence and expiry, then approves exactly that version (`If-Match`). Four-eyes, `payments:approve` scope (never on agent keys), no "edit" for money. Svelte 5; patterns reused from `scrooge-financing` | 4, UI | 3 h | 08, 09 (+ 20, 13) | Pending list + card against the real API; tests for stale (`412`), expired, double click, agent key `403`, `four_eyes_required` |
+| 20 | `labs/20-etag-if-match` *(optional)* | **ETag and `If-Match`** on the Postgres API: a `version` column, `ETag` on `GET`, `412 stale_version` on a stale write, `304` on `If-None-Match`; lab 08's refund token bound to the version. Moved out of lab 04 on 2026-10-22 | 1, 4 | 2–3 h | 03, 04, 08 | Two clients read version 7: the first capture wins, the second gets `412 stale_version` |
 
 Buckets (from `SPEC.md` §1): **1** C#/.NET · **2** SQL Server · **3** concurrency / flow · **4** agent orchestration · **5** TDD/BDD/Gitflow.
 
@@ -177,6 +178,7 @@ flowchart TD
     L17["17 Cold start<br/>every layer · live vs ready"]
     L18["18 System design capstone<br/>whiteboard · mock interview"]
     L19["19 Human-in-the-loop UI<br/>approval screen · optional"]
+    L20["20 ETag + If-Match<br/>stale reads over HTTP · optional"]
     TP["TALKING-POINTS.md<br/>Aperio evidence"]
 
     L00 --> L01 --> L02 --> L03
@@ -200,6 +202,9 @@ flowchart TD
     L16 -.-> L18
     L09 -.-> L19
     L13 -.-> L19
+    L04 -.-> L20
+    L08 -.-> L20
+    L20 -.-> L19
     TP -.-> L08
 
     classDef core fill:#1f6feb,color:#fff,stroke:#1f6feb
@@ -207,7 +212,7 @@ flowchart TD
     classDef opt fill:#6e7781,color:#fff,stroke:#6e7781
     class L01,L03,L04,L18 core
     class L08,L09,L13,L14,L15,L16,L17,TP ai
-    class L11,L12,L19 opt
+    class L11,L12,L19,L20 opt
 ```
 
 Blue = the labs that carry most interview weight on the .NET/SQL side. Purple = the AI differentiator. Grey = optional.
@@ -239,7 +244,9 @@ agent-ready-payments/
 ├── docker-compose.yml          # Lab 00: postgres + mssql
 ├── Payments.Labs.sln
 ├── src/
+│   ├── Payments.Core/               # Lab 04 (Result, no packages)
 │   ├── Payments.Domain/             # Lab 01
+│   ├── Payments.Migrations/         # Lab 04 (RepoRoot, Migrator)
 │   ├── Payments.Api/                # Lab 02–03
 │   ├── Payments.Data.SqlServer/     # Lab 04–05 (procs, ADO.NET)
 │   ├── Payments.Settlement/         # Lab 06
@@ -368,6 +375,9 @@ Decided things only. Open findings, fix-later items, questions and ideas live in
   - A misspelt filter option also gives "Zero tests ran", exit 5. Non-zero, so CI goes red. A typo in the filter can never pass silently.
 
 - **Decided 2026-10-22 (a load is one snapshot):** `DapperPaymentStore.LoadAsync` reads the `payment` row and its `payment_operation` rows inside a **`RepeatableRead`** transaction. Found by the new `ConcurrencyTests`, which no sequential test could have found. `UpdateAsync` writes the `status` column and the new operation rows in one transaction, so a read that straddles that commit sees the **old** status with the **new** operations, replays to `PartiallyRefunded` while the column still says `Captured`, and the replay check throws — a `500` on perfectly correct data. It hits `GET /payments/{id}` too, and hard, because `CommandAsync` loads the payment **before** the claim, so all 50 racers load it, not just the winner. **The isolation level is the whole fix, not the transaction.** Postgres `READ COMMITTED` takes a fresh snapshot for every *statement*, so a plain `BeginTransaction` only makes the bug rarer, which is worse than leaving it. Measured on the full suite: no transaction = 2 failures in 3 runs; `ReadCommitted` = 1 in 3; `RepeatableRead` = 0 in 10. The read is read-only, so it cannot hit a serialisation failure and needs no retry. This is the lab 04 locking lesson arriving early, in Postgres.
+- **Decided 2026-10-22 (lab 04 scope):** core **plus one EF Core step** — procs, `UPDLOCK`, `READPAST`, a deadlock made and fixed, RCSI, `rowversion`, then EF Core's `[Timestamp]` and a proc called from EF. The ETag / `If-Match` stretch became its own optional lab, **lab 20** (`labs/20-etag-if-match`): it changes the Postgres API, adds a migration there and touches lab 08's token. The queue is a new SQL Server-only **`PaymentJob`** table. The deadlock lives in **`usp_MarkDuplicatePair`** — two operators flag the same double charge from opposite sides — which adds a nullable `DuplicateOf` column, SQL Server only. The API stays on Postgres; only tests call the procs. `CF-009` and `CF-016` are done **together**, first: `Result` moves to a package-free `Payments.Core`, the migration code to `Payments.Migrations`, and `Migrator` returns a `Result`. The CI gate push (`CF-006`) waits until lab 04 closes.
+- **Decided 2026-10-22 (RCSI lives in `Migrator`):** `ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON` cannot run inside a transaction (`Msg 226`, measured), and DbUp wraps every script in one. So `Migrator` switches it on, on `master`, `WITH ROLLBACK IMMEDIATE`, right after it makes the database. It is a database option, not schema.
+- **Decided 2026-10-22 (a lab may rewrite its own migration while in flight):** still one migration per lab per engine. Until the lab is tagged, its file may be rewritten: drop the dev database and migrate again. Tests make a fresh database anyway. **After the tag the file is frozen**, and a change is a new numbered script. Lab 04's file is `db/sqlserver/0001_payments_procs_locking.sql`.
 - **Decided 2026-10-22 (`CF-037`, how the build gets to zero warnings):** the four `CS8524` switches get a `_ => throw new ArgumentOutOfRangeException(...)` arm, **not** the one-table refactor the row also offered. The arm is one line per switch and changes no behaviour; folding `ProblemMapper`'s `Code`, `Status` and `Title` into one table is a real refactor of a lab 02 deliverable and belongs in a lab that needs it. `CS8321` was closed by **wiring `CheckArgs` up**, not by deleting it: it was written in lab 00 and left commented out, so the migration runner validated nothing and simply indexed `args[2]`. Wiring it as written would have thrown, because the branch its own `args.Length < 3` test falls into then printed `args[0]` and `args[1]`; the message now uses `string.Join`. Bad arguments print a line and exit `2`.
 
 ## 9. Environment checklist

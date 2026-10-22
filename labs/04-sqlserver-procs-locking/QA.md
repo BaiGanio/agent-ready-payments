@@ -108,13 +108,7 @@ A: EF 7+ runs one set-based `UPDATE` without loading entities. It bypasses the c
 A: `SaveChanges` is already one transaction. For several saves or mixing with raw SQL: `await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);` … `await tx.CommitAsync();`. Add `EnableRetryOnFailure` for transient errors — but then user-started transactions need an execution strategy wrapper.
 
 
-**Q28. ETag and `If-Match` — what problem do they solve that `rowversion` alone doesn't?**
-A: `rowversion` catches a clash between two saves. `If-Match` catches the clash between what the client *saw* and what is there now. The client reads version 7, decides, and sends `If-Match: "7"`. If the row is now version 8, the server answers `412 Precondition Failed` and changes nothing. That is optimistic concurrency stretched across the HTTP round trip and the human (or agent) thinking time.
-Trap: "Hash the body for the ETag?" → No. Use the row version. A hash costs the serialisation you wanted to save, and it changes when the format changes but the data does not.
-
-**Q29. 409 or 412?**
-A: `409 Conflict`: the domain says no ("already captured"). It would say no again on retry. `412 Precondition Failed`: your copy is stale. Read again, decide again, then retry. Different `code` values in the ProblemDetails, so a client or an agent knows which path to take.
-Trap: "Why does this matter for an agent?" → An agent that read a payment 10 steps ago is working from an old copy. `If-Match` (or a refund token bound to the version) makes it act on what it saw or not at all.
+*Q28 and Q29 (ETag, `If-Match`, 409 or 412) moved to [`labs/20-etag-if-match/QA.md`](../20-etag-if-match/QA.md) on 2026-10-22, with the stretch.*
 
 ## Aperio: have you solved this before?
 

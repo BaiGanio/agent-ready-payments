@@ -2,7 +2,7 @@
 
 The status board. One row per lab. This is the only place that says where you are.
 
-Updated 2026-10-22.
+Updated 2026-10-22 (lab 04 prepared).
 
 ## How to read it
 
@@ -23,17 +23,33 @@ Rules:
 
 ## Next up
 
-**Still not lab 04.** The CI gate (`CF-006`) is **half done** as of 2026-10-22. `.github/workflows/ci.yml` exists, 28 lines, and the command in it is verified on this Mac: 324 of 324 green in 9.5 s. Both of its open decisions graduated to `plan/PLAN.md` §8 — the PR gate shape, and `[Trait("runs","local")]` marking the exceptions.
+**Lab 04 is next.** Prepared 2026-10-22: spec, bench sheet and test list are written. Start with its [`WORKBENCH.md`](../labs/04-sqlserver-procs-locking/WORKBENCH.md) step 0.
 
-What is left on the gate, in order:
+**The CI gate (`CF-006`) waits until lab 04 closes** (decided 2026-10-22). `.github/workflows/ci.yml` exists and its command is verified on this Mac. Lab 04 step 1 does the back-merge of `main` into `develop`. What is left after lab 04: push `develop`, so GitHub runs the workflow once and learns the check exists, then turn on branch protection for `main` with `build-and-test` required.
 
-1. The three gate commits landed on `main`, not on `develop` as `plan/PLAN.md` §8 decided. Back-merge `main` into `develop` first.
-2. Push `develop`, so GitHub runs the workflow once and learns the check exists.
-3. Then turn on branch protection for `main` in the GitHub UI, with `build-and-test` required. Nothing is pushed yet, and no tag is on the remote.
+The suite is **330 of 330 green**, measured 10 runs out of 10, on 2026-10-22.
 
-**Done 2026-10-22, before the gate is pushed:** the carry-forward rows that needed no new lab. `CF-010` (the NU1903 package), `CF-037` (**the build is 0 warnings**, so the gate can now fail on a new one), `CF-019` (`updatedAt` on create), `CF-031` (a `401` no longer tells the model to retry), `CF-035` (**the race is tested**, 3 `ConcurrencyTests`, seen red) and `CF-036` (the crash path on refund, seen red). `CF-016` was checked and left — still two copies, not three. `CF-033` was judged not worth it until lab 09.
+### Lab 04 — tick list
 
-`CF-035` paid for itself twice: it also found a live `500` in `DapperPaymentStore.LoadAsync` that no sequential test could see (`plan/PLAN.md` §8, "a load is one snapshot"). The suite is **330 of 330 green**, measured 10 runs out of 10.
+Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the step.
+
+- [ ] 1 Start the lab, commit the prep
+- [ ] 2 `Result` in `Payments.Core` (`CF-009`, part 1)
+- [ ] 3 `Payments.Migrations` (`CF-016`)
+- [ ] 4 `Migrator` returns a `Result` (`CF-009`, part 2)
+- [ ] 5 SQL Server tables in lockstep
+- [ ] 6 RCSI in `Migrator`
+- [ ] 7 Test project, a database per class
+- [ ] 8 Lost update by hand
+- [ ] 9–10 Capture proc
+- [ ] 11 Capture race
+- [ ] 12 Isolation
+- [ ] 13–16 Duplicate pair, deadlock, graph, fix
+- [ ] 17–18 `READPAST` queue
+- [ ] 19–20 EF Core `RowVer`
+- [ ] 21 Done-when list
+- [ ] 22 Answers out loud
+- [ ] 23 Close
 
 ## The board
 
@@ -43,7 +59,7 @@ What is left on the gate, in order:
 | 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Done** | `lab-01` | — |
 | 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **Done** | `lab-02` | Closed short of the spec: paging `CF-022`, the EF Core store `CF-023`, `void` `CF-025` |
 | 03 | [Idempotency](../labs/03-idempotency) | **Done** | `lab-03` | — |
-| 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | Spec only | — | Bench sheet + test list, then the lab |
+| 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | **Prepared** | — | The lab. Closes `CF-009` and `CF-016` on the way |
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
 | 06 | [Flow pipeline (Channels)](../labs/06-flow-pipeline-channels) | Spec only | — | Bench sheet + test list, then the lab |
 | 07 | [BDD refund rules](../labs/07-bdd-refund-rules) | Spec only | — | Decide how deep BDD goes (`PLAN.md` §7), then the lab |
@@ -59,6 +75,7 @@ What is left on the gate, in order:
 | 17 | [Cold start](../labs/17-cold-start) | Spec only | — | Bench sheet, then the lab. Owns `CF-004` |
 | 18 | [System design capstone](../labs/18-system-design-capstone) | Spec only | — | Design-doc scaffold, then the lab |
 | 19 | [Human-in-the-loop UI](../labs/19-human-in-the-loop-ui) *(optional)* | Spec only | — | Bench sheet, then the lab |
+| 20 | [ETag + If-Match](../labs/20-etag-if-match) *(optional)* | Spec only | — | Moved out of lab 04 on 2026-10-22. Bench sheet + test list, then the lab |
 
 Every lab from 02 on needs three files before it can start: `WORKBENCH.md`, the test list, and any scaffold. The agent writes them **at the start of that lab**, never earlier (`plan/PLAN.md` §8).
 

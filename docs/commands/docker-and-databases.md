@@ -49,3 +49,15 @@ set -a; source .env; set +a
 `set -a` means "export everything I load next". Without it, `source` keeps the value to itself and `docker exec` never sees it.
 
 Inside `psql`: `\dt` lists tables, `\d Payment` describes one table, `\q` quits.
+
+---
+
+## Locks and deadlocks (lab 04)
+
+| I want to | Command |
+|---|---|
+| See who is blocked, and by whom | `docker exec payments-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "SELECT session_id, blocking_session_id, wait_type, wait_time FROM sys.dm_exec_requests WHERE blocking_session_id <> 0"` |
+| Save the last deadlock graph to a file | the `system_health` query in `labs/04-sqlserver-procs-locking/WORKBENCH.md` step 15 |
+| List test databases a crashed run left behind | `docker exec payments-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "SELECT name FROM sys.databases WHERE name LIKE 'PaymentsLabs_Test_%'"` |
+
+Any query that uses XML methods (`.value`, `.query`) needs `sqlcmd -I`. Without it: `Msg 1934 … QUOTED_IDENTIFIER`.

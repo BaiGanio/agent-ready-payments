@@ -50,6 +50,7 @@ In short: strong backend fundamentals, plus knowing what changes when the caller
 | 17 | Cold start at every layer |
 | 18 | System design capstone |
 | 19 | Human-in-the-loop approval UI *(optional)* |
+| 20 | ETag and If-Match *(optional)* |
 
 ## Where things live
 
