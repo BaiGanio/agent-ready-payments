@@ -405,6 +405,7 @@ build(mcp): add the Payments.Mcp server and its test project
 //   host.StartAsync(); then
 //   Client = await McpClient.CreateAsync(
 //       new StreamClientTransport(clientToServer.Writer.AsStream(), serverToClient.Reader.AsStream()));
+//   StreamClientTransport is in namespace ModelContextProtocol.Protocol, not .Client.
 //   A FakeTimeProvider registered as TimeProvider, exposed as harness.Clock.
 //
 // TODO: helpers: CallAsync(tool, args) -> (bool IsError, JsonElement Body)
@@ -773,6 +774,8 @@ npx @modelcontextprotocol/inspector \
   dotnet "$PWD/src/Payments.Mcp/bin/Debug/net10.0/Payments.Mcp.dll"
 ```
 
+Every command in this step — the key check, the captured payment, the shell client, the hang checklist — is in [`docs/EVERYDAY-COMMANDS.md`](../../docs/EVERYDAY-COMMANDS.md) → "The MCP server (from lab 08)". Check the agent key answers `200` **before** you start the Inspector: the server turns every API failure into the same `tool_failed` message, so a key that is in `.env` but not in the database looks like a broken tool.
+
 The first run downloads the Inspector from npm. It opens a page in the browser. Click **Connect**, then **Tools → List Tools**. Call `list_payments` with `status: Captured`. Call `refund_payment` on one payment without a token, read the proposal, then call it again with the token. Call it a third time. Try `amount: "80,00"` and an extra argument `cursor`. Then stop the Inspector, start it again with `PAYMENTS_READONLY_AGENT_KEY`, and try the refund.
 
 **Proof.**
@@ -886,6 +889,7 @@ The merge commits are the record of the rest of this step.
 | Trap | What happens | Fix |
 |---|---|---|
 | The default console logger | "Application started" lands on stdout, and the client fails to parse the first message — often as a vague "connection closed" | `builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace)` before anything else |
+| Logging at `Information` on stdio | The client is free to ignore stderr. The MCP Inspector does. The pipe fills after a few tool calls, the next log line blocks, and the server freezes mid-call: every call after it is "Request timed out after 1m00s" | `builder.Logging.SetMinimumLevel(LogLevel.Warning)`. Four `HttpClient` info lines per call fill a pipe; warnings cannot |
 | A `Console.WriteLine` "just to debug" | Same as above, but only on the code path you were debugging | `Console.Error.WriteLine`, or a logger. Step 17's grep finds it |
 | The Inspector starts `dotnet run` | `Using launch settings from …` goes to stdout first, whenever a `launchSettings.json` exists | Point the Inspector at the built `.dll`. Keep `Properties/` out of `src/Payments.Mcp` |
 | A `Guid` or an enum as a tool parameter | A bad value gives the model "An error occurred invoking 'get_payment'" and nothing else | Take `string`, parse it yourself, return `invalid_payment_id` with the expected format |
@@ -915,4 +919,4 @@ The merge commits are the record of the rest of this step.
 
 Write what surprised you here, as it happens. At the end of the lab these move into `docs/plan/CARRY-FORWARD.md` (the inbox) as `CF-NNN` rows. From there each one graduates to `docs/plan/PLAN.md` section 8, to a lab `README.md`, or it is dropped.
 
--
+Moved to the inbox on 2026-10-22: `CF-031`, `CF-032`, `CF-033`.
