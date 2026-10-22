@@ -919,4 +919,4 @@ The merge commits are the record of the rest of this step.
 
 Write what surprised you here, as it happens. At the end of the lab these move into `docs/plan/CARRY-FORWARD.md` (the inbox) as `CF-NNN` rows. From there each one graduates to `docs/plan/PLAN.md` section 8, to a lab `README.md`, or it is dropped.
 
-- **Step 18: two MCP harnesses, not one.** `tests/Payments.Api.Tests/McpEndToEndHarness.cs` repeats the pipes, the transport and the client of `tests/Payments.Mcp.Tests/McpHarness.cs`. Not shared: one owns a `StubApi` and a `FakeTimeProvider`, the other an `ApiFixture`, and the two test projects do not reference each other.
+Moved to the inbox on 2026-10-22: `CF-031`, `CF-032`, `CF-033`.
