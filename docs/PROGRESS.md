@@ -2,7 +2,7 @@
 
 The status board. One row per lab. This is the only place that says where you are.
 
-Updated 2026-10-21.
+Updated 2026-10-22.
 
 ## How to read it
 
@@ -27,7 +27,7 @@ Rules:
 | 00 | [Setup + glossary](../labs/00-setup-and-glossary) | **Done** | `lab-00` | — |
 | 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Done** | `lab-01` | — |
 | 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **Done** | `lab-02` | Closed short of the spec: the store and its tests are done, the command endpoints are `CF-021` |
-| 03 | [Idempotency](../labs/03-idempotency) | Prepared | — | The lab: 17 steps, 65 tests. Plus lab 08's dropped-answer test, `CF-032`. Then the CI gate, `CF-006` |
+| 03 | [Idempotency](../labs/03-idempotency) | `In progress` | — | Steps 2–12 done plus `CF-032`: all four POSTs are replay-safe, 109 of 109 green. Step 13 skipped (`CF-035`). Steps 14–16 left: Done-when by hand, `QA.md` out loud, close the lab. Then the CI gate, `CF-006` |
 | 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | Spec only | — | Bench sheet + test list, then the lab |
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
 | 06 | [Flow pipeline (Channels)](../labs/06-flow-pipeline-channels) | Spec only | — | Bench sheet + test list, then the lab |
@@ -103,7 +103,7 @@ Dropped on purpose, each with a carry-forward row:
 
 Nothing is blocked. The four lab 02 decisions — merchant placement, the `Guid` id, replay loading and `snake_case` in Postgres — are in `plan/PLAN.md` §8, dated 2026-10-19. One finding is open against the shipped code: `CF-019`, `updatedAt` written by one clock and returned by another.
 
-## Lab 03 — Prepared
+## Lab 03 — In progress
 
 Written for you (2026-10-20):
 
@@ -112,13 +112,29 @@ Written for you (2026-10-20):
 - [x] `TEST-LIST.md`: 65 test names in 12 groups, with the rule each one must check
 - [x] `QA.md`: Q26–Q31 added from the build; the EF Core questions marked paper-only
 
+Done by you (2026-10-20 → 2026-10-21, merged into `develop` as `82810f9`):
+
+- [x] Step 2: `ValidationTests` — 8 tests, closes `CF-020`
+- [x] Steps 3–4: `AuthoriseTests`, `CaptureTests`, `RefundTests` — 20 tests — then the three endpoints in `src/Payments.Api/PaymentEndpoints.cs`. Closes `CF-021`
+- [x] Step 5: `db/postgres/0002_idempotency.sql` — the `idempotency_key` table
+- [x] Step 6: `IIdempotencyStore`, `Claim`, `Completion` and `RequestHash`
+- [x] Step 7: `IdempotencyStoreTests` — 7 tests, red
+
+Done by you (2026-10-22, on `feature/lab-03-idempotency`):
+
+- [x] Step 8: `DapperIdempotencyStore` — insert-first claim, the conditional `Completed` mark, release only when `InProgress`. The 7 step 7 tests are green
+- [x] Step 9: `KeyHeaderTests`, `ReplayTests`, `KeyReuseTests` — red
+- [x] Step 10: `ReadKey` and `Replay` in `PaymentEndpoints.cs`, the header check on all four POSTs, the two-phase flow on `POST /payments`, `ProblemMapper.Idempotency` and `IIdempotencyStore` registered. 96 of 98 green (see `CF-034`)
+- [x] Step 11: `CommandReplayTests`, `InProgressTests`, `FailureTests` — 10 tests, 7 red
+- [x] Step 12: `CommandAsync` — one two-phase flow shared by `authorise`, `capture` and `refund`, plus `ProblemMapper.Refusal` so a stored refusal is the same bytes as the live one. **108 of 108 green**
+- [x] `CF-032`, lab 08's step 19: `A_dropped_answer_still_refunds_once` and the `DropFirstAnswer` handler. **109 of 109 green.** Seen red once with the `Claim.Replay` arm removed
+- [ ] ~~Step 13: fifty at once~~ — **skipped 2026-10-22, `CF-035`.** No test covers the race; three `README.md` "Done when" lines are marked skipped
+
 Yours to do:
 
-- [ ] Steps 2–4: `ValidationTests`, then `authorise`, `capture`, `refund`, tests first
-- [ ] Steps 5–8: migration `0002`, the contracts, the key store, tests first
-- [ ] Steps 9–12: the key on create, then on the commands, tests first
-- [ ] Step 13: fifty at once — seen red once, then green
 - [ ] Steps 14–16: Done-when by hand, `QA.md` out loud, close the lab
+
+The feature branch `feature/lab-03-idempotency` was merged into `develop` after step 7 and re-cut from `af34713`. It now carries steps 8–12 plus `CF-032`.
 
 Decided for this lab (2026-10-20, `plan/PLAN.md` §8): own key table, two phases, the `Completed` mark in the payment write's transaction, no EF Core, no FluentValidation. The CI gate moved to after this lab.
 

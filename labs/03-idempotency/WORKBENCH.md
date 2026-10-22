@@ -407,7 +407,7 @@ test(lab-03): add failing tests for the idempotency key on create
 
 ## Step 10 — The key on create, green
 
-**Goal.** Every POST checks the header. `POST /payments` runs the two-phase flow. The step 9 groups are green.
+**Goal.** Every POST checks the header. `POST /payments` runs the two-phase flow. `KeyHeaderTests`, `ReplayTests` and two of the four `KeyReuseTests` are green — 96 of 98.
 
 **Why.** The order inside the handler is the design, so it is worth saying out loud: check the header, check the merchant, hash, claim, then — only if you own the key — do the work and complete in one transaction. The `404` for an unknown merchant comes before the claim, because the key row needs a real merchant and because a `404` may not be true tomorrow. The header check goes on all four POSTs now, in one helper, because "every money-moving POST takes a key" is a rule, and a rule enforced on one endpoint out of four is a bug report waiting to happen. The work is wrapped in a `try`: an exception releases the key and is rethrown, so the client's retry can really try again.
 
@@ -460,7 +460,7 @@ In `src/Payments.Api/PaymentEndpoints.cs`:
 
 `CancellationToken.None` in the release, not `ct`: if the client hung up, `ct` is already cancelled, the release would be skipped, and the key would be stuck `InProgress`.
 
-**Proof.** `dotnet test` green, all of it — including the lab 02 `CreatePaymentTests`, untouched, because their helper has sent a key since step 3. By hand, twice with one key:
+**Proof.** `dotnet test tests/Payments.Api.Tests`: 96 of 98. The two reds left are `The_same_key_on_another_endpoint_is_422` and `The_same_key_on_another_payment_is_422`: both reuse a key across two **commands**, so they need the claim that step 12 adds. Everything else is green, including the lab 02 command and store tests. Two `CreatePaymentTests` call `Client.PostAsJsonAsync` directly instead of the step 3 helper, so they send no key and now get a `400` — point them at `PostAsync`. That is the step 3 rule reaching a call site step 3 missed, not a test edited to go green. By hand, twice with one key:
 
 ```bash
 curl -i -X POST http://localhost:5080/payments \
@@ -470,7 +470,7 @@ curl -i -X POST http://localhost:5080/payments \
 
 The first is `201` with no `Idempotent-Replayed`. The second is `201`, the same `id`, and `Idempotent-Replayed: true`. Change `100.00` to `200.00` and send it a third time: `422 idempotency_key_reused`.
 
-**Commit.** Stage `src/Payments.Api/`.
+**Commit.** Stage `src/Payments.Api/` and `tests/Payments.Api.Tests/CreatePaymentTests.cs`.
 
 ```
 feat(lab-03): require an idempotency key and make create replay-safe
@@ -502,7 +502,7 @@ feat(lab-03): require an idempotency key and make create replay-safe
 //   ConfigureTestServices is in Microsoft.AspNetCore.TestHost, which Mvc.Testing already brings.
 ```
 
-**Proof.** `dotnet test tests/Payments.Api.Tests`: the command and in-progress tests fail. `A_crash_during_the_work_releases_the_key` and `A_retry_after_a_crash_does_the_work` may already pass for create — that is step 10's `catch` doing its job. Every older test is green.
+**Proof.** `dotnet test tests/Payments.Api.Tests`: 108 tests, 7 red. The reds are the four `CommandReplayTests`, `InProgressTests.An_open_key_runs_no_work` and the two `KeyReuseTests` left over from step 10. Three of the new tests pass the moment they are written, and each one tells you something: `A_404_is_not_stored` passes because a command never claims a key yet, `An_open_key_is_409_idempotency_request_in_progress` and `The_409_says_when_to_retry` because they arrange their key on **create**, and both `FailureTests` because step 10's `catch` already releases. A test that is green on arrival is fine here — break it by hand once, so you know it can go red.
 
 **Commit.** Stage `tests/Payments.Api.Tests/`.
 
@@ -542,7 +542,7 @@ test(lab-03): add failing tests for idempotent commands, open keys and crashes
 // ProblemMapper puts in it. Keep that in ProblemMapper, so there is still one place.
 ```
 
-**Proof.** `dotnet test` green, all of it. By hand: create, authorise and capture 100 (each with its own key), then refund 40 twice with **one** key:
+**Proof.** `dotnet test` green, all of it: **108 of 108** in `Payments.Api.Tests`, 160 in `Payments.Domain.Tests`, 55 in `Payments.Mcp.Tests`. By hand: create, authorise and capture 100 (each with its own key), then refund 40 twice with **one** key:
 
 ```bash
 curl -i -X POST http://localhost:5080/payments/<id>/refund \
@@ -558,9 +558,54 @@ Both answers say `refundedAmount: 40.0`. The second has `Idempotent-Replayed: tr
 feat(lab-03): make authorise, capture and refund replay-safe
 ```
 
+Two things change beyond the TODOs, and both are the same rule — one body, one place:
+
+- `ProblemMapper.ToProblem` now builds its body through the new `ProblemMapper.Refusal`, which returns the status **and** the body string. So the refusal a caller sees and the refusal stored against the key are the same bytes by construction, not by care.
+- The three commands now share `CommandAsync`, so they also share one `updatedAt`: `payment.Operations[^1].At`, which is what the store writes. `authorise` used to answer with the **stale** `loaded.UpdatedAt`. See `CF-019`.
+
+---
+
+## Step 12b — `CF-032`: the dropped answer, from lab 08
+
+**Goal.** `A_dropped_answer_still_refunds_once` is green, against the real lab 08 refund tool.
+
+**Why.** Lab 08 closed without this test, because it is the one test that needs the replay you just built. It is also the clearest picture of why this lab exists: the refund runs, the answer is lost on the way back, and the agent retries exactly as its own error message told it to. Without the replay that retry pays the customer a second time. A `DelegatingHandler` that forwards the request and **then** throws is how you lose an answer on purpose — the work must really happen, or the test proves nothing.
+
+**Do.**
+
+```csharp
+// TODO: McpEndToEndHarness.StartAsync takes an optional DelegatingHandler and splices it in
+//       with api.AddHttpMessageHandler, outside the primary handler.
+//
+// TODO: DropFirstAnswer : DelegatingHandler, in McpEndToEndTests.cs
+//   var response = await base.SendAsync(request, ct);   // await FIRST: the refund must run
+//   first POST whose path ends in "/refund": dispose the response, throw HttpRequestException
+//   every later call: return the response
+//
+// TODO: the test — propose, confirm (lost), confirm again.
+//   The token is the same, so the Idempotency-Key is the same: "mcp-" + token.
+//   After the lost answer: error is refund_in_doubt, and there is already ONE Refund row.
+//   After the retry: result is "refunded", and there is STILL one Refund row.
+```
+
+**Proof.** `dotnet test tests/Payments.Api.Tests --filter-method '*A_dropped_answer_still_refunds_once*'` green. Then delete the `case Claim.Replay replay:` arm from `CommandAsync` and run it again: red, because the retry refunds a second time. Put the arm back. A test that has never been red has never been tested.
+
+**Commit.** Stage `tests/Payments.Api.Tests/`.
+
+```
+test(lab-08): prove a dropped refund answer still refunds once
+```
+
 ---
 
 ## Step 13 — Fifty at once, and watch it fail
+
+> **Skipped 2026-10-22 (`CF-035`).** `ConcurrencyTests` was never written, so **no test covers the race**.
+> Every other test in this lab is sequential, and a claim written as `select`-then-`insert` would pass all
+> 109 of them. The primary key still stops the double payment; what is unproven is that the loser gets a
+> `409` and not a `500`. The three `README.md` "Done when" lines that need this step are marked skipped too.
+> Read the step anyway — the diagram below is the whole point of the lab.
+
 
 **Goal.** `ConcurrencyTests` is green. You saw it go red once with the claim broken on purpose.
 

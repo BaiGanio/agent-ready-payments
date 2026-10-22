@@ -728,6 +728,10 @@ test(lab-08): run the mcp tools end to end against the real api
 
 ## Step 19 — After lab 03 lands: the dropped answer
 
+> **Done 2026-10-22, inside lab 03 (step 12b).** Lab 08 closed before lab 03 shipped the replay, so this
+> step ran on `feature/lab-03-idempotency` instead of here. The test and the `DropFirstAnswer` handler are in
+> `tests/Payments.Api.Tests/McpEndToEndTests.cs`. See `CF-032`.
+
 **Goal.** Lab 03 is merged into this branch, and `A_dropped_answer_still_refunds_once` is green.
 
 **Why.** This is the one test that needs lab 03's step 12: the API must replay a refund sent twice with the same `Idempotency-Key`. Without it, the retry after a lost answer refunds a second time, and the test shows exactly that — two `Refund` rows. Run it **before** the merge too, if you like, and watch it fail for that reason: it is the clearest picture of why lab 03 exists. A `DelegatingHandler` that forwards the request and then throws is how you lose an answer on purpose, after the work was done.

@@ -121,8 +121,89 @@ public sealed class McpEndToEndTests(ApiFixture fixture) : ApiTestBase(fixture)
         Assert.Empty(list.GetProperty("items").EnumerateArray());
     }
 
+    [Fact]
+    public async Task A_dropped_answer_still_refunds_once()
+    {
+        // How an agent loses money if this breaks: the refund runs, the answer is lost on the way
+        // back, the agent retries exactly as it was told to — and the customer is paid twice.
+        // This is the one test that needs the API's replay. Without it there are two Refund rows.
+        var captured = await CapturedPaymentAsync(80m);
+
+        string agentKey = await InsertKeyAsync(["payments:read", "payments:refund"], kind: "agent");
+
+        using var brokenNetwork = new DropFirstAnswer();
+        await using var mcp = await McpEndToEndHarness.StartAsync(Fixture, agentKey, brokenNetwork);
+
+        var arguments = new { payment_id = captured.Id.ToString("D"), amount = "80.00", currency = "EUR" };
+
+        var (proposeFailed, proposal) = await mcp.CallAsync("refund_payment", arguments);
+
+        Assert.False(proposeFailed);
+
+        string token = proposal.GetProperty("confirmation_token").GetString()!;
+
+        var confirm = new
+        {
+            arguments.payment_id,
+            arguments.amount,
+            arguments.currency,
+            confirmation_token = token
+        };
+
+        // The refund reaches the API and runs. Then the answer is thrown away.
+        var (lostFailed, lost) = await mcp.CallAsync("refund_payment", confirm);
+
+        Assert.True(lostFailed);
+        Assert.Equal("refund_in_doubt", lost.GetProperty("error").GetString());
+
+        // The money moved, even though nobody was told. This is why guessing is not allowed.
+        Assert.Equal(1, await RefundRowsAsync(captured.Id));
+
+        // The retry the tool asked for, with the same token, so the same Idempotency-Key.
+        var (retryFailed, retried) = await mcp.CallAsync("refund_payment", confirm);
+
+        Assert.False(retryFailed);
+        Assert.Equal("refunded", retried.GetProperty("result").GetString());
+
+        // The proof: one Refund row, and 80.00 refunded once. The API replayed the first answer.
+        Assert.Equal(1, await RefundRowsAsync(captured.Id));
+        Assert.Equal(1, await QuerySqlAsync<long>(
+            "select count(*) from payment_operation where kind = 'Refund'"));
+        Assert.Equal(80.00m, await QuerySqlAsync<decimal>(
+            "select refunded_amount from payment where id = @Id", new { captured.Id }));
+    }
+
     /// <summary>Counts the Refund rows on one payment, straight from Postgres.</summary>
     private Task<long> RefundRowsAsync(Guid paymentId) => QuerySqlAsync<long>(
         "select count(*) from payment_operation where payment_id = @Id and kind = 'Refund'",
         new { Id = paymentId });
+}
+
+/// <summary>
+/// Loses the answer to the first refund, after the API has already done it. The request goes
+/// through and only the reply is thrown away, because that is the real failure: a timeout tells
+/// the caller nothing about whether the work happened. Every later call passes through.
+/// </summary>
+internal sealed class DropFirstAnswer : DelegatingHandler
+{
+    private int _refunds;
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        // Await first. The work must really happen, or the test proves nothing.
+        var response = await base.SendAsync(request, cancellationToken);
+
+        bool isRefund = request.Method == HttpMethod.Post
+            && request.RequestUri?.AbsolutePath.EndsWith("/refund", StringComparison.Ordinal) == true;
+
+        if (isRefund && Interlocked.Increment(ref _refunds) == 1)
+        {
+            response.Dispose();
+
+            throw new HttpRequestException("The answer was lost on the way back.");
+        }
+
+        return response;
+    }
 }
