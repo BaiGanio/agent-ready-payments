@@ -28,7 +28,13 @@ internal sealed class McpEndToEndHarness : IAsyncDisposable
 
     /// <param name="fixture">Gives the base address and the in-process handler of the real API.</param>
     /// <param name="apiKey">The raw API key the server sends as X-Api-Key. It decides the merchant and the scopes.</param>
-    public static async Task<McpEndToEndHarness> StartAsync(ApiFixture fixture, string apiKey)
+    /// <param name="brokenNetwork">
+    /// An optional handler spliced into the API client's chain, to break the network on purpose.
+    /// It sits outside the primary handler, so it sees every call the server makes and can let one
+    /// through and then lose the answer.
+    /// </param>
+    public static async Task<McpEndToEndHarness> StartAsync(
+        ApiFixture fixture, string apiKey, DelegatingHandler? brokenNetwork = null)
     {
         var harness = new McpEndToEndHarness();
 
@@ -50,7 +56,15 @@ internal sealed class McpEndToEndHarness : IAsyncDisposable
 
                 // The one line that makes this end to end: the API client's socket is the
                 // test server itself, so there is no port, no network and no stub.
-                api => api.ConfigurePrimaryHttpMessageHandler(() => fixture.Factory.Server.CreateHandler()))
+                api =>
+                {
+                    api.ConfigurePrimaryHttpMessageHandler(() => fixture.Factory.Server.CreateHandler());
+
+                    if (brokenNetwork is not null)
+                    {
+                        api.AddHttpMessageHandler(() => brokenNetwork);
+                    }
+                })
             .WithStreamServerTransport(
                 clientToServer.Reader.AsStream(),
                 serverToClient.Writer.AsStream());
