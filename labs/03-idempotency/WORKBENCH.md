@@ -565,7 +565,47 @@ Two things change beyond the TODOs, and both are the same rule — one body, one
 
 ---
 
+## Step 12b — `CF-032`: the dropped answer, from lab 08
+
+**Goal.** `A_dropped_answer_still_refunds_once` is green, against the real lab 08 refund tool.
+
+**Why.** Lab 08 closed without this test, because it is the one test that needs the replay you just built. It is also the clearest picture of why this lab exists: the refund runs, the answer is lost on the way back, and the agent retries exactly as its own error message told it to. Without the replay that retry pays the customer a second time. A `DelegatingHandler` that forwards the request and **then** throws is how you lose an answer on purpose — the work must really happen, or the test proves nothing.
+
+**Do.**
+
+```csharp
+// TODO: McpEndToEndHarness.StartAsync takes an optional DelegatingHandler and splices it in
+//       with api.AddHttpMessageHandler, outside the primary handler.
+//
+// TODO: DropFirstAnswer : DelegatingHandler, in McpEndToEndTests.cs
+//   var response = await base.SendAsync(request, ct);   // await FIRST: the refund must run
+//   first POST whose path ends in "/refund": dispose the response, throw HttpRequestException
+//   every later call: return the response
+//
+// TODO: the test — propose, confirm (lost), confirm again.
+//   The token is the same, so the Idempotency-Key is the same: "mcp-" + token.
+//   After the lost answer: error is refund_in_doubt, and there is already ONE Refund row.
+//   After the retry: result is "refunded", and there is STILL one Refund row.
+```
+
+**Proof.** `dotnet test tests/Payments.Api.Tests --filter-method '*A_dropped_answer_still_refunds_once*'` green. Then delete the `case Claim.Replay replay:` arm from `CommandAsync` and run it again: red, because the retry refunds a second time. Put the arm back. A test that has never been red has never been tested.
+
+**Commit.** Stage `tests/Payments.Api.Tests/`.
+
+```
+test(lab-08): prove a dropped refund answer still refunds once
+```
+
+---
+
 ## Step 13 — Fifty at once, and watch it fail
+
+> **Skipped 2026-10-22 (`CF-035`).** `ConcurrencyTests` was never written, so **no test covers the race**.
+> Every other test in this lab is sequential, and a claim written as `select`-then-`insert` would pass all
+> 109 of them. The primary key still stops the double payment; what is unproven is that the loser gets a
+> `409` and not a `500`. The three `README.md` "Done when" lines that need this step are marked skipped too.
+> Read the step anyway — the diagram below is the whole point of the lab.
+
 
 **Goal.** `ConcurrencyTests` is green. You saw it go red once with the claim broken on purpose.
 

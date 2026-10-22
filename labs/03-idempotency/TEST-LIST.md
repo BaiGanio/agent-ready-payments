@@ -15,6 +15,11 @@ One group is one file in `tests/Payments.Api.Tests`. Every group except `Idempot
 
 **Counts.** 65 tests in 12 groups: 20 ported from the lab 02 list (commands), 8 from `CF-020` (validation), 37 new (idempotency). A guide, not a target.
 
+**What was really built (2026-10-22).** 109 tests in `Payments.Api.Tests`, all green. Two changes from the list:
+
+- `ConcurrencyTests` (3) was **not written** — step 13 skipped, `CF-035`. Nothing in the suite covers the race.
+- One test came in from lab 08's list instead: `A_dropped_answer_still_refunds_once`, in `McpEndToEndTests`, with the `DropFirstAnswer` handler. It needed this lab's replay (`CF-032`).
+
 **Helpers send a key from the start (step 3).** From step 10 on, every POST needs an `Idempotency-Key`. So in step 3, before any command test exists, every POST helper in `ApiTestBase` sends one: `CreatePaymentAsync` and a new `PostAsync(path, body, key)` both default to a fresh `Guid.NewGuid().ToString()`, and take a `key` argument so an idempotency test can pass its own. Until step 10 the server ignores the header. After step 10 nothing breaks. That is a change to a helper, required by the new contract — not a test edited to go green.
 
 ---
