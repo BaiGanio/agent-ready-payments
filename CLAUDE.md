@@ -9,7 +9,9 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 | `README.md` | the front door |
 | `CLAUDE.md` | these rules |
 | `docs/PROGRESS.md` | the status board: where every lab stands |
-| `docs/EVERYDAY-COMMANDS.md` | the user's command cheat sheet |
+| `docs/EVERYDAY-COMMANDS.md` | the command index: picks the right page in `docs/commands/` |
+| `docs/commands/` | the command pages, one topic each: `git.md`, `ci.md`, `api.md`, `mcp.md`, `docker-and-databases.md`, … |
+| `.github/workflows/ci.yml` | the PR gate: build and test on a PR into `main` |
 | `docs/plan/PLAN.md` | decisions (§7 open, §8 decided) |
 | `docs/plan/SPEC.md` | inputs and limits |
 | `docs/plan/CARRY-FORWARD.md` | the inbox: findings, fix-later, questions, ideas |
@@ -17,14 +19,14 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 | `labs/NN-…/` | three files per lab: `README.md`, `WORKBENCH.md`, `QA.md`. From lab 02 also `TEST-LIST.md`, plus any scaffold (`TDD-NOTES.md`, `STORE-NOTES.md`) |
 | `db/README.md` | the lab database plan |
 
-**The repo root holds two `.md` files only: `README.md` and `CLAUDE.md`.** Every other document lives under `docs/`. A new reference doc goes in `docs/plan/` or `docs/aperio/`, or flat in `docs/` if it is neither, and it gets a row in this table and in the one in `README.md`, in the same commit. Never add a `.md` file to the root.
+**The repo root holds two `.md` files only: `README.md` and `CLAUDE.md`.** Every other document lives under `docs/`. A new reference doc goes in `docs/plan/`, `docs/aperio/` or `docs/commands/`, or flat in `docs/` if it is none of those, and it gets a row in this table and in the one in `README.md`, in the same commit. Never add a `.md` file to the root.
 
 ## What this repo is
 
 - Hands-on **labs**, not an app. Goal: prepare for a senior .NET payment backend role with AI agents.
 - Read these first, in this order: `README.md` → `docs/plan/PLAN.md` section 8 (**Decided**) → `docs/plan/CARRY-FORWARD.md` (the open inbox) → the lab's `README.md`, `WORKBENCH.md` and `QA.md`.
 - `docs/plan/SPEC.md` holds the inputs and limits. `docs/plan/PLAN.md` holds the decisions. If they disagree, `docs/plan/PLAN.md` wins (it is newer).
-- `docs/EVERYDAY-COMMANDS.md` is the user's command cheat sheet. When a lab introduces a command the user will run again, add a row there in the same commit.
+- `docs/EVERYDAY-COMMANDS.md` is the command **index**; the commands themselves live one topic per file in `docs/commands/`. When a lab introduces a command the user will run again, add a row to the page that owns it, in the same commit. A new topic gets a new page plus a row in the index. Keep every page small enough to read at once — if one passes ~120 lines, split it.
 
 ## Carry-forward
 

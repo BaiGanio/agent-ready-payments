@@ -1,6 +1,6 @@
 # Everyday Commands
 
-Your cheat sheet. Copy from here. Do not memorise anything.
+Your cheat sheet, split by topic. Copy from here. Do not memorise anything.
 
 Run every command from the repo root: `/Users/lk/Projects/BaiGanio/agent-ready-payments`.
 
@@ -8,394 +8,64 @@ Replace `NN` with the lab number and `short-name` with the lab folder name. The 
 
 ---
 
-## Read the docs
+## Pick a page
 
-| I want to | Command |
+| I am doing | Page |
 |---|---|
-| See the lab's steps | `open labs/NN-short-name/WORKBENCH.md` |
-| See only the step titles | `grep -n '^## Step' labs/NN-short-name/WORKBENCH.md` |
-| See the Traps table for this lab | `sed -n '/^## Traps/,/^## Notes/p' labs/NN-short-name/WORKBENCH.md` |
-| Find a trap in **any** lab by error word | `grep -rn -i 'healthy' labs/*/WORKBENCH.md` |
-| See one step only (step 4 here) | `sed -n '/^## Step 4/,/^## Step 5/p' labs/NN-short-name/WORKBENCH.md` |
-| Read the QA **questions**, not the answers | `grep -E '^\*\*Q' labs/NN-short-name/QA.md` |
-| See where I am across all labs | `open docs/PROGRESS.md` |
-| See the open inbox | `open docs/plan/CARRY-FORWARD.md` |
-| See what is already decided | `open docs/plan/PLAN.md` |
-
-The `sed -n '/A/,/B/p' file` shape means: print from the line that matches `A` down to the line that matches `B`.
+| Reading a lab, hunting a trap, working out what broke | [`commands/finding-things.md`](commands/finding-things.md) |
+| Starting the databases, opening a `psql` shell | [`commands/docker-and-databases.md`](commands/docker-and-databases.md) |
+| Applying `.sql` scripts | [`commands/migrations.md`](commands/migrations.md) |
+| Building, running tests, filtering tests | [`commands/dotnet-build-and-test.md`](commands/dotnet-build-and-test.md) |
+| Stopping on a line to look at values | [`commands/debugging.md`](commands/debugging.md) |
+| `curl`-ing the payment endpoints | [`commands/api.md`](commands/api.md) |
+| Making, storing or revoking an API key | [`commands/api-keys.md`](commands/api-keys.md) |
+| Driving the MCP tools by hand | [`commands/mcp.md`](commands/mcp.md) |
+| Running the Testcontainers tests | [`commands/integration-tests.md`](commands/integration-tests.md) |
+| Branching, committing, merging, tagging | [`commands/git.md`](commands/git.md) |
+| Running what CI runs, or fixing a red gate | [`commands/ci.md`](commands/ci.md) |
 
 ---
 
-## Databases (Docker)
+## Search all of them at once
 
-The compose file is **one** file with **two** services: `docker/docker-compose.yml`.
+The pages are small on purpose, but you should not have to guess which one. Grep the lot:
 
-Always pass both flags. `-f` says which file. `--env-file` says where the SQL Server password comes from.
+```bash
+grep -rn "docker compose" docs/commands/
+```
+
+To see every "I want to" line in one list:
+
+```bash
+grep -rh '^| ' docs/commands/ | grep -v '^| *---'
+```
+
+To find which page owns a topic:
+
+```bash
+grep -rl "Idempotency-Key" docs/commands/
+```
+
+---
+
+## The five you use every day
 
 | I want to | Command |
 |---|---|
 | Start both databases | `docker compose -f docker/docker-compose.yml --env-file .env up -d` |
-| Check they are healthy | `docker compose -f docker/docker-compose.yml --env-file .env ps` |
-| Stop them, keep the data | `docker compose -f docker/docker-compose.yml --env-file .env stop` |
-| Stop and remove containers, keep the data | `docker compose -f docker/docker-compose.yml --env-file .env down` |
-| See why one will not start | `docker logs payments-mssql --tail 30` |
-| Watch a log live (`Ctrl-C` to quit) | `docker logs payments-postgres -f` |
-| Check Docker itself is up | `docker info` |
-
-Both lines of `ps` must say `Up (healthy)`. `Up` alone is not ready yet. SQL Server needs 30–60 seconds on a cold start.
-
-Ports on your Mac: Postgres is **55432**, SQL Server is **51433**. Inside the containers they stay 5432 and 1433. The odd host ports keep clear of any other database you already run. Docker Desktop shows the stack as **agent-ready-payments**.
-
-**Danger.** `down -v` also deletes the named volumes, so your databases are gone. Only use it when you want a clean slate.
-
----
-
-## Talk to a database
-
-| I want to | Command |
-|---|---|
-| Postgres shell | `docker exec -it payments-postgres psql -U labs -d payments_labs` |
-| One Postgres query | `docker exec payments-postgres psql -U labs -d payments_labs -c 'TABLE schemaversions;'` |
-| List Postgres tables | `docker exec payments-postgres psql -U labs -d payments_labs -c '\dt'` |
-| SQL Server shell | `docker exec -it payments-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -d PaymentsLabs` |
-| One SQL Server query | `docker exec payments-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -d PaymentsLabs -Q "SELECT * FROM SchemaVersions"` |
-
-For the SQL Server lines to work, your shell must know the password. Load it once per terminal:
-
-```bash
-set -a; source .env; set +a
-```
-
-`set -a` means "export everything I load next". Without it, `source` keeps the value to itself and `docker exec` never sees it.
-
-Inside `psql`: `\dt` lists tables, `\d Payment` describes one table, `\q` quits.
-
----
-
-## Migrations (DbUp)
-
-One migration per lab. Plain `.sql` files in `db/postgres/` and `db/sqlserver/`.
-
-| I want to | Command |
-|---|---|
-| Apply new scripts to Postgres | `dotnet run --project src/Payments.Db -- migrate --engine postgres` |
-| Apply new scripts to SQL Server | `dotnet run --project src/Payments.Db -- migrate --engine sqlserver` |
-| See what has run and what waits (Postgres) | `dotnet run --project src/Payments.Db -- status --engine postgres` |
-| Same for SQL Server | `dotnet run --project src/Payments.Db -- status --engine sqlserver` |
-
-Run `migrate` **twice**. The second run must say there are no new scripts. That is the proof the journal works.
-
-**Never edit a script that already ran.** DbUp will not run it again, so the two engines drift apart. Add a new numbered script instead.
-
----
-
-## .NET
-
-| I want to | Command |
-|---|---|
-| Check the SDK version | `dotnet --version` |
-| Build everything | `dotnet build` |
 | Run all tests | `dotnet test` |
-| Run one test project | `dotnet test tests/Payments.Domain.Tests` |
-| Run only matching tests | `dotnet test --filter "RefundTests"` |
-| Re-run the tests on every save | `dotnet watch test --project tests/Payments.Domain.Tests` |
-| List the test names without running them | `dotnet test -- --list-tests` |
-| Add a package to a project | `dotnet add src/Payments.Db package dbup-core` |
-| Add a project to the solution | `dotnet sln add src/Payments.Api` |
-| Clear a confusing build | `dotnet clean && dotnet build` |
-
-`dotnet test` needs the `test.runner` block in `global.json`. .NET 10 dropped the old VSTest host, and xUnit v3 test projects run on **Microsoft.Testing.Platform**. Without it you get "Testing with VSTest target is no longer supported". The filter is a plain substring of the test name, so `--filter "RefundTests"` runs one class and `--filter "Refund"` runs everything with that word in it.
-
-`dotnet watch test` is the red-green loop: leave it running in one terminal, edit in the other, and the tests re-run on every save.
-
-### The `TestResults/` folder
-
-The test runner creates it by itself on `dotnet test`. Inside: a `.trx` file (one XML report of every test and its outcome) and, if you asked for coverage, a coverage file.
-
-You do not need it. The terminal already prints `total / failed / succeeded`, and that is the whole proof a lab asks for. The folder only earns its place when a **CI server** must publish a report another tool reads, or when you want a coverage percentage. Neither happens in these labs yet.
-
-It is git-ignored, nothing depends on it, and the next run rebuilds it. Delete it whenever it annoys you:
-
-```bash
-rm -rf TestResults
-```
-
----
-
-## Debug with breakpoints (VS Code)
-
-A **breakpoint** is a red dot on a line. The program stops there so you can look at the values.
-
-| I want to | How |
-|---|---|
-| Open the project in VS Code | `code /Users/lk/Projects/BaiGanio/agent-ready-payments` |
-| Set a breakpoint | Click left of the line number, or put the caret on the line and press `F9` |
-| Start debugging | `F5`, then pick **Debug Payments.Db** the first time |
-| Pass arguments (for example `migrate --engine postgres`) | Edit `"args"` in `.vscode/launch.json` |
-| Step over one line | `F10` |
-| Step into a method | `F11` |
-| Continue to the next breakpoint | `F5` |
-| Stop debugging | `Shift-F6` |
-| See a value | Hover over it, or read the **Variables** panel |
-| Test an expression while stopped | Type it in the **Debug Console** |
-| Stop only when a condition is true | Right-click the breakpoint → **Edit Breakpoint** |
-| Debug one test | Click **Debug Test** above the test method (needs the C# Dev Kit) |
-| Attach to an already running process | `F5` → **Attach to a running .NET process** |
-
-The debug run loads `.env`, so `MSSQL_SA_PASSWORD` is there. Start the databases first if the code needs them.
-
----
-
-## The API (from lab 02)
-
-| I want to | Command |
-|---|---|
-| Run the API | `dotnet run --project src/Payments.Api --urls http://localhost:5080` |
-| Is it alive? | `curl -i http://localhost:5080/health` |
-| Create a payment | `curl -i -X POST http://localhost:5080/payments -H 'Content-Type: application/json' -d '{"merchantId":"11111111-1111-1111-1111-111111111111","amount":100.00,"currency":"EUR"}'` |
-| Read one payment | `curl -s http://localhost:5080/payments/<id> \| python3 -m json.tool` |
-| Authorise / void it | `curl -i -X POST http://localhost:5080/payments/<id>/authorise` |
-| Capture or refund part of it | `curl -i -X POST http://localhost:5080/payments/<id>/capture -H 'Content-Type: application/json' -d '{"amount":40.00,"currency":"EUR"}'` |
-| Send a POST with an idempotency key (lab 03) | add `-H 'Idempotency-Key: <any string>'`. Same key again → same answer and `Idempotent-Replayed: true` |
-| See the stored keys (lab 03) | `docker exec payments-postgres psql -U labs -d payments_labs -c "select key, status, response_code from idempotency_key;"` |
-| List the key's merchant's payments (lab 08) | `curl -s 'http://localhost:5080/payments?status=Captured&limit=5' -H "X-Api-Key: $PAYMENTS_DEV_KEY" \| python3 -m json.tool` — the merchant comes from the key, at most 20 rows |
-| See the headers only | add `-I`, or keep `-i` to get headers **and** body |
-| Pretty-print any response | pipe it to `python3 -m json.tool` |
-
-`-i` prints the status line and the headers with the body. That matters here: this lab's whole point is the status code, so a body alone is half the answer.
-
-A failure body is `application/problem+json` and always carries a `code`. Read that field, not the English:
-
-```bash
-curl -s -X POST http://localhost:5080/payments/<id>/refund \
-  -H 'Content-Type: application/json' -d '{"amount":9999.00,"currency":"EUR"}' \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["status"], d["code"])'
-```
-
----
-
-## API keys (from lab 08)
-
-From lab 08 every `/payments` call needs `-H "X-Api-Key: $PAYMENTS_DEV_KEY"`. Without it the answer is `401`. `/health` needs no key. Load the keys into your shell first: `set -a; source .env; set +a`.
-
-| I want to | Command |
-|---|---|
-| Make a new raw key | `openssl rand -base64 24 \| tr '+/' '-_' \| tr -d '='` — put it in `.env`, never in git |
-| Store a service key for M1 (all write scopes) | `docker exec payments-postgres psql -U labs -d payments_labs -c "insert into api_key (key_hash, name, merchant_id, kind, scopes) values (encode(sha256(convert_to('$PAYMENTS_DEV_KEY','UTF8')),'hex'), 'dev-service', '11111111-1111-1111-1111-111111111111', 'service', '{payments:read,payments:write,payments:refund}');"` |
-| Store a refund agent key for M1 | the same insert with `$PAYMENTS_AGENT_KEY`, name `support-bot`, kind `agent`, scopes `{payments:read,payments:refund}` |
-| Store a read-only agent key for M1 | the same insert with `$PAYMENTS_READONLY_AGENT_KEY`, name `read-bot`, kind `agent`, scopes `{payments:read}` |
-| See the stored keys (hashes only) | `docker exec payments-postgres psql -U labs -d payments_labs -c "select name, kind, scopes, left(key_hash, 12), revoked_at from api_key;"` |
-| Revoke a key | `docker exec payments-postgres psql -U labs -d payments_labs -c "update api_key set revoked_at = now() where name = 'support-bot';"` |
-| Call the API with a key | add `-H "X-Api-Key: $PAYMENTS_DEV_KEY"` to any `curl` in "The API" above |
-
-The database stores only the SHA-256 of a key. `sha256(convert_to(…))` in Postgres and `ApiKeyHash.Of` in C# give the same lower-case hex, so a key stored by `psql` works in the API.
-
----
-
-## The MCP server (from lab 08)
-
-| I want to | Command |
-|---|---|
-| Build it | `dotnet build src/Payments.Mcp` |
-| Prove nothing goes to stdout | `dotnet run --project src/Payments.Mcp < /dev/null 2>/dev/null \| wc -c` — must print `0` |
-| Run only the MCP tests | `dotnet test tests/Payments.Mcp.Tests` |
-| Drive the tools by hand (no model) | `npx @modelcontextprotocol/inspector -e PAYMENTS_API_URL=http://localhost:5080 -e PAYMENTS_API_KEY="$PAYMENTS_AGENT_KEY" dotnet "$PWD/src/Payments.Mcp/bin/Debug/net10.0/Payments.Mcp.dll"` |
-
-The Inspector starts the built `.dll`, never `dotnet run`: `dotnet run` can print `Using launch settings from …` on stdout, and stdout is the protocol. The API must be running first.
-
-### Before you start the Inspector
-
-| I want to | Command |
-|---|---|
-| Load the keys into this shell | `set -a; source .env; set +a` |
-| Check the API answers with the agent key | `curl -s -o /dev/null -w '%{http_code}\n' 'http://localhost:5080/payments?status=Captured' -H "X-Api-Key: $PAYMENTS_AGENT_KEY"` — must print `200`, never `401` |
-| Make a captured 80.00 EUR payment to refund | the three `curl` calls in "Make a captured payment" below |
-| See every MCP server still running | `ps aux \| grep '[P]ayments.Mcp.dll'` |
-| Kill a server the Inspector left behind | `kill <pid>` from the line above |
-
-A `401` here means the key is in `.env` but not in the database. Store it with the inserts in "API keys (from lab 08)" above. The MCP server turns every API failure into the same `tool_failed` message, so the Inspector cannot tell you which one it was.
-
-### Make a captured payment
-
-```bash
-set -a; source .env; set +a
-id=$(curl -s -X POST http://localhost:5080/payments \
-  -H "X-Api-Key: $PAYMENTS_DEV_KEY" -H 'Content-Type: application/json' \
-  -d '{"merchantId":"11111111-1111-1111-1111-111111111111","amount":80.00,"currency":"EUR"}' \
-  | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
-curl -s -o /dev/null -X POST "http://localhost:5080/payments/$id/authorise" -H "X-Api-Key: $PAYMENTS_DEV_KEY"
-curl -s -o /dev/null -X POST "http://localhost:5080/payments/$id/capture" \
-  -H "X-Api-Key: $PAYMENTS_DEV_KEY" -H 'Content-Type: application/json' \
-  -d '{"amount":80.00,"currency":"EUR"}'
-echo "captured: $id"
-```
-
-### Drive the tools without the Inspector
-
-The Inspector is only a client. The protocol is JSON on stdin and stdout, one message per line, so your shell can be the client. Use this when the Inspector hangs, when you want to see the raw bytes, or in a script.
-
-```bash
-set -a; source .env; set +a
-{ printf '%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"shell","version":"1"}}}' \
-  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_payments","arguments":{"status":"Captured"}}}'
-  sleep 5; } \
-| PAYMENTS_API_URL=http://localhost:5080 PAYMENTS_API_KEY="$PAYMENTS_AGENT_KEY" \
-  dotnet "$PWD/src/Payments.Mcp/bin/Debug/net10.0/Payments.Mcp.dll" 2>/dev/null
-```
-
-| Part | Why it is there |
-|---|---|
-| `initialize`, then `notifications/initialized` | the handshake. A `tools/call` before it is refused |
-| `sleep 5` | stdin must stay open until the answer comes back. Without it the server sees end-of-input and quits first, and you get nothing |
-| `2>/dev/null` | the logs go to stderr. Drop `2>/dev/null` to read them |
-| `tools/list` in place of `tools/call` | lists the three tools and their schemas |
-
-Change the last line of the message block to call another tool:
-
-```
-{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
-{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_payment","arguments":{"payment_id":"<id>"}}}
-{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"refund_payment","arguments":{"payment_id":"<id>","amount":"80.00","currency":"EUR"}}}
-```
-
-For the second refund call, add `,"confirmation_token":"rf_…"` from the first answer, inside the same `arguments`.
-
-### When the Inspector says "Request timed out after 1m00s"
-
-The server is almost never the problem. Check in this order:
-
-| Check | Command |
-|---|---|
-| Does the server answer at all? | the "Drive the tools without the Inspector" block above |
-| Is the API up? | `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:5080/health` |
-| Is a stale server still running? | `ps aux \| grep '[P]ayments.Mcp.dll'` |
-
-If the shell block answers and the Inspector does not, the client is stuck: stop it with `Ctrl+C` and start it again. A server that answers once and then freezes for ever is the stderr trap in the lab 08 Traps table: the client stopped reading stderr, the pipe filled, and the next log line blocks the server. The cure is in the server, not the client — log at `Warning`, not at `Information`.
-
----
-
-## Integration tests with containers (from lab 02)
-
-| I want to | Command |
-|---|---|
-| Run only the API tests | `dotnet test tests/Payments.Api.Tests` |
-| Run one group | `dotnet test tests/Payments.Api.Tests --filter "RefundTests"` |
-| See the throwaway containers while tests run | `docker ps` |
-| Kill a container a crashed test left behind | `docker rm -f <container id>` |
-| Check what Docker socket the library will find | `docker context ls` |
-
-The first run pulls `pgvector/pgvector:pg17` and takes about a minute. Later runs are seconds, because the image is cached. Testcontainers removes its own containers; if a fixture crashes before cleanup, its Ryuk reaper clears them within minutes, and `docker rm -f` is the impatient version.
-
----
-
-## Git (Gitflow)
-
-You run every git command. The agent never commits, merges, pushes or tags.
-
-| I want to | Command |
-|---|---|
-| Where am I? | `git status --short && git branch --show-current` |
+| Run what CI runs | `dotnet test Payments.slnx --configuration Release --filter-not-trait runs=local` |
+| Where am I in git? | `git status --short && git branch --show-current` |
 | Is `develop` behind `main`? | `git log --oneline develop..main` (empty = level) |
-| Bring `develop` level with `main` | `git checkout develop && git merge main` |
-| Start a lab | `git checkout develop && git checkout -b feature/lab-NN-short-name` |
-| Stage one file | `git add path/to/file` |
-| See what I staged, line by line | `git diff --staged` |
-| Commit | `git commit -m "type(scope): summary"` |
-| Fix the last commit message | `git commit --amend` |
-| Unstage a file, keep the edits | `git restore --staged path/to/file` |
-| Throw away edits in a file | `git restore path/to/file` |
-| See the history as a picture | `git log --oneline --graph --all \| head -20` |
-| List the tags | `git tag` |
-| List the branches | `git branch` |
-| Delete a merged feature branch | `git branch -d feature/lab-NN-short-name` |
-| Go to the end of a finished lab | `git checkout lab-NN` (then `git checkout develop` to come back) |
-| Finish a lab | see the "Close the lab" step in that lab's `WORKBENCH.md` |
-| Get out of vim when git opens it | `:wq` then **Enter** to save, or `:q!` then **Enter** to cancel |
-| Stop git opening an editor at all | add `--no-edit` to the merge, or set a kinder editor once (below) |
-
-Closing a lab, in full:
-
-```bash
-git checkout develop
-git merge --no-ff --no-edit feature/lab-NN-short-name
-git checkout main
-git merge --no-ff --no-edit develop
-git tag lab-NN
-git checkout develop
-git merge main                 # the back-merge
-git branch -d feature/lab-NN-short-name
-```
-
-### The editor that opens on a merge
-
-`git merge --no-ff` wants a commit message, so it opens your editor. Out of the box that is **vim**, which is a dark screen full of `~` and no way out that it tells you about. Two ways to never meet it:
-
-- **`--no-edit`** on the merge, as above. Git keeps its own default message — `Merge branch 'feature/…' into develop` — which is exactly what you want for a lab merge. Nothing opens.
-- **A kinder editor**, set once, for every git command that needs one:
-
-```bash
-git config --global core.editor "nano"
-```
-
-Nano lists its keys at the bottom of the screen: `Ctrl+O` then **Enter** saves, `Ctrl+X` exits.
-
-If vim is already on your screen right now, the default message on line 1 is already correct:
-
-| You want | Type | Then |
-|---|---|---|
-| Keep the message and finish the merge | `:wq` | **Enter** |
-| Cancel — an empty message aborts the commit | `:q!` | **Enter** |
-
-`:` opens vim's command line at the bottom, `w` writes, `q` quits, `!` means "even though I changed nothing".
-
-**The back-merge is not optional.** Merging `develop` into `main` makes a merge commit that lives only on `main`, so `develop` is behind from that second on. The next feature branch would then start from a base missing `main`'s history, and a hotfix made on `main` would never reach `develop` at all. Check with `git log --oneline develop..main` — empty means level.
-
-Never commit lab work straight to `main`. If it happened anyway and `main` is only ahead, fast-forward `develop` onto it:
-
-```bash
-git checkout develop
-git merge --ff-only main
-```
-
-`--no-ff` forces a merge commit even when git could fast-forward. That commit is the marker that one lab finished.
-
-`git branch -d` deletes the branch name only when its work is merged. A branch name is just a pointer at one commit, so this drops the pointer and keeps every commit. The tag `lab-NN` is the bookmark after that: `git checkout lab-NN` puts you at the exact end of that lab.
-
-Commit message shape: `<type>(<scope>): <summary in imperative mood>`. Types: `feat`, `fix`, `test`, `docs`, `refactor`, `chore`, `build`, `ci`. Scope is the lab (`lab-03`) or an area (`db`, `api`, `mcp`, `agent`, `plan`, `repo`).
-
-The suggested message for each step is in that step's **Commit** part in `WORKBENCH.md`. You do not have to invent one.
 
 ---
 
-## Safety check before any commit
+## Housekeeping for these files
 
-```bash
-git status --short          # .env must NOT appear
-git diff --staged           # read every line you are about to commit
-```
-
-No real card data. Not in code, tests, seeds, logs or prompts. Test card numbers only.
-
----
-
-## When something is broken
-
-In this order:
-
-1. `sed -n '/^## Traps/,/^## Notes/p' labs/NN-short-name/WORKBENCH.md` — the known pain for this lab.
-2. `grep -rn -i '<your error word>' labs/*/WORKBENCH.md` — the known pain in every lab.
-3. `docker compose -f docker/docker-compose.yml --env-file .env ps` — is the database even healthy?
-4. `docker logs <container> --tail 50` — what the container says.
-5. Write it in **Notes while you work** at the bottom of the lab's `WORKBENCH.md`, in the moment. It becomes a `CF-NNN` row in `CARRY-FORWARD.md` at the end of the lab.
-
----
-
-## Housekeeping for this file
-
-New command you had to look up twice? Add a row here in the same commit. Suggested message:
+New command you had to look up twice? Add a row to the page that owns it, in the same commit. A new topic gets a new page in `docs/commands/` plus a row in the table above. Suggested message:
 
 ```
 docs(repo): add <command> to everyday commands
 ```
+
+**Never put `--` in a `dotnet test` command.** It prints "Zero tests ran" and exits 5. See [`commands/ci.md`](commands/ci.md) → Traps.
