@@ -100,69 +100,100 @@ public static class PaymentEndpoints
             return Results.Ok(dto);
         }).RequireScope("payments:read");
 
-        group.MapPost("/{id:guid}/authorise", async(Guid id, IPaymentStore store, HttpContext http, CancellationToken cancellationToken) =>
+        // Authorise has no body, so null is the request for the hash. The three commands share
+        // one flow: only the domain call and the request body differ.
+        group.MapPost("/{id:guid}/authorise", (Guid id, IPaymentStore store, IIdempotencyStore keys,
+            HttpContext http, CancellationToken ct) =>
+            CommandAsync(id, req: null, p => p.Authorise(), store, keys, http, ct))
+            .RequireScope("payments:write");
+
+        group.MapPost("/{id:guid}/capture", (Guid id, AmountRequest req, IPaymentStore store, IIdempotencyStore keys,
+            HttpContext http, CancellationToken ct) =>
+            CommandAsync(id, req, p => p.Capture(Money.Of(req.Amount, req.Currency)), store, keys, http, ct))
+            .RequireScope("payments:write");
+
+        group.MapPost("/{id:guid}/refund", (Guid id, AmountRequest req, IPaymentStore store, IIdempotencyStore keys,
+            HttpContext http, CancellationToken ct) =>
+            CommandAsync(id, req, p => p.Refund(Money.Of(req.Amount, req.Currency)), store, keys, http, ct))
+            .RequireScope("payments:refund");
+
+    }
+
+    /// <summary>
+    /// The two-phase flow for `authorise`, `capture` and `refund`. It is the create flow with two
+    /// differences. The merchant comes from the stored payment, so the payment is loaded before the
+    /// claim — and that 404 is never stored, because it may not be true tomorrow. And a domain
+    /// refusal is a real outcome: a 409 or 422 from the state machine is a final business answer,
+    /// so it is stored with CompleteAsync and replayed. Only an exception is released.
+    /// </summary>
+    private static async Task<IResult> CommandAsync(
+        Guid id,
+        object? req,
+        Func<Payment, Result<Payment, PaymentError>> act,
+        IPaymentStore store,
+        IIdempotencyStore keys,
+        HttpContext http,
+        CancellationToken ct)
+    {
+        var (key, problem) = ReadKey(http);
+        if (problem is not null) return problem;
+
+        var loaded = await store.LoadAsync(id, ct);
+
+        if (loaded is null || loaded.MerchantId != http.Caller().MerchantId)
+            return ProblemMapper.NotFound("payment_not_found", $"Payment with Id: @{id} not found.", http);
+
+        // The path is in the hash, so one key on two endpoints, or on two payments, is a mismatch.
+        string hash = RequestHash.Of("POST", http.Request.Path, req);
+
+        switch (await keys.ClaimAsync(loaded.MerchantId, key!, hash, ct))
         {
-            // Step 10 puts the header check on all four POSTs. The key itself is used in step 12.
-            var (_, problem) = ReadKey(http);
-            if (problem is not null) return problem;
+            case Claim.Mismatch:
+                return ProblemMapper.Idempotency("idempotency_key_reused",
+                    StatusCodes.Status422UnprocessableEntity,
+                    "That Idempotency-Key was used for a different request.", http);
 
-            var loaded = await store.LoadAsync(id, cancellationToken);
+            case Claim.InProgress:
+                return ProblemMapper.Idempotency("idempotency_request_in_progress",
+                    StatusCodes.Status409Conflict,
+                    "The first request with that Idempotency-Key is still running. Try again.", http);
 
-           if(loaded is null || loaded.MerchantId != http.Caller().MerchantId)
-                return ProblemMapper.NotFound("payment_not_found", $"Payment with Id: @{id} not found.", http);
+            case Claim.Replay replay:
+                return Replay(replay, http);
+        }
 
-            var result = loaded.Payment.Authorise();
-
-            if(result.IsFailure)
-                return ProblemMapper.ToProblem(result.Error, http);
-
-            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, completion: null, cancellationToken);
-
-            return Results.Ok(PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.UpdatedAt));
-        }).RequireScope("payments:write");
-
-        group.MapPost("/{id:guid}/capture", async(Guid id, AmountRequest req, IPaymentStore store, HttpContext http, CancellationToken cancellationToken) =>
+        try
         {
-            // Step 10 puts the header check on all four POSTs. The key itself is used in step 12.
-            var (_, problem) = ReadKey(http);
-            if (problem is not null) return problem;
+            var result = act(loaded.Payment);
 
-            var loaded = await store.LoadAsync(id, cancellationToken);
+            if (result.IsFailure)
+            {
+                // A final answer. Store it, so a retry is told the same thing instead of
+                // being allowed to try the same illegal move again.
+                var (status, refusal) = ProblemMapper.Refusal(result.Error, http);
 
-            if(loaded is null || loaded.MerchantId != http.Caller().MerchantId)
-                return ProblemMapper.NotFound("payment_not_found", $"Payment with Id: @{id} not found.", http);
+                await keys.CompleteAsync(new Completion(loaded.MerchantId, key!, status, refusal, null), ct);
 
-            var result = loaded.Payment.Capture(Money.Of(req.Amount, req.Currency));
+                return Results.Content(refusal, "application/problem+json", statusCode: status);
+            }
 
-            if(result.IsFailure)
-                return ProblemMapper.ToProblem(result.Error, http);
+            // Serialize once. The stored body and the answer must be the same bytes.
+            string body = JsonSerializer.Serialize(
+                PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.Payment.Operations[^1].At),
+                JsonSerializerOptions.Web);
 
-            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, completion: null, cancellationToken);
+            await store.UpdateAsync(loaded.Payment, loaded.OperationCount,
+                new Completion(loaded.MerchantId, key!, StatusCodes.Status200OK, body, null), ct);
 
-            return Results.Ok(PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.Payment.Operations[^1].At));
-        }).RequireScope("payments:write");
-
-        group.MapPost("/{id:guid}/refund", async(Guid id, AmountRequest req, IPaymentStore store, HttpContext http, CancellationToken cancellationToken) =>
+            return Results.Content(body, "application/json", statusCode: StatusCodes.Status200OK);
+        }
+        catch
         {
-            // Step 10 puts the header check on all four POSTs. The key itself is used in step 12.
-            var (_, problem) = ReadKey(http);
-            if (problem is not null) return problem;
-
-            var loaded = await store.LoadAsync(id, cancellationToken);
-
-            if(loaded is null || loaded.MerchantId != http.Caller().MerchantId)
-                return ProblemMapper.NotFound("payment_not_found", $"Payment with Id: @{id} not found.", http);
-
-            var result = loaded.Payment.Refund(Money.Of(req.Amount, req.Currency));
-
-            if(result.IsFailure)
-                return ProblemMapper.ToProblem(result.Error, http);
-
-            await store.UpdateAsync(loaded.Payment, loaded.OperationCount, completion: null, cancellationToken);
-
-            return Results.Ok(PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.Payment.Operations[^1].At));
-        }).RequireScope("payments:refund");
-
+            // CancellationToken.None, never ct: a cancelled token would skip the release
+            // and leave the key stuck InProgress for ever.
+            await keys.ReleaseAsync(loaded.MerchantId, key!, CancellationToken.None);
+            throw;
+        }
     }
 
     /// <summary>

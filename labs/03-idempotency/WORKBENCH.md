@@ -502,7 +502,7 @@ feat(lab-03): require an idempotency key and make create replay-safe
 //   ConfigureTestServices is in Microsoft.AspNetCore.TestHost, which Mvc.Testing already brings.
 ```
 
-**Proof.** `dotnet test tests/Payments.Api.Tests`: the command and in-progress tests fail. `A_crash_during_the_work_releases_the_key` and `A_retry_after_a_crash_does_the_work` may already pass for create — that is step 10's `catch` doing its job. Every older test is green.
+**Proof.** `dotnet test tests/Payments.Api.Tests`: 108 tests, 7 red. The reds are the four `CommandReplayTests`, `InProgressTests.An_open_key_runs_no_work` and the two `KeyReuseTests` left over from step 10. Three of the new tests pass the moment they are written, and each one tells you something: `A_404_is_not_stored` passes because a command never claims a key yet, `An_open_key_is_409_idempotency_request_in_progress` and `The_409_says_when_to_retry` because they arrange their key on **create**, and both `FailureTests` because step 10's `catch` already releases. A test that is green on arrival is fine here — break it by hand once, so you know it can go red.
 
 **Commit.** Stage `tests/Payments.Api.Tests/`.
 
@@ -542,7 +542,7 @@ test(lab-03): add failing tests for idempotent commands, open keys and crashes
 // ProblemMapper puts in it. Keep that in ProblemMapper, so there is still one place.
 ```
 
-**Proof.** `dotnet test` green, all of it. By hand: create, authorise and capture 100 (each with its own key), then refund 40 twice with **one** key:
+**Proof.** `dotnet test` green, all of it: **108 of 108** in `Payments.Api.Tests`, 160 in `Payments.Domain.Tests`, 55 in `Payments.Mcp.Tests`. By hand: create, authorise and capture 100 (each with its own key), then refund 40 twice with **one** key:
 
 ```bash
 curl -i -X POST http://localhost:5080/payments/<id>/refund \
@@ -557,6 +557,11 @@ Both answers say `refundedAmount: 40.0`. The second has `Idempotent-Replayed: tr
 ```
 feat(lab-03): make authorise, capture and refund replay-safe
 ```
+
+Two things change beyond the TODOs, and both are the same rule — one body, one place:
+
+- `ProblemMapper.ToProblem` now builds its body through the new `ProblemMapper.Refusal`, which returns the status **and** the body string. So the refusal a caller sees and the refusal stored against the key are the same bytes by construction, not by care.
+- The three commands now share `CommandAsync`, so they also share one `updatedAt`: `payment.Operations[^1].At`, which is what the store writes. `authorise` used to answer with the **stale** `loaded.UpdatedAt`. See `CF-019`.
 
 ---
 
