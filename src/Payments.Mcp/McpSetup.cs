@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 
 namespace Payments.Mcp;
@@ -9,13 +10,42 @@ public static class McpSetup
      /// <param name="configureApiClient">
      /// A hook on the API client's builder. The tests use it to put the stub handler behind the
      /// client, and step 18 uses it to point at the real API. Step 13 registers the client and
-     /// passes the builder here. Until then there is no client, so the hook is not called.
+     /// passes the builder here.
      /// </param>
      public static IMcpServerBuilder AddPaymentsMcp(
         this IServiceCollection services,
         IConfiguration config,
         Action<IHttpClientBuilder>? configureApiClient = null)
-        => services.AddMcpServer()
+    {
+        // A missing key must stop the server at start-up, with the variable named.
+        services.AddOptions<PaymentsApiOptions>()
+            .Configure(options =>
+            {
+                options.Url = config["PAYMENTS_API_URL"] ?? string.Empty;
+                options.ApiKey = config["PAYMENTS_API_KEY"] ?? string.Empty;
+            })
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.ApiKey),
+                "PAYMENTS_API_KEY is not set. The MCP server needs its own API key for the payments API.")
+            .Validate(
+                options => Uri.TryCreate(options.Url, UriKind.Absolute, out _),
+                "PAYMENTS_API_URL is not set to an absolute URL, such as http://localhost:5080/.")
+            .ValidateOnStart();
+
+        // The base address and the key are set here, once. No tool can forget them.
+        var apiClient = services.AddHttpClient<PaymentsApi>((provider, http) =>
+        {
+            var options = provider.GetRequiredService<IOptions<PaymentsApiOptions>>().Value;
+
+            http.BaseAddress = new Uri(options.Url, UriKind.Absolute);
+            http.Timeout = TimeSpan.FromSeconds(10);
+            http.DefaultRequestHeaders.Add("X-Api-Key", options.ApiKey);
+        });
+
+        // The tests put the stub behind the client here; step 18 points it at the real API.
+        configureApiClient?.Invoke(apiClient);
+
+        return services.AddMcpServer()
             .WithTools<PaymentTools>()
             .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (context, cancellationToken) =>
             {
@@ -44,4 +74,5 @@ public static class McpSetup
 
                 return await next(context, cancellationToken);
             }));
+    }
 }

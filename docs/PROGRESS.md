@@ -134,7 +134,7 @@ Written for you (2026-10-21):
 Yours to do:
 
 - [ ] Steps 2–6: `api_key` table, keys and scopes, one merchant per key, the capped list, tests first
-- [ ] Steps 7–13: `Payments.Mcp`, the harness, the fence, the read tools, tests first
+- [x] Steps 7–13: `Payments.Mcp`, the harness, the fence, the read tools, tests first — 34 tests green
 - [ ] Steps 14–17: the token store and the two-phase refund, tests first
 - [ ] Step 18: end to end against the real API
 - [ ] Step 19: after lab 03 lands — the dropped-answer test
