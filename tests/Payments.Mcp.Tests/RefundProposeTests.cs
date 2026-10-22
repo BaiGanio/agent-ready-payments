@@ -65,7 +65,7 @@ public sealed class RefundProposeTests
         // happen", and the customer is paid. A proposal that refunds is not a proposal.
         var request = Assert.Single(harness.Api.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Empty(harness.Api.Requests.Where(r => r.Method == HttpMethod.Post));
+        Assert.DoesNotContain(harness.Api.Requests, r => r.Method == HttpMethod.Post);
     }
 
     [Fact]

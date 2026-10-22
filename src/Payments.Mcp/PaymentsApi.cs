@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -39,7 +38,10 @@ internal sealed class PaymentsApi(HttpClient http)
             Content = new StringContent(
                 JsonSerializer.Serialize(new
                 {
-                    amount = amount.ToString(CultureInfo.InvariantCulture),
+                    // A JSON number, not a string: the API's AmountRequest takes a
+                    // decimal, and System.Text.Json does not read a number from a
+                    // string. A decimal keeps its scale, so 80.00m writes as 80.00.
+                    amount,
                     currency,
                 }),
                 Encoding.UTF8,
