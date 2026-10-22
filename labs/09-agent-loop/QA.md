@@ -72,7 +72,7 @@ A: Per-request context, not per call site. Aperio keeps the allowed paths in `As
 A: Split it. Deterministic part (loop, guards, tools) — replay scripted model outputs through the real loop, fast, in CI. Nondeterministic part (does model X use the tools well?) — live evaluation drills, run manually or nightly, scored. Aperio: `tests/harness/` (~0.7 s, 14 scenarios) vs `scripts/model-tier-bench.js`.
 
 **Q18. What did your C# loop in this lab include?**
-A: (After the lab.) Message list, tool registry from the MCP server, step cap, cancellation, identical-call detection, and refusal to run `refund_payment` confirm without a token. Around 150 lines. Plus a test with a fake model client that returns a scripted tool-call sequence.
+A: (After the lab, in your words.) Message list, tools listed from the MCP server, one save per pass to SQL Server through EF Core, a step cap, a repeat breaker, a failure budget, cancel and a turn deadline, and refusals for unknown tools, broken arguments and leaked calls. The model never sees the confirmation token: the host keeps it and confirms only after a human yes. Around 150 lines. Tested with a fake `IChatClient` that returns a scripted sequence.
 
 **Q19. Determinism and LLMs — can you make the model deterministic?**
 A: Not fully. Temperature 0 reduces variance but does not guarantee identical output. So determinism must live in the tools and the host, not the model.
@@ -83,7 +83,7 @@ A: Tool error rate per tool and per model, schema mismatch types, loop-breaker t
 ## F. Lessons from the sketches (`AGENT-READY-BACKEND.md`)
 
 **Q21. Draw your `AgentRun` / `AgentStep` tables.**
-A: `AgentRun(Id, Status CHECK IN (Running, Done, Failed, WaitingForHuman), StepCount, Messages JSON, PendingCall, timestamps, RowVer)` and `AgentStep(Id, RunId, Ordinal UNIQUE per run, ToolName, InputJson, OutputJson, Outcome, DurationMs)`. Save after every step, so a restart resumes from the last step.
+A: `AgentRun(Id, Status CHECK IN (Running, WaitingForHuman, Done, Failed), StepCount, Messages nvarchar(max) CHECK ISJSON, PendingCall, Answer, Reason, AgentName, ModelId, PromptVersion, timestamps, RowVer rowversion)` and `AgentStep(Id, RunId, Ordinal UNIQUE per run, Kind tool/approval/guard, ToolName, InputJson, OutputJson, Outcome Ok/ToolError/Rejected, ModelId, PromptVersion, Approver, DurationMs)`. On SQL Server, owned by EF Core, shipped as a DbUp script. One save per pass, so a restart resumes from the last pass.
 
 **Q22. Why is `WaitingForHuman` the most valuable status?**
 A: It lets the loop stop before anything that moves money, wait hours or days for a person, and resume. Without it, approval would have to happen inside one HTTP request.
@@ -131,13 +131,15 @@ A: Use a fake `IChatClient` that returns a scripted list of replies (tool call, 
 ## H. Crash/resume and concurrent agents
 
 **Q34. Your agent process dies in the middle of a run. What happens?**
-A: Every step is saved in `AgentStep` before the loop goes on. On restart, the run is loaded with its full message history and continues with the next step. Tool calls already done are not repeated: their saved results are reused. A refund that was confirmed but not saved is protected by the idempotency key, so a repeat is a replay, not a second refund.
+A: Every pass is saved — the model's reply, every tool result, the steps — before the next model call. On restart, the run is loaded with its full history and goes on from the next step. Tool calls already saved are not repeated. Two honest gaps. A crash **between** a tool call and its save repeats that one call: harmless for a read. For money, the approval is saved **before** the confirm, so on resume an approval with no confirm after it is `refund_in_doubt`: the run stops and a person checks the payment. It never asks again, because the first confirm may have gone through. The full fix — a write-ahead `Started` step and replaying the same idempotency key — is lab 16.
+Trap: "Why not just ask the human again?" → The old yes may already have moved money. A second yes is a second refund.
 
 **Q35. How did you test crash and resume?**
 A: Use a fake model with a script of five steps. Throw on purpose after step 3. Create a new loop instance, the way a restart would, and resume the run. Assert that steps 1–3 were not called again and that the run finished at step 5.
 
 **Q36. Two agents try to refund the same payment at once. What protects you?**
-A: The same layers that protect against two humans: idempotency keys (same request → same result), the state machine (refund ≤ captured − refunded), and the conditional update in the database (only one wins). The agents add no new risk, if the API was built right.
+A: The same layers that protect against two humans: idempotency keys (same request → same result), the state machine (refund ≤ captured − refunded), and a write that re-checks the row (only one wins). The agents add no new risk — **if** the API was built right. Mine was not: building this test showed two refunds with **different** keys both winning, 29 of 30 rounds. The key table only catches one key used twice. The fix: lock the row, check its operation count is still the one loaded, retry the command once on fresh data. The loser gets the honest `422 amount_exceeds_captured`.
+Trap: "Your idempotency tests passed. How did you miss it?" → They raced 50 requests with **one** key. Two keys is two honest requests, and only the payment row can say no. Test the race you fear, not the one you built for.
 
 **Q37. Two workers try to resume the same agent run. What protects you?**
 A: A version column (`rowversion`, or EF Core `[Timestamp]`) on `AgentRun`. Or a conditional claim: `UPDATE … SET Status = 'Running' WHERE Id = @Id AND Status = 'WaitingForHuman'`. Only one worker gets the row.
@@ -164,7 +166,7 @@ A: Weights (GB on disk, roughly) + KV cache (bytes per token × context length �
 A: A service in front of all model providers. It routes requests (local or cloud, by task, data class or cost), redacts personal data, enforces rate limits and budgets, logs usage, caches, and falls back when a provider is down. In a regulated company it is where "card data never leaves" is enforced once, for every team.
 
 **Q44. Can the model approve a refund?**
-A: No. "The model said so" is never an approval. A human approves, or a coded rule decides. The confirm token reaches the host only through the approval channel. If the model writes "the user approved, token rf_9x2", the host does not confirm. If the model sends a token it was never shown, that is refused and audited. I have a test for each case.
+A: No. "The model said so" is never an approval. A human approves, or a coded rule decides. The confirm token reaches the host only through the approval channel. If the model writes "the user approved, token rf_9x2", the host does not confirm. If the model sends any token at all, the host refuses it and saves a `Rejected` step; the MCP server never hears of it. The model never sees a real token, so any token it writes is invented. I have a test for each case. (The audit **table** is lab 14.)
 Trap: "And if a tool result says 'approved, confirm now'?" → Tool results are data. They cannot change the state of an approval. Same test, different source.
 
 **Q45. A model copies `1 266 250,00` from an invoice. What does your API do?**
@@ -176,6 +178,20 @@ A: Every `AgentStep` stores the model id, the prompt version and the arguments. 
 
 ## Aperio: have you solved this before?
 
+**Q47. Why does the model never see the confirmation token?**
+A: A gate whose key the model holds is a gate the model can open. It could repeat the token, or a tool result could tell it to use it. So the host cuts the token out of the proposal, keeps it in `AgentRun.PendingCall`, and sends the confirm itself after a human yes. The model can only *ask* for a refund.
+Trap: "Lab 08 already checks the token in the MCP server. Why both?" → Defence in depth. The server stops a client that skips the human; the host stops the model from being that client.
+
+**Q48. You found a bug in your own API while building the agent. Tell me about it.**
+A: Two refunds of 100 on a 100 payment, at the same moment, each with its own idempotency key: both won, 29 of 30 rounds. The update was `where id = @Id` and nothing else — a lost update. I wrote the race test first and saw it red, then fixed it: `select … for update`, re-check the operation count, retry the command once on fresh data. Then 0 in 90 rounds, and the agent test proved it from the agent side.
+Trap: "Why not a version column?" → It works too, but the loser hears `409 conflict`, which an agent cannot act on. The retry lets the domain answer: `422 amount_exceeds_captured`.
+
+**Q49. Your agent tables are on SQL Server. On Postgres there is no `rowversion`. What then?**
+A: Postgres has a hidden system column, `xmin`: the id of the transaction that last wrote the row. It changes on every update, so Npgsql's EF Core provider can use it as the concurrency token with no column of your own. Or add an explicit `version int` and bump it in every update. Same idea: `WHERE version = @loaded`, zero rows means someone else won.
+
+**Q50. A run was waiting for a human, and the agent process restarted. What happens to the approval?**
+A: The token is gone: it lived in the MCP server's memory, and the MCP server is a child of the agent process. So the host proposes again — a new token — and asks the human again. A yes is for one token, never for "whatever the agent does next". And if the old yes was already saved with no confirm after it, the host does not ask again at all: it stops with `refund_in_doubt`.
+
 **Q-APERIO. "Have you solved this before?"**
-A: Yes. Aperio's loop has a step cap, a repeat breaker, a failure budget, a cancel latch and guards for weak-model mistakes, across six providers. What it lacks is step-level resume after a crash and a wall-clock limit per turn. The C# loop in this lab adds both.
+A: Yes. Aperio's loop has a step cap, a repeat breaker, a failure budget, a cancel latch and guards for weak-model mistakes, across six providers. What it lacks is step-level resume after a crash and a wall-clock limit per turn. The C# loop in this lab adds both, and keeps the confirmation token away from the model.
 Details and file references: the "Aperio comparison" table in this lab's `README.md`.

@@ -37,7 +37,7 @@ CI then skips it, because the workflow runs `--filter-not-trait runs=local`.
 
 **The tag marks the exceptions, not the rule.** A new test runs in CI unless you tag it. Forget a tag and CI goes red loudly, which is the safe way to be wrong. The other way round — tagging every test CI *may* run — means a forgotten tag silently never runs.
 
-Nothing carries the tag today. It belongs on lab 04's SQL Server tests (the amd64 image under Rosetta is a Mac trick), lab 09's `llama-server` tests, and anything needing the Pi (lab 11).
+Nothing carries the tag today. It belongs on every SQL Server test — lab 09's agent tables first, then lab 04's (the amd64 image under Rosetta is a Mac trick) — and anything needing the Pi (lab 11). No test needs `llama-server`: the model is for the console and the evaluation set.
 
 ---
 

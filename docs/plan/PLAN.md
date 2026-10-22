@@ -28,7 +28,7 @@ Rules from the spec, short form:
 | 06 | `labs/06-flow-pipeline-channels` | **Flow-based processing**: settlement batch with `System.Threading.Channels` — producer → N workers → writer, bounded, backpressure, cancellation, retry, poison message | 3 | 3 h | 05 | `Payments.Settlement` worker; tests for backpressure, cancel, poison queue, graceful shutdown |
 | 07 | `labs/07-bdd-refund-rules` | **BDD**: Gherkin `.feature` files for refund rules, step definitions against the running API | 5 | 2–3 h | 03 | `refunds.feature` (Reqnroll — SpecFlow's successor) running in `dotnet test` |
 | 08 | `labs/08-mcp-server` | **The C# MCP server.** Minimal. Typed tools `get_payment`, `list_payments` (capped at 20), `refund_payment` (two-phase confirm). API keys with scopes, one merchant per key | 4 | ~6 h | 03 | `Payments.Mcp` project, talks to `Payments.Api` over HTTP; run by hand in the MCP Inspector, driven by a local model in Lab 09 |
-| 09 | `labs/09-agent-loop` | Write a **tiny C# agent loop** (~150 lines) that uses a **local model on llama.cpp** and calls `Payments.Mcp`. It has a step cap and a destructive-tool rule. The whole flow runs offline | 4 | 3 h | 08 | `Payments.Agent` console app doing "refund the last captured payment" end to end against `llama-server`; tests with a fake model |
+| 09 | `labs/09-agent-loop` | Write a **tiny C# agent loop** (~150 lines) that uses a **local model on llama.cpp** and calls `Payments.Mcp`. It has a step cap and a destructive-tool rule. The whole flow runs offline | 4 | ~11 h (decided 2026-10-22) | 08 | `Payments.Agent` console app doing "refund the last captured payment" end to end against `llama-server`; run state on SQL Server via EF Core; two configured agents and a rehearsed live demo (`DEMO.md`); tests with a fake model |
 | 10 | `labs/10-framework-to-core` | **.NET Framework → .NET Core**: paper lab. Read, classify, plan a port of a small Framework-style sample | 1 | 2 h | 02 | A migration note: what breaks, what replaces it, in what order |
 | 11 | `labs/11-k3s-pi` *(optional)* | k3s on the Pi 5: Postgres StatefulSet + API Deployment. Postgres only | infra | 3 h | 02 | Manifests + the API answering from the Pi |
 | 12 | `labs/12-semantic-search` *(optional)* | **Semantic search** for the agent: refund/chargeback policy snippets, embedded with a **local embedding model** on llama.cpp, stored in **pgvector**, hybrid with Postgres full-text. New MCP tool `search_policies` | 4, 2 | 3 h | 09 | Policies searchable by meaning; the agent cites a policy id before it proposes a refund; SQL Server 2025 `VECTOR` as a discussion |
@@ -54,7 +54,7 @@ Rule of thumb you can say in the interview: **EF Core when the app owns the sche
 | 04 | T-SQL procs | EF Core optimistic concurrency (`[Timestamp]` / `rowversion` → `DbUpdateConcurrencyException`); calling a proc with `Database.SqlQuery<T>` / `ExecuteSqlAsync` | EF has no lock hints; know when it's the wrong tool |
 | 05 | ADO.NET | Compare `AddRange` + `SaveChanges`, `ExecuteUpdateAsync` (set-based) and `SqlBulkCopy` on the same data | Know the numbers, not just the opinion |
 | 06 | Channels + bulk writer | One rule only: one `DbContext` per unit of work via `IDbContextFactory`, never shared across workers | `DbContext` is not thread-safe |
-| 09 | EF Core | `AgentRun` / `AgentStep` persistence (JSON column, `rowversion`) | The app owns this schema — EF's home ground |
+| 09 | EF Core | `AgentRun` / `AgentStep` persistence on **SQL Server** (JSON column with `ISJSON`, `rowversion`) | The app owns this schema — EF's home ground |
 | 10 | — | EF6 → EF Core migration path | Part of the Framework → Core move |
 
 ### The dedicated MCP server (`src/Payments.Mcp`)
@@ -78,6 +78,7 @@ flowchart LR
     A -- "MCP over stdio" --> M["Payments.Mcp<br/>3 payment tools"]
     M -- "HTTP + Idempotency-Key" --> API["Payments.Api<br/>Minimal API"]
     API --> DB[("Postgres")]
+    A -- "EF Core: AgentRun, AgentStep" --> SQL[("SQL Server")]
 ```
 
 - **Model server:** `llama-server` (already installed: `/opt/homebrew/bin/llama-server`, build 10090). It serves an OpenAI-compatible `/v1/chat/completions` with tool calling. Tool calling needs the chat template, so start it with `--jinja`.
@@ -246,7 +247,7 @@ agent-ready-payments/
 ├── src/
 │   ├── Payments.Core/               # Lab 04 (Result, no packages)
 │   ├── Payments.Domain/             # Lab 01
-│   ├── Payments.Migrations/         # Lab 04 (RepoRoot, Migrator)
+│   ├── Payments.Migrations/         # Lab 09 (RepoRoot, Migrator); Result in lab 04
 │   ├── Payments.Api/                # Lab 02–03
 │   ├── Payments.Data.SqlServer/     # Lab 04–05 (procs, ADO.NET)
 │   ├── Payments.Settlement/         # Lab 06
@@ -258,7 +259,9 @@ agent-ready-payments/
 │   ├── Payments.Data.SqlServer.Tests/
 │   ├── Payments.Settlement.Tests/
 │   ├── Payments.Specs/              # Lab 07 (BDD)
-│   └── Payments.Mcp.Tests/
+│   ├── Payments.Mcp.Tests/
+│   ├── Payments.Agent.Tests/        # Lab 09
+│   └── Payments.Testing/            # Lab 09: shared fixtures (CF-033)
 ├── db/
 │   ├── README.md               # the lab database plan
 │   ├── postgres/               # numbered .sql migrations (DbUp)
@@ -377,8 +380,16 @@ Decided things only. Open findings, fix-later items, questions and ideas live in
 - **Decided 2026-10-22 (a load is one snapshot):** `DapperPaymentStore.LoadAsync` reads the `payment` row and its `payment_operation` rows inside a **`RepeatableRead`** transaction. Found by the new `ConcurrencyTests`, which no sequential test could have found. `UpdateAsync` writes the `status` column and the new operation rows in one transaction, so a read that straddles that commit sees the **old** status with the **new** operations, replays to `PartiallyRefunded` while the column still says `Captured`, and the replay check throws — a `500` on perfectly correct data. It hits `GET /payments/{id}` too, and hard, because `CommandAsync` loads the payment **before** the claim, so all 50 racers load it, not just the winner. **The isolation level is the whole fix, not the transaction.** Postgres `READ COMMITTED` takes a fresh snapshot for every *statement*, so a plain `BeginTransaction` only makes the bug rarer, which is worse than leaving it. Measured on the full suite: no transaction = 2 failures in 3 runs; `ReadCommitted` = 1 in 3; `RepeatableRead` = 0 in 10. The read is read-only, so it cannot hit a serialisation failure and needs no retry. This is the lab 04 locking lesson arriving early, in Postgres.
 - **Decided 2026-10-22 (lab 04 scope):** core **plus one EF Core step** — procs, `UPDLOCK`, `READPAST`, a deadlock made and fixed, RCSI, `rowversion`, then EF Core's `[Timestamp]` and a proc called from EF. The ETag / `If-Match` stretch became its own optional lab, **lab 20** (`labs/20-etag-if-match`): it changes the Postgres API, adds a migration there and touches lab 08's token. The queue is a new SQL Server-only **`PaymentJob`** table. The deadlock lives in **`usp_MarkDuplicatePair`** — two operators flag the same double charge from opposite sides — which adds a nullable `DuplicateOf` column, SQL Server only. The API stays on Postgres; only tests call the procs. `CF-009` and `CF-016` are done **together**, first: `Result` moves to a package-free `Payments.Core`, the migration code to `Payments.Migrations`, and `Migrator` returns a `Result`. The CI gate push (`CF-006`) waits until lab 04 closes.
 - **Decided 2026-10-22 (RCSI lives in `Migrator`):** `ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON` cannot run inside a transaction (`Msg 226`, measured), and DbUp wraps every script in one. So `Migrator` switches it on, on `master`, `WITH ROLLBACK IMMEDIATE`, right after it makes the database. It is a database option, not schema.
-- **Decided 2026-10-22 (a lab may rewrite its own migration while in flight):** still one migration per lab per engine. Until the lab is tagged, its file may be rewritten: drop the dev database and migrate again. Tests make a fresh database anyway. **After the tag the file is frozen**, and a change is a new numbered script. Lab 04's file is `db/sqlserver/0001_payments_procs_locking.sql`.
+- **Decided 2026-10-22 (a lab may rewrite its own migration while in flight):** still one migration per lab per engine. Until the lab is tagged, its file may be rewritten: drop the dev database and migrate again. Tests make a fresh database anyway. **After the tag the file is frozen**, and a change is a new numbered script. Lab 04's file is `db/sqlserver/0002_payments_procs_locking.sql` (renumbered from `0001` on 2026-10-22: lab 09 lands first and takes `0001`).
 - **Decided 2026-10-22 (`CF-037`, how the build gets to zero warnings):** the four `CS8524` switches get a `_ => throw new ArgumentOutOfRangeException(...)` arm, **not** the one-table refactor the row also offered. The arm is one line per switch and changes no behaviour; folding `ProblemMapper`'s `Code`, `Status` and `Title` into one table is a real refactor of a lab 02 deliverable and belongs in a lab that needs it. `CS8321` was closed by **wiring `CheckArgs` up**, not by deleting it: it was written in lab 00 and left commented out, so the migration runner validated nothing and simply indexed `args[2]`. Wiring it as written would have thrown, because the branch its own `args.Length < 3` test falls into then printed `args[0]` and `args[1]`; the message now uses `string.Join`. Bad arguments print a line and exit `2`.
+
+- **Decided 2026-10-22 (lab 09 scope):** the **full lab with one stop mark** after step 15, about 11 hours, and lab 09 runs **before** lab 04. Its parts, each decided with the user the same day:
+  - `AgentRun` / `AgentStep` live on **SQL Server** `PaymentsLabs`, owned by EF Core, shipped as `db/sqlserver/0001_agent_run.sql` (`CF-028`). The reason is the repo's goal: prove as many production environments as we can. Those tests carry `[Trait("runs", "local")]`. Lab 04's script becomes `0002`.
+  - Lab 09 lifts **`CF-016`** into `src/Payments.Migrations`; `CF-009` stays in lab 04. Lab 09 builds **`CF-033`** as `tests/Payments.Testing` (in-memory MCP server, `StubApi`, `ApiFixture`, `SqlServerDatabase`). Verified 2026-10-22: `ApiFixture` in a class library runs all API tests with no `Mvc.Testing` line in the test project.
+  - **The model never sees the confirmation token.** `McpToolHost` cuts it out and keeps it in `AgentRun.PendingCall`; the host confirms after an in-process `IApprovalChannel` yes. A token written by the model is a `Rejected` step. A wait resumed after a restart proposes again and asks again; an approval saved with no confirm after it is `refund_in_doubt` and never asks again.
+  - The refund **ceiling** is a host rule, `AgentOptions.RefundCeiling` = 500.00. The turn deadline (`CF-007`) is in this lab.
+  - **A live demo is a deliverable**, not only tests: two configured agents (`support-bot`, `read-bot`) in `agents.json`, a `chat` mode, `seed-demo`, `show`, and `labs/09-agent-loop/DEMO.md` with the MCP Inspector scene first. Rehearsed on the picked model.
+- **Found and decided 2026-10-22 (the double refund):** two refunds with **different** `Idempotency-Key`s on one payment both won, 29 of 30 rounds, because `DapperPaymentStore.UpdateAsync` wrote `where id = @Id` and nothing else. Lab 03 only raced **one** key. Fixed **inside lab 09** (steps 4–5), not as a hotfix: `UpdateAsync` takes `select … for update`, re-checks the stored operation count against the loaded one and throws `ConcurrentUpdateException` on a mismatch; `CommandAsync` reloads and runs the command **once more**, so the loser gets the domain's answer (`422 amount_exceeds_captured`, or `409 illegal_transition` after a full refund). Rejected: a `version` column with `409 concurrent_update` — it takes lab 20's column early, and an agent cannot act on "conflict". Measured in a scratch copy: 0 doubles in 90 rounds, the 114 API tests green.
 
 ## 9. Environment checklist
 

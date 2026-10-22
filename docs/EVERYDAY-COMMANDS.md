@@ -20,6 +20,7 @@ Replace `NN` with the lab number and `short-name` with the lab folder name. The 
 | `curl`-ing the payment endpoints | [`commands/api.md`](commands/api.md) |
 | Making, storing or revoking an API key | [`commands/api-keys.md`](commands/api-keys.md) |
 | Driving the MCP tools by hand | [`commands/mcp.md`](commands/mcp.md) |
+| Starting the local model, chatting with the agents, reading a run | [`commands/agent.md`](commands/agent.md) |
 | Running the Testcontainers tests | [`commands/integration-tests.md`](commands/integration-tests.md) |
 | Branching, committing, merging, tagging | [`commands/git.md`](commands/git.md) |
 | Running what CI runs, or fixing a red gate | [`commands/ci.md`](commands/ci.md) |

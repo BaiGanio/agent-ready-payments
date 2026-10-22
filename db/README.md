@@ -160,16 +160,16 @@ erDiagram
 | 01 | — | Nothing. The domain is pure; no database. |
 | 02 | Postgres | `merchant`, `payment`, `payment_operation` + the index `(merchant_id, created_at desc, id desc)` for keyset paging |
 | 03 | Postgres | `idempotency_key` table, primary key `(merchant_id, key)`, with the request hash and the stored answer. Not a column on `payment`: a refund writes no `payment` row (decided 2026-10-20) |
-| 04 | SQL Server | One file, `0001_payments_procs_locking.sql`: the same three tables (lockstep) + `RowVer` and `DuplicateOf` on `Payment` (SQL Server only), the `PaymentJob` queue, and `usp_CapturePayment`, `usp_MarkDuplicatePair`, `usp_ClaimNextBatch`. RCSI is switched on by `Migrator`, not by a script (decided 2026-10-22) |
+| 04 | SQL Server | One file, `0002_payments_procs_locking.sql`: the same three tables (lockstep) + `RowVer` and `DuplicateOf` on `Payment` (SQL Server only), the `PaymentJob` queue, and `usp_CapturePayment`, `usp_MarkDuplicatePair`, `usp_ClaimNextBatch`. RCSI is switched on by `Migrator`, not by a script (decided 2026-10-22) |
 | 05 | SQL Server | `StagingSettlementFile` (a heap for `SqlBulkCopy`) + a TVP type |
 | 06 | SQL Server | `SettlementBatch`, `SettlementItem`, `SettlementPoison` |
 | 08 | Postgres | `api_key`: SHA-256 hash, name, one merchant, kind (`agent` or `service`), scopes; a `check` keeps `payments:approve` off agent keys (decided 2026-10-21). `AgentAudit` moved to lab 14 |
-| 09 | Postgres | `AgentRun`, `AgentStep` (EF Core owns these two) |
+| 09 | SQL Server | `0001_agent_run.sql`: `AgentRun`, `AgentStep` (EF Core owns these two; `Messages` with an `ISJSON` check, `RowVer rowversion`). Lab 09 runs before lab 04, so it takes `0001` (decided 2026-10-22) |
 | 12 | Postgres | `CREATE EXTENSION vector`, `Policy` with an HNSW index and a full-text index |
 | 13 | Postgres | `Chargeback`, `WorkflowInstance` (state, JSON data, `NextWakeUtc`, version), `WorkflowStep` (step log), `Outbox`; `Payment.DisputeHold` column |
 | 14 | Postgres | `agent_audit`: one row per agent tool call, with the key, tool, payment, redacted arguments, result code, approver and trace id (moved from lab 08, 2026-10-21) |
 | 15 | Postgres | `ToolResult` (offloaded big results: id, run id, tool, content, created) |
-| 16 | Postgres | `AgentStep` gets `Status` (`Planned/Started/Completed/Failed/InDoubt`), `IdempotencyKey`, `StartedUtc`; `AgentRun` gets `NextWakeUtc` and `ToolSchemaHash` |
+| 16 | SQL Server | `AgentStep` gets `Status` (`Planned/Started/Completed/Failed/InDoubt`), `IdempotencyKey`, `StartedUtc`; `AgentRun` gets `NextWakeUtc` and `ToolSchemaHash` |
 
 ## Naming: `snake_case` in Postgres, `PascalCase` in SQL Server
 
@@ -199,11 +199,12 @@ db/
 │   └── …
 └── sqlserver/
     ├── 0000_baseline.sql                (Lab 00)   ← on disk today
-    ├── 0001_payments_procs_locking.sql  (Lab 04: lockstep tables + PaymentJob + 3 procs)
+    ├── 0001_agent_run.sql               (Lab 09: AgentRun, AgentStep — EF Core's)
+    ├── 0002_payments_procs_locking.sql  (Lab 04: lockstep tables + PaymentJob + 3 procs)
     └── …
 ```
 
-The runner is a tiny console app, `src/Payments.Db`, over the `Payments.Migrations` library (lab 04): `dotnet run --project src/Payments.Db -- migrate --engine postgres`.
+The runner is a tiny console app, `src/Payments.Db`, over the `Payments.Migrations` library (lab 09): `dotnet run --project src/Payments.Db -- migrate --engine postgres`.
 
 **A lab in flight may rewrite its own script** (decided 2026-10-22): drop the dev database and migrate again. Once the lab is tagged, the file is frozen and a change is a new numbered script.
 

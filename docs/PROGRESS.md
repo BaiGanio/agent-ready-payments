@@ -2,7 +2,7 @@
 
 The status board. One row per lab. This is the only place that says where you are.
 
-Updated 2026-10-22 (lab 04 prepared).
+Updated 2026-10-22 (lab 09 prepared, runs before lab 04).
 
 ## How to read it
 
@@ -23,33 +23,38 @@ Rules:
 
 ## Next up
 
-**Lab 04 is next.** Prepared 2026-10-22: spec, bench sheet and test list are written. Start with its [`WORKBENCH.md`](../labs/04-sqlserver-procs-locking/WORKBENCH.md) step 0.
+**Lab 09 is next** (decided 2026-10-22: it runs before lab 04). Prepared 2026-10-22: spec, bench sheet, test list, evaluation-set scaffold and demo runbook are written. Start with its [`WORKBENCH.md`](../labs/09-agent-loop/WORKBENCH.md) step 0.
 
-**The CI gate (`CF-006`) waits until lab 04 closes** (decided 2026-10-22). `.github/workflows/ci.yml` exists and its command is verified on this Mac. Lab 04 step 1 does the back-merge of `main` into `develop`. What is left after lab 04: push `develop`, so GitHub runs the workflow once and learns the check exists, then turn on branch protection for `main` with `build-and-test` required.
+**Lab 04 comes after lab 09.** Its bench sheet is already updated for the new order: its script is now `0002`, and its step 3 is a check, because lab 09 does `CF-016`.
+
+**A real bug is open on `main`:** two refunds with different `Idempotency-Key`s can both win (29 of 30 rounds, measured 2026-10-22). Lab 09 steps 4–5 fix it (`plan/PLAN.md` §8).
+
+**The CI gate (`CF-006`) waits until lab 04 closes** (decided 2026-10-22). `.github/workflows/ci.yml` exists and its command is verified on this Mac. What is left after lab 04: push `develop`, so GitHub runs the workflow once and learns the check exists, then turn on branch protection for `main` with `build-and-test` required.
 
 The suite is **330 of 330 green**, measured 10 runs out of 10, on 2026-10-22.
 
-### Lab 04 — tick list
+### Lab 09 — tick list
 
 Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the step.
 
 - [ ] 1 Start the lab, commit the prep
-- [ ] 2 `Result` in `Payments.Core` (`CF-009`, part 1)
-- [ ] 3 `Payments.Migrations` (`CF-016`)
-- [ ] 4 `Migrator` returns a `Result` (`CF-009`, part 2)
-- [ ] 5 SQL Server tables in lockstep
-- [ ] 6 RCSI in `Migrator`
-- [ ] 7 Test project, a database per class
-- [ ] 8 Lost update by hand
-- [ ] 9–10 Capture proc
-- [ ] 11 Capture race
-- [ ] 12 Isolation
-- [ ] 13–16 Duplicate pair, deadlock, graph, fix
-- [ ] 17–18 `READPAST` queue
-- [ ] 19–20 EF Core `RowVer`
-- [ ] 21 Done-when list
-- [ ] 22 Answers out loud
-- [ ] 23 Close
+- [ ] 2 `Payments.Migrations` (`CF-016`)
+- [ ] 3 `Payments.Testing` (`CF-033`)
+- [ ] 4–5 The double refund: red, then lock, check, retry once
+- [ ] 6–7 Agent projects, `0001_agent_run.sql`
+- [ ] 8–9 EF Core run store
+- [ ] 10–11 The loop
+- [ ] 12–13 The guards (`CF-007`)
+- [ ] 14–15 The token, the human, the ceiling — **stop mark**
+- [ ] 16 The console against `llama-server`
+- [ ] 17 Configured agents, `chat`, demo data
+- [ ] 18–19 Crash and resume
+- [ ] 20 Two agents, one payment
+- [ ] 21–23 Evaluation set, rung 1, rung 3, the pick
+- [ ] 24 Rehearse the demo (`DEMO.md`)
+- [ ] 25 Done-when list
+- [ ] 26 Answers out loud
+- [ ] 27 Close
 
 ## The board
 
@@ -59,12 +64,12 @@ Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the s
 | 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Done** | `lab-01` | — |
 | 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **Done** | `lab-02` | Closed short of the spec: paging `CF-022`, the EF Core store `CF-023`, `void` `CF-025` |
 | 03 | [Idempotency](../labs/03-idempotency) | **Done** | `lab-03` | — |
-| 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | **Prepared** | — | The lab. Closes `CF-009` and `CF-016` on the way |
+| 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | **Prepared** | — | After lab 09. Closes `CF-009` on the way (`CF-016` moved to lab 09) |
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
 | 06 | [Flow pipeline (Channels)](../labs/06-flow-pipeline-channels) | Spec only | — | Bench sheet + test list, then the lab |
 | 07 | [BDD refund rules](../labs/07-bdd-refund-rules) | Spec only | — | Decide how deep BDD goes (`PLAN.md` §7), then the lab |
 | 08 | [MCP server](../labs/08-mcp-server) | **Done** | `lab-08` | `release/x.y` is cut after this lab, once the CI gate (`CF-006`) is pushed and `main` is protected |
-| 09 | [Agent loop](../labs/09-agent-loop) | Spec only | — | Pick the local model with the evaluation set, then the lab |
+| 09 | [Agent loop](../labs/09-agent-loop) | **Prepared** | — | The lab, next. Fixes the double refund, closes `CF-016`, `CF-033`, `CF-007`; picks the local model; live demo |
 | 10 | [Framework → Core (paper)](../labs/10-framework-to-core) | Spec only | — | Migration-note scaffold, then the lab |
 | 11 | [k3s on the Pi](../labs/11-k3s-pi) *(optional)* | Spec only | — | Bench sheet, then the lab |
 | 12 | [Semantic search](../labs/12-semantic-search) *(optional)* | Spec only | — | Bench sheet + test list, then the lab |

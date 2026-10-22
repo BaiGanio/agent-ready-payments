@@ -6,7 +6,13 @@ Spec and Done-when list: [`README.md`](README.md). Test names you must write: [`
 
 Started 2026-10-22.
 
-**Size.** About 4–5 hours, in four parts. Steps 1–4 lift the shared code out of the way (about 1 h). Steps 5–8 build the SQL Server schema and its test harness (about 1 h). Steps 9–16 are the heart: capture, isolation, the deadlock (about 2 h). Steps 17–20 add the queue and EF Core (about 1 h). Step 8 is a safe place to stop for the day: everything before it is green and committed.
+> **Lab 09 ran first** (decided 2026-10-22). What it changed here:
+> - `CF-016` is already done: `src/Payments.Migrations` exists (lab 09 step 2). Step 3 below is now a check.
+> - `SqlServerDatabase` already exists in `tests/Payments.Testing` (lab 09 step 6). Step 7 reuses it.
+> - SQL Server already has `db/sqlserver/0001_agent_run.sql`. This lab's script is **`0002_payments_procs_locking.sql`**.
+> - The test counts below include lab 09's: it closes at **383** tests, **367** of them in CI.
+
+**Size.** About 4–5 hours, in four parts. Steps 1–4 lift the shared code out of the way (about 30 min: lab 09 already did `CF-016`). Steps 5–8 build the SQL Server schema and its test harness (about 1 h). Steps 9–16 are the heart: capture, isolation, the deadlock (about 2 h). Steps 17–20 add the queue and EF Core (about 1 h). Step 8 is a safe place to stop for the day: everything before it is green and committed.
 
 **TDD shows in the history.** From step 9 on, a `test(lab-04)` step (red) comes before the `feat(lab-04)` step (green) it covers.
 
@@ -19,7 +25,7 @@ Started 2026-10-22.
 ```mermaid
 flowchart LR
     subgraph tests["tests/Payments.Data.SqlServer.Tests"]
-        FX["SqlServerDatabase<br/>fresh DB per class"]
+        FX["SqlServerDatabase<br/>from Payments.Testing (lab 09)"]
         T["8 groups, 42 tests<br/>[Trait runs=local]"]
     end
     subgraph src["src"]
@@ -28,7 +34,7 @@ flowchart LR
         PROCS["Payments.Data.SqlServer<br/>SqlServerPaymentProcs + EF"]
     end
     subgraph db["SQL Server"]
-        SQL["0001_payments_procs_locking.sql<br/>tables + 3 procs"]
+        SQL["0002_payments_procs_locking.sql<br/>tables + 3 procs"]
     end
     FX -->|"create + migrate + drop"| MIG
     MIG -->|"runs"| SQL
@@ -58,21 +64,19 @@ grep -E '^\*\*Q' labs/04-sqlserver-procs-locking/QA.md
 
 ---
 
-## Step 1 — Start the lab, commit the prep
+## Step 1 — Start the lab
 
-**Goal.** You are on `feature/lab-04-sqlserver-procs-locking`, `develop` is level with `main`, the prep files are the first commit, and both databases say `Up (healthy)`.
+**Goal.** You are on `feature/lab-04-sqlserver-procs-locking`, `develop` is level with `main`, and both databases say `Up (healthy)`.
 
-**Why.** `develop` is behind `main` right now: the three CI gate commits and the race fix landed on `main` (`docs/PROGRESS.md`). A branch cut from that `develop` would start without them, and the lab would close by merging the same commits twice. The prep files (this file, the test list, the lab 20 spec) are uncommitted on `main`, and `git checkout develop` refuses to carry changes to files that differ between the branches — so stash them, move, and bring them back. Prep is lab work, so it is committed on the feature branch, never on `main`.
+**Why.** Lab 09 closed with the back-merge, so `develop` should already be level with `main` — check it, do not assume it: a branch cut from a stale `develop` misses whatever landed on `main`, and the lab would close by merging the same commits twice. The prep of this lab is already committed (on `main` before lab 09, and renumbered in lab 09's first commit), so this step commits nothing.
 
 **Do.**
 
 ```bash
-git stash -u                          # park the prep files; -u takes the new ones too
 git checkout develop
 git merge main                        # the back-merge: develop must not be behind main
 git log --oneline develop..main       # must print nothing
 git checkout -b feature/lab-04-sqlserver-procs-locking
-git stash pop                         # the prep files come back
 
 docker compose -f docker/docker-compose.yml --env-file .env up -d
 docker compose -f docker/docker-compose.yml --env-file .env ps
@@ -86,21 +90,17 @@ git branch --show-current             # feature/lab-04-sqlserver-procs-locking
 git log --oneline develop..main       # empty
 ```
 
-Both containers say `Up (healthy)`. `dotnet test` is green, **330** tests. If it is not green now, fix that first — you cannot see your own red against someone else's.
+Both containers say `Up (healthy)`. `dotnet test` is green, **383** tests (lab 09's count). If it is not green now, fix that first — you cannot see your own red against someone else's.
 
-**Commit.** Stage `labs/04-sqlserver-procs-locking/`, `labs/20-etag-if-match/`, `labs/19-human-in-the-loop-ui/README.md`, `docs/`, `db/README.md`, `README.md`.
-
-```
-docs(lab-04): prepare the bench sheet and test list, move the ETag stretch to lab 20
-```
+**Commit.** Nothing to commit.
 
 ---
 
 ## Step 2 — `Result` gets its own project (`CF-009`, part 1)
 
-**Goal.** `Result<TValue, TError>` lives in `src/Payments.Core`, a project with no packages. `Payments.Domain` references it. 330 still green.
+**Goal.** `Result<TValue, TError>` lives in `src/Payments.Core`, a project with no packages. `Payments.Domain` references it. 383 still green.
 
-**Why.** Step 4 makes the migration code return a `Result`, and migrations must not depend on the payment domain — a database tool that references `Payment` is a layer pointing the wrong way. So `Result` moves down into a project everybody can use and nobody depends *from*. It is a move, not a change: the 330 tests are the net, and not one assertion may change. The only edits outside `src/Payments.Core` are a project reference and a `<Using>` line, so no `.cs` file has to learn a new namespace.
+**Why.** Step 4 makes the migration code return a `Result`, and migrations must not depend on the payment domain — a database tool that references `Payment` is a layer pointing the wrong way. So `Result` moves down into a project everybody can use and nobody depends *from*. It is a move, not a change: the 383 tests are the net, and not one assertion may change. The only edits outside `src/Payments.Core` are a project reference and a `<Using>` line, so no `.cs` file has to learn a new namespace.
 
 **Do.**
 
@@ -131,7 +131,7 @@ dotnet add src/Payments.Domain reference src/Payments.Core
 
 ```bash
 dotnet build                     # 0 warnings, 0 errors
-dotnet test                      # 330 green
+dotnet test                      # 383 green
 grep -c PackageReference src/Payments.Core/Payments.Core.csproj    # 0
 git diff --stat -- tests          # only the .csproj line, no .cs file
 ```
@@ -144,69 +144,37 @@ refactor(lab-04): move Result into Payments.Core
 
 ---
 
-## Step 3 — One home for the migration code (`CF-016`)
+## Step 3 — One home for the migration code (`CF-016`, done in lab 09)
 
-**Goal.** `src/Payments.Migrations` holds `RepoRoot()`, the local connection strings and the DbUp builder. `Payments.Db` and `ApiFixture` call it. Their own copies are deleted. 330 still green.
+**Goal.** You checked that lab 09's lift is in place: one `RepoRoot`, one DbUp builder, every caller on `Payments.Migrations`.
 
-**Why.** `RepoRoot()` and the DbUp builder are written twice today (`src/Payments.Db/Program.cs` and `tests/Payments.Api.Tests/ApiFixture.cs`). Step 7's SQL Server fixture would be the third copy, and three copies of a path search drift apart — one learns about a new marker file, two do not, and a test migrates the wrong folder. Lifting it now, before the third copy exists, costs one step; lifting it after costs a hunt. A library, not the console project, because a test project referencing an `.exe` gets its `Main` and its startup code along for the ride.
+**Why.** Lab 09 needed the third copy first, so it did the lift (lab 09 step 2, decided 2026-10-22). This step stays so the numbering of this sheet holds, and because step 4 changes that code: read it once before you change it. If a copy crept back in since, this is where you find it.
 
 **Do.**
 
 ```bash
-dotnet new classlib -o src/Payments.Migrations -f net10.0
-rm src/Payments.Migrations/Class1.cs
-dotnet sln Payments.slnx add src/Payments.Migrations
-dotnet add src/Payments.Migrations reference src/Payments.Core
-dotnet add src/Payments.Db reference src/Payments.Migrations
-dotnet add tests/Payments.Api.Tests reference src/Payments.Migrations
+ls src/Payments.Migrations                                   # RepoRoot.cs, LocalDatabases.cs, Migrator.cs
+grep -rn "Payments.slnx" src tests --include=*.cs            # one hit: RepoRoot.cs
+grep -rn "DeployChanges" src tests --include=*.cs            # only in Payments.Migrations
 ```
 
-Move the `dbup-core`, `dbup-postgresql`, `dbup-sqlserver`, `DotNetEnv` and `System.Security.Cryptography.Pkcs` package lines from `src/Payments.Db/Payments.Db.csproj` to `src/Payments.Migrations/Payments.Migrations.csproj`. Keep the Pkcs pin: it is the `CF-010` fix, and it must sit next to `dbup-sqlserver`.
+**Proof.** The three lines print what their comments say.
 
-```csharp
-// TODO: src/Payments.Migrations/RepoRoot.cs
-//   public static class RepoRoot { public static string Find() … }
-//   The same walk up from AppContext.BaseDirectory to Payments.slnx.
-
-// TODO: src/Payments.Migrations/LocalDatabases.cs
-//   public static class LocalDatabases
-//     Postgres(string database = "payments_labs")  → the 55432 string
-//     SqlServer(string database = "PaymentsLabs")  → the 51433 string, password from .env
-//   Load .env with DotNetEnv from RepoRoot.Find(). A missing password throws with the
-//   same clear message Payments.Db prints today.
-
-// TODO: src/Payments.Migrations/Migrator.cs — for now, the same shape the two copies have:
-//   public static DatabaseUpgradeResult Run(string engine, string connectionString, string? scriptDir = null)
-//   scriptDir defaults to Path.Combine(RepoRoot.Find(), "db", engine).
-//   Step 4 changes the return type. Do not do both at once.
-```
-
-Then delete `RepoRoot()` and the builder from `Program.cs` and from `ApiFixture.cs`, and call the new ones.
-
-**Proof.**
-
-```bash
-dotnet build                                         # 0 warnings
-dotnet test                                          # 330 green
-grep -rn "Payments.slnx" src tests --include=*.cs    # one hit: RepoRoot.cs
-dotnet run --project src/Payments.Db -- migrate --engine postgres   # "No new scripts" or "All good!"
-```
-
-**Commit.** Stage `src/Payments.Migrations/`, `src/Payments.Db/`, `tests/Payments.Api.Tests/`, `Payments.slnx`.
-
-```
-refactor(lab-04): lift RepoRoot and the DbUp builder into Payments.Migrations
-```
+**Commit.** Nothing to commit.
 
 ---
 
 ## Step 4 — `Migrator` returns a `Result` (`CF-009`, part 2)
 
-**Goal.** `Migrator.Run` returns `Result<int, string>`: the number of scripts it ran, or why it failed. `Payments.Db` turns that into an exit code at the edge. `CF-009` and `CF-016` are done.
+**Goal.** `Migrator.Run` returns `Result<int, string>`: the number of scripts it ran, or why it failed. `Payments.Db` turns that into an exit code at the edge. `CF-009` is done.
 
 **Why.** Today a missing script folder is an exception and a failed script is a `DatabaseUpgradeResult` you must remember to check — two failure shapes for one question. A `Result` makes failure part of the signature, so the caller cannot forget it, and it is the same type the domain already uses. The console is the edge: it is the one place that speaks exit codes, so it is the one place that converts. This is the refactor across layers `CF-009` asked for, done with the tests green.
 
 **Do.**
+
+```bash
+dotnet add src/Payments.Migrations reference src/Payments.Core
+```
 
 ```csharp
 // TODO: Migrator.Run(string engine, string connectionString, string? scriptDir = null)
@@ -215,43 +183,43 @@ refactor(lab-04): lift RepoRoot and the DbUp builder into Payments.Migrations
 //   PerformUpgrade fails      → Fail(<the script name and the error message>)
 //   success                   → Ok(result.Scripts.Count())          — 0 on a second run
 //
-// TODO: Migrator.EnsureDatabase(string engine, string connectionString)
-//   moves the EnsureDatabase.For… lines out of Program.cs.
+// Migrator.EnsureDatabase already exists (lab 09 step 2). Leave it.
 //
 // TODO: Payments.Db/Program.cs, at the end:
 //   Ok   → print "Ran N scripts" and return 0
 //   Fail → print the error and return 1
 //
-// TODO: ApiFixture.Migrate: a failed Result throws InvalidOperationException with the error.
+// TODO: tests/Payments.Testing/ApiFixture.cs and SqlServerDatabase.cs:
+//   a failed Result throws InvalidOperationException with the error.
 //   A test fixture may throw; that is its edge.
 ```
 
 **Proof.**
 
 ```bash
-dotnet test                                                          # 330 green
+dotnet test                                                          # 383 green
 dotnet run --project src/Payments.Db -- migrate --engine postgres; echo "exit $?"   # Ran 0 scripts, exit 0
 grep -rn "DbUp" src tests --include=*.cs | grep -v Payments.Migrations   # nothing
 ```
 
-**Commit.** Stage `src/Payments.Migrations/`, `src/Payments.Db/`, `tests/Payments.Api.Tests/ApiFixture.cs`, `docs/plan/CARRY-FORWARD.md` (move `CF-009` and `CF-016` to **Closed**).
+**Commit.** Stage `src/Payments.Migrations/`, `src/Payments.Db/`, `tests/Payments.Testing/`, `docs/plan/CARRY-FORWARD.md` (move `CF-009` to **Closed**; `CF-016` closed in lab 09).
 
 ```
-refactor(lab-04): return a Result from Migrator and close CF-009 and CF-016
+refactor(lab-04): return a Result from Migrator and close CF-009
 ```
 
 ---
 
 ## Step 5 — The SQL Server schema, in lockstep
 
-**Goal.** `db/sqlserver/0001_payments_procs_locking.sql` creates `Merchant`, `Payment` and `PaymentOperation` with the same columns and rules as Postgres `0001`, plus `RowVer` and `DuplicateOf`. The runner applies it.
+**Goal.** `db/sqlserver/0002_payments_procs_locking.sql` creates `Merchant`, `Payment` and `PaymentOperation` with the same columns and rules as Postgres `0001`, plus `RowVer` and `DuplicateOf`. The runner applies it.
 
 **Why.** The lockstep rule (`db/README.md`) is about columns, types and rules, not spelling: `captured_amount numeric(19,4)` in Postgres is `CapturedAmount decimal(19,4)` here. Two SQL Server-only columns join it on purpose: `RowVer`, which the database bumps on every write and EF Core uses in step 19, and `DuplicateOf`, which step 14's proc sets. Postgres `timestamptz` is an instant, so its partner is `datetimeoffset(6)` — the `6` because Postgres keeps microseconds and a wider column would invent digits. This one file grows through the lab; while the lab is in flight you may rewrite it and rebuild the dev database (`plan/PLAN.md` §8).
 
 **Do.**
 
 ```sql
--- TODO: db/sqlserver/0001_payments_procs_locking.sql
+-- TODO: db/sqlserver/0002_payments_procs_locking.sql
 -- Mirror db/postgres/0001_merchant_payment.sql, PascalCase:
 --   Merchant(Id uniqueidentifier PK, Name nvarchar(200), Country char(2),
 --            DefaultCurrency char(3), CreatedAt datetimeoffset(6) DEFAULT SYSDATETIMEOFFSET())
@@ -290,9 +258,9 @@ docker exec payments-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -
   -Q "SELECT name FROM sys.tables ORDER BY name; SELECT Name FROM dbo.Merchant;"
 ```
 
-Four tables (`Merchant`, `Payment`, `PaymentOperation`, `SchemaVersions`) and the two merchants.
+Six tables (`AgentRun` and `AgentStep` from lab 09, `Merchant`, `Payment`, `PaymentOperation`, `SchemaVersions`) and the two merchants. Rebuilding the dev database drops lab 09's agent runs too; the migrate brings both scripts back.
 
-**Commit.** Stage `db/sqlserver/0001_payments_procs_locking.sql`.
+**Commit.** Stage `db/sqlserver/0002_payments_procs_locking.sql`.
 
 ```
 feat(lab-04): add the SQL Server tables in lockstep with Postgres
@@ -308,7 +276,7 @@ feat(lab-04): add the SQL Server tables in lockstep with Postgres
 
 **Do.**
 
-1. Add this line at the top of `0001_payments_procs_locking.sql`, rebuild the dev database (step 5), migrate:
+1. Add this line at the top of `0002_payments_procs_locking.sql`, rebuild the dev database (step 5), migrate:
 
    ```sql
    ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON;
@@ -345,7 +313,7 @@ feat(lab-04): switch RCSI on in Migrator, outside the script transaction
 
 ## Step 7 — The test project and a fresh database per class
 
-**Goal.** `tests/Payments.Data.SqlServer.Tests` exists, `SqlServerDatabase` makes and drops one database per test class, and `SchemaTests` is green. The CI filter skips all of it.
+**Goal.** `tests/Payments.Data.SqlServer.Tests` exists, it reuses lab 09's `SqlServerDatabase` (one fresh database per test class), and `SchemaTests` is green. The CI filter skips all of it.
 
 **Why.** Starting a SQL Server container per test run is too slow under Rosetta, so the tests use the compose container and make their own database inside it, `PaymentsLabs_Test_<guid>` (`db/README.md`). One per **class**, not per run, so two classes running in parallel never see each other's rows, and Respawn empties the tables between the tests of one class. Dropping it needs care: the connection pool keeps connections open after your test is done, so the drop says "database in use" unless you clear the pools and force single-user first. The `[Trait("runs", "local")]` on every class is what keeps the CI gate green, because a GitHub runner has no `payments-mssql` container.
 
@@ -360,19 +328,13 @@ dotnet add src/Payments.Data.SqlServer package Dapper --version 2.1.89
 dotnet add src/Payments.Data.SqlServer package Microsoft.Data.SqlClient --version 6.1.4
 ```
 
-`6.1.4` is the `Microsoft.Data.SqlClient` that `dbup-sqlserver` already brings, so the build has one. Write `tests/Payments.Data.SqlServer.Tests/Payments.Data.SqlServer.Tests.csproj` by hand from the API tests one: same `PropertyGroup`, packages `xunit.v3` 4.0.2, `Dapper` 2.1.89, `Respawn` 7.0.0, references to `src/Payments.Data.SqlServer` and `src/Payments.Migrations`. Then `dotnet sln Payments.slnx add tests/Payments.Data.SqlServer.Tests`.
+`6.1.4` is the `Microsoft.Data.SqlClient` that `dbup-sqlserver` already brings, so the build has one. Write `tests/Payments.Data.SqlServer.Tests/Payments.Data.SqlServer.Tests.csproj` by hand from the API tests one: same `PropertyGroup`, packages `xunit.v3` 4.0.2, `Dapper` 2.1.89, `Respawn` 7.0.0, references to `src/Payments.Data.SqlServer` and `tests/Payments.Testing`. Then `dotnet sln Payments.slnx add tests/Payments.Data.SqlServer.Tests`.
 
 ```csharp
-// TODO: SqlServerDatabase : IAsyncLifetime
-//   InitializeAsync:
-//     Name = $"PaymentsLabs_Test_{Guid.NewGuid():N}"
-//     ConnectionString = LocalDatabases.SqlServer(Name)
-//     Migrator.EnsureDatabase("sqlserver", …); Migrator.Run("sqlserver", …) — throw on a failed Result
-//     Respawner with DbAdapter.SqlServer, TablesToIgnore = ["SchemaVersions", "Merchant"]
-//   ResetAsync() → the respawner
-//   DisposeAsync:
-//     SqlConnection.ClearAllPools();
-//     on master: ALTER DATABASE [Name] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [Name];
+// SqlServerDatabase already exists in tests/Payments.Testing (lab 09 step 6): a fresh database
+//   per class, migrated by Migrator, emptied by Respawn, dropped at the end. Reuse it.
+// TODO: add "Merchant" to its TablesToIgnore, next to "SchemaVersions": the merchants are seeded
+//   by this lab's script, and Respawn must not delete them. Lab 09's tests do not care either way.
 //
 // TODO: [Trait("runs", "local")] public abstract class SqlServerTestBase(SqlServerDatabase db)
 //         : IClassFixture<SqlServerDatabase>, IAsyncLifetime
@@ -386,13 +348,13 @@ dotnet add src/Payments.Data.SqlServer package Microsoft.Data.SqlClient --versio
 
 ```bash
 dotnet test tests/Payments.Data.SqlServer.Tests                  # 5 green
-dotnet test Payments.slnx --filter-not-trait runs=local          # 330: the 5 are skipped
-dotnet test Payments.slnx --filter-trait runs=local              # 5
+dotnet test Payments.slnx --filter-not-trait runs=local          # 367: the 5 are skipped
+dotnet test Payments.slnx --filter-trait runs=local              # 21: lab 09's 16 + these 5
 docker exec payments-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" \
   -Q "SELECT name FROM sys.databases WHERE name LIKE 'PaymentsLabs_Test_%';"     # nothing left behind
 ```
 
-If the CI count is 335, the trait did not reach the classes: put it on each class instead.
+If the CI count is 372, the trait did not reach the classes: put it on each class instead.
 
 **Commit.** Stage `src/Payments.Data.SqlServer/`, `tests/Payments.Data.SqlServer.Tests/`, `Payments.slnx`.
 
@@ -483,7 +445,7 @@ test(lab-04): add failing tests for the capture proc
 **Do.**
 
 ```sql
--- TODO: append to 0001_payments_procs_locking.sql, after a GO:
+-- TODO: append to 0002_payments_procs_locking.sql, after a GO:
 -- CREATE OR ALTER PROCEDURE dbo.usp_CapturePayment
 --     @PaymentId uniqueidentifier, @Amount decimal(19,4), @Currency char(3),
 --     @OperationId uniqueidentifier, @At datetimeoffset(6)
@@ -523,7 +485,7 @@ Rebuild the dev database (step 5) and migrate, so the proc is in it too.
 
 **Proof.** `dotnet test tests/Payments.Data.SqlServer.Tests`: 16 green.
 
-**Commit.** Stage `db/sqlserver/0001_payments_procs_locking.sql`, `src/Payments.Data.SqlServer/SqlServerPaymentProcs.cs`.
+**Commit.** Stage `db/sqlserver/0002_payments_procs_locking.sql`, `src/Payments.Data.SqlServer/SqlServerPaymentProcs.cs`.
 
 ```
 feat(lab-04): add usp_CapturePayment as one conditional update
@@ -625,7 +587,7 @@ test(lab-04): add failing tests for marking a duplicate pair
 **Do.**
 
 ```sql
--- TODO: append to 0001_payments_procs_locking.sql:
+-- TODO: append to 0002_payments_procs_locking.sql:
 -- CREATE OR ALTER PROCEDURE dbo.usp_MarkDuplicatePair
 --     @KeepId uniqueidentifier, @DuplicateId uniqueidentifier, @At datetimeoffset(6), @PauseMs int = 0
 -- AS … the same NOCOUNT / XACT_ABORT / TRY / TRAN frame as the capture proc …
@@ -648,7 +610,7 @@ Rebuild the dev database, migrate, run the tests.
 
 **Proof.** 29 green, 3 red. Each red one says `Transaction (Process ID …) was deadlocked on lock resources with another process and has been chosen as the deadlock victim. Rerun the transaction.` and its `SqlException.Number` is `1205`.
 
-**Commit.** Stage `db/sqlserver/0001_payments_procs_locking.sql`, `src/Payments.Data.SqlServer/SqlServerPaymentProcs.cs`. The red is the point of this commit; say so.
+**Commit.** Stage `db/sqlserver/0002_payments_procs_locking.sql`, `src/Payments.Data.SqlServer/SqlServerPaymentProcs.cs`. The red is the point of this commit; say so.
 
 ```
 feat(lab-04): add usp_MarkDuplicatePair, locking in argument order (deadlocks)
@@ -708,7 +670,7 @@ for i in $(seq 1 10); do dotnet test tests/Payments.Data.SqlServer.Tests --filte
 
 10 green runs. `The_loser_waits_and_then_sees_the_winners_mark` proves it waited, not died.
 
-**Commit.** Stage `db/sqlserver/0001_payments_procs_locking.sql`.
+**Commit.** Stage `db/sqlserver/0002_payments_procs_locking.sql`.
 
 ```
 fix(lab-04): lock the duplicate pair in id order, decided in SQL
@@ -725,7 +687,7 @@ fix(lab-04): lock the duplicate pair in id order, decided in SQL
 **Do.**
 
 ```sql
--- TODO: append to 0001_payments_procs_locking.sql:
+-- TODO: append to 0002_payments_procs_locking.sql:
 -- dbo.PaymentJob(Id bigint IDENTITY PRIMARY KEY, PaymentId uniqueidentifier FK,
 --                Kind varchar(20) CHECK (Kind IN ('Settle')),
 --                Status varchar(10) CHECK (Status IN ('Ready','Claimed','Done')) DEFAULT 'Ready',
@@ -750,7 +712,7 @@ Rebuild the dev database, migrate.
 
 **Proof.** 32 green, 6 red.
 
-**Commit.** Stage `db/sqlserver/0001_payments_procs_locking.sql`, `src/Payments.Data.SqlServer/SqlServerPaymentProcs.cs`, `tests/Payments.Data.SqlServer.Tests/`.
+**Commit.** Stage `db/sqlserver/0002_payments_procs_locking.sql`, `src/Payments.Data.SqlServer/SqlServerPaymentProcs.cs`, `tests/Payments.Data.SqlServer.Tests/`.
 
 ```
 test(lab-04): add the PaymentJob queue and failing claim tests
@@ -767,7 +729,7 @@ test(lab-04): add the PaymentJob queue and failing claim tests
 **Do.**
 
 ```sql
--- TODO: append to 0001_payments_procs_locking.sql:
+-- TODO: append to 0002_payments_procs_locking.sql:
 -- CREATE OR ALTER PROCEDURE dbo.usp_ClaimNextBatch
 --     @WorkerId varchar(50), @BatchSize int, @At datetimeoffset(6)
 -- AS … NOCOUNT, XACT_ABORT …
@@ -791,7 +753,7 @@ for i in $(seq 1 10); do dotnet test tests/Payments.Data.SqlServer.Tests --filte
 
 Then remove `READPAST` once, by hand: `A_second_worker_skips_rows_held_by_the_first` goes red with a timeout. Put it back.
 
-**Commit.** Stage `db/sqlserver/0001_payments_procs_locking.sql`, `src/Payments.Data.SqlServer/SqlServerPaymentProcs.cs`.
+**Commit.** Stage `db/sqlserver/0002_payments_procs_locking.sql`, `src/Payments.Data.SqlServer/SqlServerPaymentProcs.cs`.
 
 ```
 feat(lab-04): add usp_ClaimNextBatch, a READPAST queue claim
@@ -847,7 +809,7 @@ test(lab-04): add failing EF Core concurrency tests
 
 ```bash
 dotnet test tests/Payments.Data.SqlServer.Tests      # 42 green
-dotnet test                                          # 372 green: 330 + 42
+dotnet test                                          # 425 green: 383 + 42
 ```
 
 **Commit.** Stage `src/Payments.Data.SqlServer/Ef/`.
@@ -868,8 +830,8 @@ feat(lab-04): make RowVer the EF Core concurrency token
 
 ```bash
 dotnet build                                                       # 0 warnings
-dotnet test                                                        # 372
-dotnet test Payments.slnx --filter-not-trait runs=local            # 330, the CI count
+dotnet test                                                        # 425
+dotnet test Payments.slnx --filter-not-trait runs=local            # 367, the CI count
 dotnet run --project src/Payments.Db -- migrate --engine sqlserver # twice; Ran 0 scripts
 grep -rni nolock db src tests                                      # nothing
 grep -c PackageReference src/Payments.Domain/Payments.Domain.csproj src/Payments.Core/Payments.Core.csproj
@@ -910,7 +872,7 @@ docs(lab-04): tick the done-when list
 
 **Goal.** The lab is merged to `develop`, `main` carries the `lab-04` tag, `develop` is level with `main`, the feature branch is gone, `docs/PROGRESS.md` says `Done`, and the inbox is groomed.
 
-**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work. A branch name is only a pointer at one commit, so deleting a merged feature branch drops the pointer and never the work — the tag is the bookmark after that. From this lab the migration file `0001_payments_procs_locking.sql` is frozen: a change after the tag is a new numbered script.
+**Why.** The merge and the tag are the record that a lab finished. `--no-ff` keeps a merge commit even when a fast-forward is possible, so the history shows the lab as one unit of work. A branch name is only a pointer at one commit, so deleting a merged feature branch drops the pointer and never the work — the tag is the bookmark after that. From this lab the migration file `0002_payments_procs_locking.sql` is frozen: a change after the tag is a new numbered script.
 
 **Do.** First, on the feature branch: move "Notes while you work" below into `docs/plan/CARRY-FORWARD.md` as `CF` rows, groom the inbox, set lab 04 to `Done` in `docs/PROGRESS.md` (one line under **Finished labs**, delete the tick list). Commit that:
 
@@ -941,7 +903,7 @@ You run every git command. The agent never commits, merges, pushes or tags.
 
 ```bash
 git log --oneline --graph --all | head -20
-git tag                           # … lab-03 lab-04 lab-08
+git tag                           # … lab-04 lab-08 lab-09
 git branch                        # develop and main only
 git log --oneline develop..main   # empty
 ```
@@ -957,7 +919,7 @@ git log --oneline develop..main   # empty
 | `ALTER DATABASE … READ_COMMITTED_SNAPSHOT` in a migration script | `Msg 226`: not allowed in a multi-statement transaction. DbUp wraps every script in one | Set it in `Migrator`, on `master`, `WITH ROLLBACK IMMEDIATE` (step 6) |
 | RCSI switch without `ROLLBACK IMMEDIATE` | It waits for every other connection to the database, and looks hung | Add `WITH ROLLBACK IMMEDIATE` |
 | Dropping a test database | "Cannot drop database because it is currently in use" — the pool still holds connections | `SqlConnection.ClearAllPools()`, then `SET SINGLE_USER WITH ROLLBACK IMMEDIATE`, then `DROP` |
-| Editing `0001` and migrating | DbUp says "no new scripts": it ran that file name already | Rebuild the dev database (step 5). After the tag, add `0002` instead |
+| Editing `0002` and migrating | DbUp says "no new scripts": it ran that file name already | Rebuild the dev database (step 5). After the tag, add `0003` instead |
 | `sqlcmd` and XML methods | `Msg 1934 … QUOTED_IDENTIFIER` | `sqlcmd -I` |
 | Reading first, writing later, no hint | Two writers both win. RCSI makes it **more** likely, because nobody waits on the read | One conditional `UPDATE`, or `UPDLOCK` on the read |
 | Sorting the pair's ids in C# | .NET and SQL Server order a `Guid` differently; two code paths can lock in two orders | Decide the order in the proc |
@@ -965,7 +927,7 @@ git log --oneline develop..main   # empty
 | A deadlock that only happens "sometimes" | The test passes before the fix, and proves nothing | The `@PauseMs` seam: both callers hold lock one before either asks for lock two |
 | Catching every `SqlException` in `SqlServerPaymentProcs` | The 1205 turns into a polite `Result`, and the deadlock test passes while deadlocking | Catch only `Number` 50001–50099 |
 | `UPDATE TOP (n)` without a CTE | Rows come back in no promised order | CTE with `ORDER BY Id`, then update the CTE |
-| A trait on the abstract base does not reach the class | The CI filter runs the SQL Server tests, and CI goes red | Step 7's count check: 330, not 335 |
+| A trait on the abstract base does not reach the class | The CI filter runs the SQL Server tests, and CI goes red | Step 7's count check: 367, not 372 |
 | `Guid.CreateVersion7()` as a SQL Server clustered key | Sequential in Postgres, **not** in SQL Server, which sorts the last bytes first: page splits | Fine for this lab. Say it in QA Q21 |
 | `NOLOCK` "to make it faster" | Dirty reads, rows missed or read twice. Never for money | `READPAST` for queues, RCSI for readers |
 

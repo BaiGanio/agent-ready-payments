@@ -69,7 +69,7 @@ flowchart LR
     CLM -->|"claims rows of"| TBL
 ```
 
-Before the SQL Server work, two refactors from the inbox (`CF-009`, `CF-016`) make room for it:
+Before the SQL Server work, two refactors from the inbox make room for it. `CF-016` (the lift into `Payments.Migrations`) was done by lab 09; `CF-009` (`Result`) is done here:
 
 ```mermaid
 flowchart LR
@@ -78,8 +78,8 @@ flowchart LR
     DOM["Payments.Domain"] -->|"uses Result"| CORE
     MIG -->|"returns Result"| CORE
     DB["src/Payments.Db<br/>the console: Result → exit code"] -->|"calls"| MIG
-    AT["Payments.Api.Tests<br/>ApiFixture"] -->|"migrates Postgres with"| MIG
-    ST["Payments.Data.SqlServer.Tests<br/>SqlServerDatabase"] -->|"migrates SQL Server with"| MIG
+    TS["tests/Payments.Testing<br/>ApiFixture, SqlServerDatabase<br/>(lab 09)"] -->|"migrates both engines with"| MIG
+    ST["Payments.Data.SqlServer.Tests"] -->|"uses"| TS
 ```
 
 ## Decisions taken for this lab (2026-10-22)
@@ -90,8 +90,8 @@ flowchart LR
 | What does the queue hold? | A new **`PaymentJob`** table, SQL Server only: `Id`, `PaymentId`, `Kind`, `Status` (`Ready`/`Claimed`/`Done`), `ClaimedBy`, `ClaimedAt`, `CreatedAt`. | A clean work queue. `Payment` stays in lockstep with Postgres. Labs 06 and 13 can reuse the shape. |
 | What locks two payments? | **`usp_MarkDuplicatePair(@KeepId, @DuplicateId)`**: two operators flag a double charge, each from their own side. It adds a nullable **`DuplicateOf`** column to `Payment`, SQL Server only. | A real shape: the M1 Hotel Sofia double charge of labs 08 and 09. Two people flagging the same pair from opposite sides is exactly the opposite-order lock. |
 | Where does RCSI get switched on? | In **`Migrator`**, right after the database is made, outside DbUp. | `ALTER DATABASE` fails inside a transaction (error 226, measured 2026-10-22), and DbUp wraps every script in one. RCSI is a database option, not schema. |
-| How many migration files? | **One** for SQL Server: `db/sqlserver/0001_payments_procs_locking.sql`. While the lab is in flight you may **rewrite** it: drop the dev database and migrate again. It freezes when the lab is tagged. | The repo rule is one migration per lab. The tests make a fresh database per class, so they always see the current file. |
-| `CF-009` and `CF-016` | **Both, together**, before any SQL Server code. `Result` moves to `Payments.Core`; the migration code moves to `Payments.Migrations` and returns a `Result`. | The SQL Server tests are the third copy of `RepoRoot()` and the DbUp builder. Lift before copying, with 330 green tests as the net. |
+| How many migration files? | **One** for SQL Server: `db/sqlserver/0002_payments_procs_locking.sql`. While the lab is in flight you may **rewrite** it: drop the dev database and migrate again. It freezes when the lab is tagged. | The repo rule is one migration per lab. The tests make a fresh database per class, so they always see the current file. |
+| `CF-009` and `CF-016` | `CF-009` here, before any SQL Server code: `Result` moves to `Payments.Core`, and `Migrator` returns it. **`CF-016` was done in lab 09** (2026-10-22), which ran first and needed the third copy. | Lift before copying, with the green suite as the net. |
 | Does the API call SQL Server? | **No.** The API stays on Postgres. The procs are called by `SqlServerPaymentProcs`, and only tests call that. | Lab 04 is about the database. Lab 05 adds bulk ADO.NET on the same project. |
 
 ## The proc contract
@@ -125,8 +125,8 @@ The capture checks run in the **same order as the domain** (`Payment.Capture`): 
 | # | Deliverable | Where |
 |---|---|---|
 | 1 | `Result` in its own project (`CF-009`) | `src/Payments.Core` |
-| 2 | `RepoRoot`, `LocalDatabases`, `Migrator` returning `Result`, used by the runner and both fixtures (`CF-016`, `CF-009`) | `src/Payments.Migrations`, `src/Payments.Db`, `tests/Payments.Api.Tests/ApiFixture.cs` |
-| 3 | The SQL Server migration: lockstep tables, `RowVer`, `DuplicateOf`, `PaymentJob`, three procs | `db/sqlserver/0001_payments_procs_locking.sql` |
+| 2 | `Migrator` returning `Result`, used by the runner and both fixtures (`CF-009`; the lift itself, `CF-016`, came in lab 09) | `src/Payments.Migrations`, `src/Payments.Db`, `tests/Payments.Testing` |
+| 3 | The SQL Server migration: lockstep tables, `RowVer`, `DuplicateOf`, `PaymentJob`, three procs | `db/sqlserver/0002_payments_procs_locking.sql` |
 | 4 | RCSI switched on by `Migrator` | `src/Payments.Migrations/Migrator.cs` |
 | 5 | `SqlServerPaymentProcs` | `src/Payments.Data.SqlServer` |
 | 6 | `PaymentsDbContext` with `RowVer` as the concurrency token | `src/Payments.Data.SqlServer/Ef` |
@@ -147,7 +147,7 @@ The capture checks run in the **same order as the domain** (`Payment.Capture`): 
 
 ## Done when
 
-- [ ] `dotnet test` is green: the 330 from before plus the new SQL Server tests.
+- [ ] `dotnet test` is green: the 383 from before (lab 09 ran first) plus the new SQL Server tests.
 - [ ] `dotnet test Payments.slnx --filter-not-trait runs=local` runs the **same** count as before this lab: the CI gate skips every new test.
 - [ ] You saw the deadlock test go **red with 1205**, read its graph in `system_health`, fixed the lock order, and saw it green 10 runs out of 10.
 - [ ] 50 parallel full captures on one payment: exactly **one** wins, `CapturedAmount` equals the authorised amount, one `PaymentOperation` row.
