@@ -47,6 +47,34 @@ namespace Payments.Api
             _ => "The request was not valid."
         };
 
+        /// <summary>
+        /// A problem about the Idempotency-Key itself. Same URN and same "code" extension as every
+        /// other problem, so a client reads all our errors the same way. The 409 also says when to
+        /// try again: the other request is still running, and one second is long enough to matter.
+        /// </summary>
+        public static IResult Idempotency(string code, int status, string detail, HttpContext http)
+        {
+            if (code == "idempotency_request_in_progress")
+                http.Response.Headers.RetryAfter = "1";
+
+            return Results.Problem(
+                type: $"urn:payments-labs:error:{code}",
+                title: IdempotencyTitle(code),
+                detail: detail,
+                statusCode: status,
+                instance: http.Request.Path,
+                extensions: new Dictionary<string, object?> { ["code"] = code });
+        }
+
+        private static string IdempotencyTitle(string code) => code switch
+        {
+            "idempotency_key_required" => "An Idempotency-Key header is required.",
+            "idempotency_key_invalid" => "The Idempotency-Key is not valid.",
+            "idempotency_key_reused" => "That Idempotency-Key was used for a different request.",
+            "idempotency_request_in_progress" => "The first request with that key is still running.",
+            _ => "The request was refused."
+        };
+
         public static IResult Auth(int status, string code, string detail, HttpContext http,
             (string Key, object? Value)? extra = null)
         {

@@ -27,7 +27,7 @@ Rules:
 | 00 | [Setup + glossary](../labs/00-setup-and-glossary) | **Done** | `lab-00` | — |
 | 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Done** | `lab-01` | — |
 | 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **Done** | `lab-02` | Closed short of the spec: the store and its tests are done, the command endpoints are `CF-021` |
-| 03 | [Idempotency](../labs/03-idempotency) | `In progress` | — | Steps 2–7 are merged. Step 8 is next: the key store is still `NotImplementedException`. Then lab 08's dropped-answer test, `CF-032`, then the CI gate, `CF-006` |
+| 03 | [Idempotency](../labs/03-idempotency) | `In progress` | — | Steps 2–10 are done: create is replay-safe, 96 of 98 green. Step 11 is next: the key on the commands, tests first. Then lab 08's dropped-answer test, `CF-032`, then the CI gate, `CF-006` |
 | 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | Spec only | — | Bench sheet + test list, then the lab |
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
 | 06 | [Flow pipeline (Channels)](../labs/06-flow-pipeline-channels) | Spec only | — | Bench sheet + test list, then the lab |
@@ -120,15 +120,19 @@ Done by you (2026-10-20 → 2026-10-21, merged into `develop` as `82810f9`):
 - [x] Step 6: `IIdempotencyStore`, `Claim`, `Completion` and `RequestHash`
 - [x] Step 7: `IdempotencyStoreTests` — 7 tests, red
 
+Done by you (2026-10-22, on `feature/lab-03-idempotency`):
+
+- [x] Step 8: `DapperIdempotencyStore` — insert-first claim, the conditional `Completed` mark, release only when `InProgress`. The 7 step 7 tests are green
+- [x] Step 9: `KeyHeaderTests`, `ReplayTests`, `KeyReuseTests` — red
+- [x] Step 10: `ReadKey` and `Replay` in `PaymentEndpoints.cs`, the header check on all four POSTs, the two-phase flow on `POST /payments`, `ProblemMapper.Idempotency` and `IIdempotencyStore` registered. 96 of 98 green. See `CF-034`: the two `KeyReuseTests` that reuse a key across two **commands** stay red until step 12
+
 Yours to do:
 
-- [ ] Step 8: the key store, green. `DapperIdempotencyStore` still throws `NotImplementedException` on all three methods, so the step 7 tests are red
-- [ ] Steps 9–10: the key on create. No endpoint reads the `Idempotency-Key` header yet
-- [ ] Steps 11–12: the key on the commands, tests first
+- [ ] Steps 11–12: the key on the commands, tests first. Closes the last two reds
 - [ ] Step 13: fifty at once — seen red once, then green
 - [ ] Steps 14–16: Done-when by hand, `QA.md` out loud, close the lab
 
-The feature branch `feature/lab-03-idempotency` was merged into `develop` after step 7 and re-cut. It now sits on `af34713`, the same commit as `main`, with no commits of its own.
+The feature branch `feature/lab-03-idempotency` was merged into `develop` after step 7 and re-cut from `af34713`. It now carries steps 8–10.
 
 Decided for this lab (2026-10-20, `plan/PLAN.md` §8): own key table, two phases, the `Completed` mark in the payment write's transaction, no EF Core, no FluentValidation. The CI gate moved to after this lab.
 

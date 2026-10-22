@@ -407,7 +407,7 @@ test(lab-03): add failing tests for the idempotency key on create
 
 ## Step 10 — The key on create, green
 
-**Goal.** Every POST checks the header. `POST /payments` runs the two-phase flow. The step 9 groups are green.
+**Goal.** Every POST checks the header. `POST /payments` runs the two-phase flow. `KeyHeaderTests`, `ReplayTests` and two of the four `KeyReuseTests` are green — 96 of 98.
 
 **Why.** The order inside the handler is the design, so it is worth saying out loud: check the header, check the merchant, hash, claim, then — only if you own the key — do the work and complete in one transaction. The `404` for an unknown merchant comes before the claim, because the key row needs a real merchant and because a `404` may not be true tomorrow. The header check goes on all four POSTs now, in one helper, because "every money-moving POST takes a key" is a rule, and a rule enforced on one endpoint out of four is a bug report waiting to happen. The work is wrapped in a `try`: an exception releases the key and is rethrown, so the client's retry can really try again.
 
@@ -460,7 +460,7 @@ In `src/Payments.Api/PaymentEndpoints.cs`:
 
 `CancellationToken.None` in the release, not `ct`: if the client hung up, `ct` is already cancelled, the release would be skipped, and the key would be stuck `InProgress`.
 
-**Proof.** `dotnet test` green, all of it — including the lab 02 `CreatePaymentTests`, untouched, because their helper has sent a key since step 3. By hand, twice with one key:
+**Proof.** `dotnet test tests/Payments.Api.Tests`: 96 of 98. The two reds left are `The_same_key_on_another_endpoint_is_422` and `The_same_key_on_another_payment_is_422`: both reuse a key across two **commands**, so they need the claim that step 12 adds. Everything else is green, including the lab 02 command and store tests. Two `CreatePaymentTests` call `Client.PostAsJsonAsync` directly instead of the step 3 helper, so they send no key and now get a `400` — point them at `PostAsync`. That is the step 3 rule reaching a call site step 3 missed, not a test edited to go green. By hand, twice with one key:
 
 ```bash
 curl -i -X POST http://localhost:5080/payments \
@@ -470,7 +470,7 @@ curl -i -X POST http://localhost:5080/payments \
 
 The first is `201` with no `Idempotent-Replayed`. The second is `201`, the same `id`, and `Idempotent-Replayed: true`. Change `100.00` to `200.00` and send it a third time: `422 idempotency_key_reused`.
 
-**Commit.** Stage `src/Payments.Api/`.
+**Commit.** Stage `src/Payments.Api/` and `tests/Payments.Api.Tests/CreatePaymentTests.cs`.
 
 ```
 feat(lab-03): require an idempotency key and make create replay-safe
