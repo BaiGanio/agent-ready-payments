@@ -227,6 +227,15 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
         return await connection.ExecuteScalarAsync<long>($"select count(*) from {table}");
     }
 
+    /// <summary>
+    /// How many operations of one kind a payment has. "Exactly one Refund row" is the
+    /// claim both ConcurrencyTests and FailureTests make, so it lives here, not twice.
+    /// </summary>
+    protected Task<long> CountOperationsAsync(Guid paymentId, string kind)
+        => QuerySqlAsync<long>(
+            "select count(*) from payment_operation where payment_id = @paymentId and kind = @kind",
+            new { paymentId, kind });
+
      /// <summary>Builds a store by engine name. The only place a test names an engine.</summary>
     protected IPaymentStore StoreFor(string engine) => engine switch
     {

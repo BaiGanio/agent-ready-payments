@@ -127,7 +127,11 @@ namespace Payments.Api
             PaymentErrorCode.AmountNotPositive => "amount_not_positive",
             PaymentErrorCode.AmountExceedsAuthorised => "amount_exceeds_authorised",
             PaymentErrorCode.AmountExceedsCaptured => "amount_exceeds_captured",
-            PaymentErrorCode.CurrencyMismatch => "currency_mismatch"
+            PaymentErrorCode.CurrencyMismatch => "currency_mismatch",
+            // All five named codes are covered. This arm catches only an out-of-range cast,
+            // which is a bug in our own code, not a client's mistake -- so it throws and
+            // becomes a 500, instead of inventing an error code the client cannot act on.
+            _ => throw new ArgumentOutOfRangeException(nameof(c), c, "Unknown PaymentErrorCode.")
         };
 
         private static int Status(PaymentErrorCode c) => c switch
@@ -136,7 +140,8 @@ namespace Payments.Api
             PaymentErrorCode.AmountNotPositive => StatusCodes.Status422UnprocessableEntity,
             PaymentErrorCode.AmountExceedsAuthorised => StatusCodes.Status422UnprocessableEntity,
             PaymentErrorCode.AmountExceedsCaptured => StatusCodes.Status422UnprocessableEntity,
-            PaymentErrorCode.CurrencyMismatch => StatusCodes.Status422UnprocessableEntity
+            PaymentErrorCode.CurrencyMismatch => StatusCodes.Status422UnprocessableEntity,
+            _ => throw new ArgumentOutOfRangeException(nameof(c), c, "Unknown PaymentErrorCode.")
         };
 
         private static string Title(PaymentErrorCode c) => c switch
@@ -145,7 +150,8 @@ namespace Payments.Api
             PaymentErrorCode.AmountNotPositive => "The amount must be greater than zero.",
             PaymentErrorCode.AmountExceedsAuthorised => "The capture is larger than what is left to capture.",
             PaymentErrorCode.AmountExceedsCaptured => "The refund is larger than what is left to refund.",
-            PaymentErrorCode.CurrencyMismatch => "The currency does not match the payment."
+            PaymentErrorCode.CurrencyMismatch => "The currency does not match the payment.",
+            _ => throw new ArgumentOutOfRangeException(nameof(c), c, "Unknown PaymentErrorCode.")
         };
 
     }

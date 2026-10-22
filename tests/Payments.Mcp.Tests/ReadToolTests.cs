@@ -94,6 +94,38 @@ public sealed class ReadToolTests
         Assert.Contains("human", hint!, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// CF-031. A 401 used to fall through to the tool_failed arm, whose hint is
+    /// "try once more" -- the one thing that cannot help an unknown key. The model
+    /// then retried until the step cap stopped it.
+    /// </summary>
+    [Fact]
+    public async Task A_401_is_api_key_invalid_with_a_stop_hint()
+    {
+        await using var harness = await McpHarness.StartAsync();
+
+        harness.Api.Enqueue(
+            HttpStatusCode.Unauthorized,
+            Problem(401, "api_key_invalid", "The API key is not valid."));
+
+        var (isError, body) = await harness.CallAsync("get_payment", new { payment_id = GoodPaymentId });
+
+        Assert.True(isError);
+        Assert.Equal("api_key_invalid", body.GetProperty("error").GetString());
+
+        // The hint must stop the model, not send it round again.
+        var hint = body.GetProperty("hint").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(hint));
+        Assert.Contains("human", hint!, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("try", hint!, StringComparison.OrdinalIgnoreCase);
+
+        // The API's own words never reach the model: the key itself may be echoed in them.
+        Assert.DoesNotContain("The API key is not valid", body.ToString());
+
+        // One call, not two. The model was never invited back.
+        Assert.Single(harness.Api.Requests);
+    }
+
     [Fact]
     public async Task List_passes_status_and_limit_through()
     {

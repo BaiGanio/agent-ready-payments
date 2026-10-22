@@ -86,6 +86,11 @@ public sealed class Payment
         PaymentStatus.Captured => [PaymentAction.Refund],
         PaymentStatus.PartiallyRefunded => [PaymentAction.Refund],
         PaymentStatus.Declined or PaymentStatus.Voided or PaymentStatus.Refunded => [],
+        // Every named status is covered above. This arm exists for the one case the
+        // compiler still worries about: (PaymentStatus)99 from a bad cast or a corrupt
+        // row. Throwing is right -- a status we have no rules for must never look like
+        // "nothing is allowed", because that reads as a finished payment.
+        _ => throw new ArgumentOutOfRangeException(nameof(Status), Status, "Unknown PaymentStatus.")
     };
 
     public Result<Payment, PaymentError> Capture(Money amount)

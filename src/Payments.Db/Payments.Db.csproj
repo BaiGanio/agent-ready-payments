@@ -12,6 +12,14 @@
     <PackageReference Include="dbup-postgresql" Version="7.0.1" />
     <PackageReference Include="dbup-sqlserver" Version="7.2.0" />
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
+
+    <!-- CF-010. dbup-sqlserver -> Microsoft.Data.SqlClient brings
+         System.Security.Cryptography.Pkcs 9.0.11, which has NU1903 (high) and
+         NU1902 (moderate). A direct reference wins over a transitive one, so this
+         line is the fix. Bumping Microsoft.Data.SqlClient does not work: even
+         7.1.1 still brings 9.0.18, and that is flagged too (checked 2026-10-22).
+         Drop this line when dbup-sqlserver ships a clean graph of its own. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
 </Project>

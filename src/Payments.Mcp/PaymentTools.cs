@@ -390,6 +390,16 @@ internal sealed class PaymentTools(PaymentsApi api, ConfirmationTokens tokens)
     /// </summary>
     private static CallToolResult Mapped<T>(ApiResult<T> answer) => answer.Status switch
     {
+        // CF-031. A 401 has to stop the model dead. Without this branch it fell through
+        // to tool_failed, whose hint is "try once more" -- and a key that is missing,
+        // wrong or revoked is exactly the case where trying again can never work. The
+        // model then retried until the step cap stopped it, which looks like a hang.
+        401 => Failed(
+            "api_key_invalid",
+            "This server's API key was not accepted by the payments API.",
+            "Stop. Another call will fail the same way, because nothing about the key " +
+            "changes between calls. Tell the person the key is missing, wrong or " +
+            "revoked, and that a human has to fix it."),
         403 => Failed(
             "insufficient_scope",
             "This API key is not allowed to do that.",

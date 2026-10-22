@@ -30,6 +30,12 @@ public sealed class GetPaymentTests(ApiFixture fixture) : ApiTestBase(fixture)
         Assert.Equal(created.AllowedActions, read.AllowedActions);
         Assert.Equal(created.DeclineReason, read.DeclineReason);
         Assert.Equal(created.CreatedAt, read.CreatedAt, TimeSpan.FromMilliseconds(1));
+
+        // CF-019. The create response and the read must answer updatedAt from the same
+        // clock. InsertAsync writes updated_at = created_at, so on a brand new payment
+        // both endpoints owe the same value, and that value is the injected clock's.
+        Assert.Equal(created.UpdatedAt, read.UpdatedAt, TimeSpan.FromMilliseconds(1));
+        Assert.Equal(created.CreatedAt, created.UpdatedAt);
     }
 
     [Fact]

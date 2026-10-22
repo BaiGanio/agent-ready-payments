@@ -70,7 +70,12 @@ public static class PaymentEndpoints
                 // Serialize once. The stored body and the answer must be the same bytes,
                 // or a replay would not match the first answer.
                 string body = JsonSerializer.Serialize(
-                    PaymentDto.From(payment, req.MerchantId, DateTimeOffset.Now), JsonSerializerOptions.Web);
+                    // CF-019. updatedAt comes from the store, never from the wall clock:
+                    // InsertAsync writes updated_at = created_at, so payment.CreatedAt is
+                    // the value really in the row. DateTimeOffset.Now here made a create and
+                    // a read of the same payment disagree on the field, and it also broke
+                    // the injected clock the rest of the domain is built on.
+                    PaymentDto.From(payment, req.MerchantId, payment.CreatedAt), JsonSerializerOptions.Web);
 
                 await store.InsertAsync(payment, req.MerchantId,
                     new Completion(req.MerchantId, key!, StatusCodes.Status201Created, body, location), ct);

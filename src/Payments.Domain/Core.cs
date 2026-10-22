@@ -29,7 +29,7 @@ public class Result<TValue, TError>
         : throw new InvalidOperationException("A failure has no value. Check IsSuccess first.");
 
     public TError Error => IsFailure
-        ? _error
+        ? _error!
         : throw new InvalidOperationException("A success has no error. Check IsFailure first.");
 
     public static Result<TValue, TError> Ok(TValue value) => new(true, value, default);

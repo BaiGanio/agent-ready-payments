@@ -1,3 +1,4 @@
+using System.Data;
 using Dapper;
 using Npgsql;
 using Payments.Domain;
@@ -66,9 +67,24 @@ public sealed class DapperPaymentStore(string connectionString, TimeProvider clo
     public async Task<Loaded?> LoadAsync(Guid paymentId, CancellationToken ct)
     {
         await using var conn = new NpgsqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+
+        // A load is TWO reads, and together they have to describe one moment. UpdateAsync
+        // writes the status column and the new operation rows in one transaction, so a read
+        // that straddles that commit sees the OLD status with the NEW operations. The replay
+        // then lands on PartiallyRefunded while the column still says Captured, and the
+        // status check at the bottom of this method throws -- a 500 on correct data.
+        //
+        // RepeatableRead, not just a transaction. Postgres READ COMMITTED takes a fresh
+        // snapshot for every STATEMENT, so a plain BeginTransaction changes nothing here;
+        // the two reads would still land on either side of the commit. RepeatableRead takes
+        // one snapshot at the first statement and holds it, which is what "one moment" means.
+        // It is read-only, so it cannot hit a serialisation failure and needs no retry.
+        await using var tx = await conn.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
 
         var row = await conn.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition(
-            $"select {PaymentColumns} from payment where id = @Id", new { Id = paymentId }, cancellationToken: ct));
+            $"select {PaymentColumns} from payment where id = @Id", new { Id = paymentId },
+            tx, cancellationToken: ct));
 
         if (row is null) return null;
 
@@ -80,6 +96,7 @@ public sealed class DapperPaymentStore(string connectionString, TimeProvider clo
             order by at, id
             """,
             new { Id = paymentId },
+            tx,
             cancellationToken: ct))).AsList();
 
         var replayClock = new ReplayClock([new DateTimeOffset(row.CreatedAt), .. operations.Select(o =>  new DateTimeOffset(o.At))], clock);

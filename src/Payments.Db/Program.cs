@@ -1,10 +1,9 @@
 ﻿using DbUp;
 using DbUp.Engine;
 
-//string[] args = new[] { "migrate", "--engine", "postgres" };
 // 1. Read the args and parse them
-//(bool flowControl, int value) = CheckArgs(args);
-//if (!flowControl) return value;
+(bool flowControl, int value) = CheckArgs(args);
+if (!flowControl) return value;
 
 // 2. Find the repo root
 string root = RepoRoot();
@@ -12,11 +11,21 @@ string root = RepoRoot();
 // 3. Connection string per engine. The sa password comes from .env.
 string cs = string.Empty;
 DotNetEnv.Env.Load(Path.Combine(RepoRoot(), ".env"));
-string pass = Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD");
+string? pass = Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD");
 if(args[2] == "postgres")
     cs = "Host=localhost;Port=55432;Database=payments_labs;Username=labs;Password=labs";
 else
+{
+    // Fail here, not inside DbUp. A missing .env gives "Password=" and the driver then
+    // says "login failed for user 'sa'", which sends you hunting the password you set
+    // rather than the file you never copied.
+    if (string.IsNullOrWhiteSpace(pass))
+    {
+        Console.WriteLine("Error: MSSQL_SA_PASSWORD is not set. Copy .env.example to .env and fill it in.");
+        return 2;
+    }
     cs = $"Server=localhost,51433;Database=PaymentsLabs;User Id=sa;Password={pass};TrustServerCertificate=true";
+}
 
 // 4. Make the database if it is missing.
 if (args[2] == "postgres")
@@ -101,7 +110,9 @@ static (bool flowControl, int value) CheckArgs(string[] args)
 {
     if (args.Length < 3 || args[0] != "migrate" || args[1] != "--engine")
     {
-        Console.WriteLine($"Error: invalid or unknown syntax/command '{args[0]}',  or missing or invalid --engine option '{args[1]}'");
+        // Do not index args here: args.Length < 3 is one of the ways we get in, so
+        // args[0] and args[1] may not exist. Join prints whatever was really typed.
+        Console.WriteLine($"Error: expected 'migrate --engine <postgres|sqlserver>', got '{string.Join(' ', args)}'");
         return (flowControl: false, value: 2);
     }
 

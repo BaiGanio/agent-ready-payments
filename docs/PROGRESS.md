@@ -31,7 +31,9 @@ What is left on the gate, in order:
 2. Push `develop`, so GitHub runs the workflow once and learns the check exists.
 3. Then turn on branch protection for `main` in the GitHub UI, with `build-and-test` required. Nothing is pushed yet, and no tag is on the remote.
 
-Then the carry-forward rows that need no new lab: `CF-010`, `CF-037`, `CF-019`, `CF-031`, `CF-035`, `CF-036`, `CF-016`, `CF-033`. `CF-035` is the one that matters — nothing tests the race lab 03 was about.
+**Done 2026-10-22, before the gate is pushed:** the carry-forward rows that needed no new lab. `CF-010` (the NU1903 package), `CF-037` (**the build is 0 warnings**, so the gate can now fail on a new one), `CF-019` (`updatedAt` on create), `CF-031` (a `401` no longer tells the model to retry), `CF-035` (**the race is tested**, 3 `ConcurrencyTests`, seen red) and `CF-036` (the crash path on refund, seen red). `CF-016` was checked and left — still two copies, not three. `CF-033` was judged not worth it until lab 09.
+
+`CF-035` paid for itself twice: it also found a live `500` in `DapperPaymentStore.LoadAsync` that no sequential test could see (`plan/PLAN.md` §8, "a load is one snapshot"). The suite is **330 of 330 green**, measured 10 runs out of 10.
 
 ## The board
 
@@ -40,7 +42,7 @@ Then the carry-forward rows that need no new lab: `CF-010`, `CF-037`, `CF-019`, 
 | 00 | [Setup + glossary](../labs/00-setup-and-glossary) | **Done** | `lab-00` | — |
 | 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Done** | `lab-01` | — |
 | 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **Done** | `lab-02` | Closed short of the spec: paging `CF-022`, the EF Core store `CF-023`, `void` `CF-025` |
-| 03 | [Idempotency](../labs/03-idempotency) | **Done** | `lab-03` | Closed short of the spec: nothing tests the race (`CF-035`) |
+| 03 | [Idempotency](../labs/03-idempotency) | **Done** | `lab-03` | — |
 | 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | Spec only | — | Bench sheet + test list, then the lab |
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
 | 06 | [Flow pipeline (Channels)](../labs/06-flow-pipeline-channels) | Spec only | — | Bench sheet + test list, then the lab |
@@ -69,7 +71,7 @@ One line each. The lab's own `README.md`, `WORKBENCH.md` and `QA.md` hold the de
 | 00 Setup + glossary | `lab-00` | Docker compose (Postgres arm64 + SQL Server under Rosetta), `src/Payments.Db` DbUp runner, both baselines, `develop`, `GLOSSARY.md` in your own words | — |
 | 01 State machine | `lab-01` | `src/Payments.Domain` — `Money`, `Result`, the enums, `PaymentOperation`, `Payment`. 160 tests green. `global.json` SDK pin + Microsoft.Testing.Platform | The step 12 refactor onto one transition table: `CF-013` |
 | 02 Minimal API + Dapper | `lab-02` | `src/Payments.Api` — `ProblemMapper`, contracts, the Dapper store, `POST /payments` and `GET /payments/{id}`. Testcontainers + DbUp + Respawn harness. `SteppingClock` and the four `StoreTests` | Paging `CF-022`, EF Core store `CF-023`, `void` `CF-025`. `updatedAt` on create still has two clocks: `CF-019` |
-| 03 Idempotency | `lab-03` | `db/postgres/0002_idempotency.sql`, `DapperIdempotencyStore` (insert-first claim), `ReadKey` / `Replay` / `CommandAsync` in `PaymentEndpoints.cs`. All four POSTs replay-safe. **109 of 109 green** | Step 13, the 3 `ConcurrencyTests`: `CF-035`. The crash path on update: `CF-036` |
-| 08 MCP server | `lab-08` | `api_key` table, hashed keys and scopes, one merchant per key, the capped list, `Payments.Mcp` with 3 tools and the two-phase refund, the token store. MCP Inspector by hand | A `401` reaching the model as "try once more": `CF-031`. Two repeated MCP harnesses: `CF-033` |
+| 03 Idempotency | `lab-03` | `db/postgres/0002_idempotency.sql`, `DapperIdempotencyStore` (insert-first claim), `ReadKey` / `Replay` / `CommandAsync` in `PaymentEndpoints.cs`. All four POSTs replay-safe. **Completed 2026-10-22:** the 3 `ConcurrencyTests` (`CF-035`) and the crash path on update (`CF-036`), both seen red first | — |
+| 08 MCP server | `lab-08` | `api_key` table, hashed keys and scopes, one merchant per key, the capped list, `Payments.Mcp` with 3 tools and the two-phase refund, the token store. MCP Inspector by hand. **`CF-031` closed 2026-10-22:** a `401` is its own branch with a stop hint | Two repeated MCP harnesses: `CF-033`, judged not worth sharing until lab 09 |
 
 Decisions made in these labs live in `plan/PLAN.md` §8, dated.

@@ -17,7 +17,7 @@ One group is one file in `tests/Payments.Api.Tests`. Every group except `Idempot
 
 **What was really built (2026-10-22).** 109 tests in `Payments.Api.Tests`, all green. Two changes from the list:
 
-- `ConcurrencyTests` (3) was **not written** — step 13 skipped, `CF-035`. Nothing in the suite covers the race.
+- `ConcurrencyTests` (3) was skipped with the lab and **written 2026-10-22**, closing `CF-035`. The three: `Fifty_parallel_creates_with_one_key_write_one_payment`, `Fifty_parallel_refunds_with_one_key_write_one_operation`, `No_loser_in_the_storm_ever_gets_a_5xx`. Build all 50 requests **before** firing them — building them inside the loop serialises the start and the test stops testing anything while still passing. It found a real bug in `LoadAsync` on its first full-suite run (`PLAN.md` §8, "a load is one snapshot").
 - One test came in from lab 08's list instead: `A_dropped_answer_still_refunds_once`, in `McpEndToEndTests`, with the `DropFirstAnswer` handler. It needed this lab's replay (`CF-032`).
 
 **Helpers send a key from the start (step 3).** From step 10 on, every POST needs an `Idempotency-Key`. So in step 3, before any command test exists, every POST helper in `ApiTestBase` sends one: `CreatePaymentAsync` and a new `PostAsync(path, body, key)` both default to a fresh `Guid.NewGuid().ToString()`, and take a `key` argument so an idempotency test can pass its own. Until step 10 the server ignores the header. After step 10 nothing breaks. That is a change to a helper, required by the new contract — not a test edited to go green.
