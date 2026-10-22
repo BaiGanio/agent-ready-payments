@@ -31,6 +31,8 @@ public sealed class DapperPaymentStore(string connectionString, TimeProvider clo
         await conn.OpenAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
 
+        await CompleteKeyAsync(conn, tx, completion, ct);
+
         await conn.ExecuteAsync(new CommandDefinition(
             """
             insert into payment (id, merchant_id, status, currency, authorised_amount,
@@ -120,6 +122,8 @@ public sealed class DapperPaymentStore(string connectionString, TimeProvider clo
         await conn.OpenAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
 
+        await CompleteKeyAsync(conn, tx, completion, ct);
+
         var updatedAt = payment.Operations.Count > 0
             ? payment.Operations[^1].At
             : payment.CreatedAt;
@@ -154,6 +158,21 @@ public sealed class DapperPaymentStore(string connectionString, TimeProvider clo
 
         await tx.CommitAsync(ct);
     }
+
+    /// <summary>
+    /// Phase 2: the Completed mark, on the same connection and transaction as the money.
+    /// It runs FIRST, before the payment write, so a failed write has a real mark to roll back.
+    /// Inside one transaction the order changes nothing for the database, but it is the only
+    /// order a test can tell apart: mark last, and a failed write means the mark never ran.
+    /// </summary>
+    private static Task CompleteKeyAsync(
+        NpgsqlConnection conn,
+        System.Data.Common.DbTransaction tx,
+        Completion? completion,
+        CancellationToken ct) =>
+        completion is null
+            ? Task.CompletedTask
+            : DapperIdempotencyStore.MarkCompletedAsync(conn, tx, completion, ct);
 
     private static async Task InsertOperationsAsync(
         NpgsqlConnection conn,

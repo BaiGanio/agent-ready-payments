@@ -10,10 +10,9 @@ public sealed class CreatePaymentTests(ApiFixture fixture) : ApiTestBase(fixture
     [Fact]
     public async Task Creating_a_payment_is_201_with_a_location_header()
     {
-        var response = await Client.PostAsJsonAsync(
-            "/payments",
-            new CreatePaymentRequest(SeededMerchant, 100m, "EUR"),
-            TestContext.Current.CancellationToken);
+        // PostAsync, not PostAsJsonAsync: every POST needs an Idempotency-Key from step 10 on,
+        // and the helper sends a fresh one.
+        var response = await PostAsync("/payments", new CreatePaymentRequest(SeededMerchant, 100m, "EUR"));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
@@ -61,10 +60,7 @@ public sealed class CreatePaymentTests(ApiFixture fixture) : ApiTestBase(fixture
     [Fact]
     public async Task An_unknown_merchant_is_404_merchant_not_found()
     {
-        var response = await Client.PostAsJsonAsync(
-            "/payments",
-            new CreatePaymentRequest(Guid.NewGuid(), 100m, "EUR"),
-            TestContext.Current.CancellationToken);
+        var response = await PostAsync("/payments", new CreatePaymentRequest(Guid.NewGuid(), 100m, "EUR"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("merchant_not_found", await ErrorCodeAsync(response));
