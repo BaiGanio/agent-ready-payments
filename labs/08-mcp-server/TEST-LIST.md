@@ -72,7 +72,7 @@ Arrange rows with `ExecuteSqlAsync` when a test needs exact `created_at` values.
 | Test | The rule it must check |
 |---|---|
 | `Exactly_three_tools_are_listed` | `tools/list` returns `get_payment`, `list_payments`, `refund_payment`, and nothing else |
-| `Get_payment_requires_a_payment_id_string` | The schema has one property, `payment_id`, type `string`, format `uuid`, and it is in `required` |
+| `Get_payment_requires_a_payment_id_string` | The schema has one property, `payment_id`, type `string`, and it is in `required`. Its `pattern` matches a UUID and rejects `42` and `order-1234`. SDK 2.3.0 emits no `format: uuid`, so the shape is carried by `[RegularExpression]` |
 | `Refund_requires_id_amount_and_currency_but_not_the_token` | `required` is exactly `payment_id`, `amount`, `currency`. `amount` is type `string`, **not** `number`. `confirmation_token` is a property and is not required |
 | `Read_tools_are_read_only_and_refund_is_destructive` | `readOnlyHint` is `true` on the two read tools. On `refund_payment`, `destructiveHint` is `true` and `readOnlyHint` is not `true` |
 | `The_descriptions_match_the_snapshot` | Each description equals the text in the test, word for word. A changed sentence must change this test in the same commit |

@@ -27,12 +27,12 @@ Rules:
 | 00 | [Setup + glossary](../labs/00-setup-and-glossary) | **Done** | `lab-00` | — |
 | 01 | [Payment state machine (TDD)](../labs/01-payment-state-machine) | **Done** | `lab-01` | — |
 | 02 | [Minimal API + Dapper](../labs/02-minimal-api-dapper) | **Done** | `lab-02` | Closed short of the spec: the store and its tests are done, the command endpoints are `CF-021` |
-| 03 | [Idempotency](../labs/03-idempotency) | Prepared | — | The lab: 17 steps, 65 tests. Then the CI gate, `CF-006` |
+| 03 | [Idempotency](../labs/03-idempotency) | Prepared | — | The lab: 17 steps, 65 tests. Plus lab 08's dropped-answer test, `CF-032`. Then the CI gate, `CF-006` |
 | 04 | [SQL Server procs + locking](../labs/04-sqlserver-procs-locking) | Spec only | — | Bench sheet + test list, then the lab |
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
 | 06 | [Flow pipeline (Channels)](../labs/06-flow-pipeline-channels) | Spec only | — | Bench sheet + test list, then the lab |
 | 07 | [BDD refund rules](../labs/07-bdd-refund-rules) | Spec only | — | Decide how deep BDD goes (`PLAN.md` §7), then the lab |
-| 08 | [MCP server](../labs/08-mcp-server) | Prepared | — | The lab: 24 steps, 67 tests. Step 19 waits for lab 03. `release/x.y` is cut after this lab |
+| 08 | [MCP server](../labs/08-mcp-server) | **Done** | `lab-08` | Closed short of the spec: step 19 needs lab 03's replay, so it is `CF-032`. `release/x.y` is cut after this lab, after the CI gate (`CF-006`) |
 | 09 | [Agent loop](../labs/09-agent-loop) | Spec only | — | Pick the local model with the evaluation set, then the lab |
 | 10 | [Framework → Core (paper)](../labs/10-framework-to-core) | Spec only | — | Migration-note scaffold, then the lab |
 | 11 | [k3s on the Pi](../labs/11-k3s-pi) *(optional)* | Spec only | — | Bench sheet, then the lab |
@@ -122,22 +122,27 @@ Yours to do:
 
 Decided for this lab (2026-10-20, `plan/PLAN.md` §8): own key table, two phases, the `Completed` mark in the payment write's transaction, no EF Core, no FluentValidation. The CI gate moved to after this lab.
 
-## Lab 08 — Prepared
+## Lab 08 — Done (2026-10-22, tag `lab-08`)
 
 Written for you (2026-10-21):
 
 - [x] `README.md`: the spec — 10 decisions, scopes and keys, the key check, the capped list, the 3 tools, the two-phase refund, the token's life, 6 API and 16 tool error codes, 12 hard requirements, Done-when
-- [x] `WORKBENCH.md`: 24 steps (0–23), 1 target-state diagram, 24 traps
+- [x] `WORKBENCH.md`: 24 steps (0–23), 1 target-state diagram, 25 traps
 - [x] `TEST-LIST.md`: 67 test names in 12 groups, with the rule each one must check
 - [x] `QA.md`: Q29–Q38 added from the SDK checks; Q7, Q10, Q12, Q15, Q28 and Q-APERIO updated
 
-Yours to do:
+Done by you:
 
-- [ ] Steps 2–6: `api_key` table, keys and scopes, one merchant per key, the capped list, tests first
-- [ ] Steps 7–13: `Payments.Mcp`, the harness, the fence, the read tools, tests first
-- [ ] Steps 14–17: the token store and the two-phase refund, tests first
-- [ ] Step 18: end to end against the real API
-- [ ] Step 19: after lab 03 lands — the dropped-answer test
-- [ ] Steps 20–23: the MCP Inspector by hand, Done-when, `QA.md` out loud, close the lab
+- [x] Steps 2–6: `api_key` table, keys and scopes, one merchant per key, the capped list, tests first
+- [x] Steps 7–13: `Payments.Mcp`, the harness, the fence, the read tools, tests first — 34 tests green
+- [x] Steps 14–17: the token store and the two-phase refund, tests first
+- [x] Step 18: end to end against the real API
+- [ ] Step 19: the dropped-answer test — **not done**, it needs lab 03's replay. Carried forward as `CF-032`
+- [x] Steps 20–23: the MCP Inspector by hand, Done-when, `QA.md` out loud, close the lab
+
+Found by hand in step 20, after the tests were green:
+
+- A stdio server that logs at `Information` freezes when the client stops reading stderr: the pipe fills and the next log line blocks. Fixed with `SetMinimumLevel(LogLevel.Warning)`. It is now a trap row in `WORKBENCH.md` and a checklist in `docs/EVERYDAY-COMMANDS.md`.
+- A `401` reaches the model as `tool_failed` with the hint "try once more" — `CF-031`.
 
 Decided for this lab (2026-10-21, `plan/PLAN.md` §8): audit row → lab 14, no paging (capped list), every call needs a key, hashed keys in a table, one merchant per key, tokens in the MCP server's memory, no cloud model in any demo.

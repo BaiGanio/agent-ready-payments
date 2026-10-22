@@ -41,3 +41,7 @@ public record PaymentDto(
             p.CreatedAt,
             updatedAt);
 }
+
+public record PaymentSummary(Guid Id, string Status, string Currency, decimal AuthorisedAmount, decimal CapturedAmount, decimal RefundedAmount, DateTimeOffset CreatedAt);
+
+public record PaymentList(IReadOnlyList<PaymentSummary> Items, bool Truncated);
