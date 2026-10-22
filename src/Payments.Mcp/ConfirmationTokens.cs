@@ -58,7 +58,7 @@ internal sealed class ConfirmationTokens(TimeProvider clock)
     /// enough: "read the entry, check it is Pending, write Executing" is three steps,
     /// and two callers can both pass the check. Inside this lock it is one step.
     /// </summary>
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     private readonly Dictionary<string, Entry> _tokens = new(StringComparer.Ordinal);
 
