@@ -23,7 +23,15 @@ Rules:
 
 ## Next up
 
-**Not lab 04.** The next branch is the **CI gate**, `CF-006`: a PR on `develop` → `main` with a required build-and-test check, branch protection on `main`, and the `runs=ci` / `runs=local` trait convention decided before the YAML is written. `plan/PLAN.md` §7 holds the two rows that must graduate to §8 first. The race tests that lab 03 skipped (`CF-035`) ride on that branch, because a race test is honest on two machines and flaky on one.
+**Still not lab 04.** The CI gate (`CF-006`) is **half done** as of 2026-10-22. `.github/workflows/ci.yml` exists, 28 lines, and the command in it is verified on this Mac: 324 of 324 green in 9.5 s. Both of its open decisions graduated to `plan/PLAN.md` §8 — the PR gate shape, and `[Trait("runs","local")]` marking the exceptions.
+
+What is left on the gate, in order:
+
+1. The three gate commits landed on `main`, not on `develop` as `plan/PLAN.md` §8 decided. Back-merge `main` into `develop` first.
+2. Push `develop`, so GitHub runs the workflow once and learns the check exists.
+3. Then turn on branch protection for `main` in the GitHub UI, with `build-and-test` required. Nothing is pushed yet, and no tag is on the remote.
+
+Then the carry-forward rows that need no new lab: `CF-010`, `CF-037`, `CF-019`, `CF-031`, `CF-035`, `CF-036`, `CF-016`, `CF-033`. `CF-035` is the one that matters — nothing tests the race lab 03 was about.
 
 ## The board
 
@@ -37,7 +45,7 @@ Rules:
 | 05 | [Bare ADO.NET](../labs/05-bare-adonet) | Spec only | — | Bench sheet + test list, then the lab |
 | 06 | [Flow pipeline (Channels)](../labs/06-flow-pipeline-channels) | Spec only | — | Bench sheet + test list, then the lab |
 | 07 | [BDD refund rules](../labs/07-bdd-refund-rules) | Spec only | — | Decide how deep BDD goes (`PLAN.md` §7), then the lab |
-| 08 | [MCP server](../labs/08-mcp-server) | **Done** | `lab-08` | `release/x.y` is cut after this lab, once the CI gate (`CF-006`) exists |
+| 08 | [MCP server](../labs/08-mcp-server) | **Done** | `lab-08` | `release/x.y` is cut after this lab, once the CI gate (`CF-006`) is pushed and `main` is protected |
 | 09 | [Agent loop](../labs/09-agent-loop) | Spec only | — | Pick the local model with the evaluation set, then the lab |
 | 10 | [Framework → Core (paper)](../labs/10-framework-to-core) | Spec only | — | Migration-note scaffold, then the lab |
 | 11 | [k3s on the Pi](../labs/11-k3s-pi) *(optional)* | Spec only | — | Bench sheet, then the lab |

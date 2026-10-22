@@ -182,10 +182,13 @@ The global switch `DefaultTypeMap.MatchNamesWithUnderscores = true` also works, 
 ```
 db/
 ├── postgres/
-│   ├── 0001_merchant_payment.sql        (Lab 02)
-│   ├── 0002_idempotency.sql             (Lab 03)
+│   ├── 0000_baseline.sql                (Lab 00)   ← on disk today
+│   ├── 0001_merchant_payment.sql        (Lab 02)   ← on disk today
+│   ├── 0002_idempotency.sql             (Lab 03)   ← on disk today
+│   ├── 0003_api_key.sql                 (Lab 08)   ← on disk today
 │   └── …
 └── sqlserver/
+    ├── 0000_baseline.sql                (Lab 00)   ← on disk today
     ├── 0001_merchant_payment.sql        (Lab 04, lockstep with postgres/0001)
     ├── 0002_procs_capture_claim.sql     (Lab 04)
     └── …

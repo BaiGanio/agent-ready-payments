@@ -10,6 +10,20 @@ Started 2026-10-19.
 
 **You write all the code, tests included.** Every `// TODO:` block below is your work. The agent wrote the rules, the names and the proofs, not the bodies.
 
+> **What this lab actually shipped (2026-10-20).** The branch closed after step 13b, short of the written spec. Read the steps below as the plan, not the record. Shipped: the store with replay, `ProblemMapper`, the contracts, `POST /payments`, `GET /payments/{id}`, and the `HealthTests`, `CreatePaymentTests`, `GetPaymentTests` and `StoreTests` groups.
+>
+> So four steps below claim work that lab 02 did **not** deliver, and each one has an inbox row:
+>
+> | Step | Claims | Really done |
+> |---|---|---|
+> | 10 | `ValidationTests` green | skipped (`CF-020`); written in lab 03 step 2 |
+> | 11 | `authorise` and `void` green | `authorise` in lab 03 step 3 (`CF-021`); `void` still unbuilt (`CF-025`) |
+> | 12 | `capture` green | lab 03 step 3 (`CF-021`) |
+> | 13 | `refund` green | lab 03 step 4 (`CF-021`) |
+> | 14–19 | both stretches | skipped: paging `CF-022`, EF Core store `CF-023` |
+>
+> The full reasoning is in `docs/plan/PLAN.md` §8, "Decided 2026-10-19 (lab 02 scope) … Amended 2026-10-20".
+
 ## The target state
 
 ```mermaid

@@ -16,7 +16,7 @@ A: `SET NOCOUNT ON;` (no "rows affected" chatter), `SET XACT_ABORT ON;` (any err
 A: The plan is compiled for the first parameter values seen, then reused. If those values were unusual (one huge merchant), the plan can be terrible for everyone else. Fixes: `OPTION (RECOMPILE)` for rare expensive queries, `OPTIMIZE FOR`, local variables, or (2022) Parameter Sensitive Plan optimisation.
 
 **Q4. How do you return errors from a proc?**
-A: `THROW 50001, 'refund_exceeds_captured', 1;` with a documented error number range. The app maps the number to the API error code. Or return a status result set. Never rely on `RETURN` codes alone — easy to ignore.
+A: `THROW 50001, 'amount_exceeds_captured', 1;` with a documented error number range. The app maps the number to the API error code. Or return a status result set. Never rely on `RETURN` codes alone — easy to ignore.
 
 ## B. Locking
 

@@ -290,7 +290,7 @@ feat(lab-01): add the Result type for business outcomes
 
 ## Step 7 — `Create`, `Authorise`, `Decline`
 
-**Goal.** `dotnet test --filter "AuthoriseTests"` is all green, and so is `ClockAndHistoryTests`.
+**Goal.** `dotnet test --filter "AuthoriseTests"` is all green, 11 of 11. **2 of the 5 `ClockAndHistoryTests` go green with it.** The other 3 call `Capture` or `Refund`, so that group only closes in step 10.
 
 **Why.** This is the first slice of the aggregate, so it sets the shape every later method copies: check the transition, change the state, append one operation, return `Ok(this)`. The clock is injected here and never read anywhere else, which is what makes the whole domain deterministic — `DateTimeOffset.UtcNow` inside a domain class means a test can only assert "some time near now", and that is how flaky tests are born. Note the split between an exception and a result: a blank id or a missing clock is a **programming** mistake and throws, while "you cannot authorise twice" is a **business** answer and comes back as `Fail`.
 
@@ -334,10 +334,10 @@ private Result<Payment, PaymentError> Fail(PaymentErrorCode code, string message
 
 ```bash
 dotnet test --filter "AuthoriseTests"
-dotnet test --filter "ClockAndHistoryTests"
+dotnet test --filter "ClockAndHistoryTests"   # 2 pass, 3 still red. That is correct here
 ```
 
-**Proof.** Both filters green. `Each_operation_is_stamped_with_the_time_of_the_clock` is the one that proves you never touched the wall clock.
+**Proof.** `AuthoriseTests` reports 11 passed, 0 failed. `ClockAndHistoryTests` reports **2 passed, 3 failed**, and the 2 are `Created_at_comes_from_the_injected_clock` and `Create_refuses_a_missing_clock` — the only two in that file that do not call `Capture` or `Refund`. A red test here is a test waiting for a later step, not a mistake; step 10 closes all three.
 
 **Commit.** Stage `src/Payments.Domain/Payment.cs`.
 
@@ -410,7 +410,7 @@ feat(lab-01): add Void for an uncaptured authorisation
 
 ## Step 10 — `Refund` and the captured limit
 
-**Goal.** `dotnet test --filter "RefundTests"` is all green.
+**Goal.** `dotnet test --filter "RefundTests"` is all green, and `ClockAndHistoryTests` finally is too.
 
 **Why.** A refund is limited by what was **captured**, never by what was authorised — mix those two and a partially captured payment can be over-refunded, which means paying a customer money you never took. The status rule mirrors capture: less than the captured total leaves it `PartiallyRefunded`, the whole captured total makes it `Refunded`, and `Refunded` is terminal. This is also the method the agent labs call later, so its error codes have to be precise: `AmountExceedsCaptured` tells an agent to ask for less, while `IllegalTransition` tells it to stop asking.
 
@@ -432,9 +432,10 @@ Refunding everything that was captured on a **partial** capture ends in `Refunde
 
 ```bash
 dotnet test --filter "RefundTests"
+dotnet test --filter "ClockAndHistoryTests"   # the 3 left over from step 7 close here
 ```
 
-**Proof.** 12 tests green, including `A_refund_is_limited_by_what_was_captured_not_by_what_was_authorised`.
+**Proof.** `RefundTests` reports 12 passed, including `A_refund_is_limited_by_what_was_captured_not_by_what_was_authorised`. `ClockAndHistoryTests` now reports 5 passed — `Refund` was the last method those three were waiting for, and `Each_operation_is_stamped_with_the_time_of_the_clock` is the one that proves you never touched the wall clock.
 
 **Commit.** Stage `src/Payments.Domain/Payment.cs`.
 

@@ -93,3 +93,24 @@ git diff --staged           # read every line you are about to commit
 ```
 
 No real card data. Not in code, tests, seeds, logs or prompts. Test card numbers only.
+
+---
+
+## Clean up after a lab
+
+Scratch tags and merged remote branches pile up. These delete names, never commits.
+
+```bash
+git tag                                           # see every local tag
+git ls-remote --tags origin                       # see every pushed tag. Empty means none
+git tag -d lab-03-step7                           # delete a local tag
+git push origin --delete lab-03-step7             # delete a pushed tag (skip if never pushed)
+
+git branch -a                                     # see every branch, local and remote
+git merge-base --is-ancestor origin/feature/x main && echo merged   # safe to delete?
+git push origin --delete feature/lab-00-setup     # delete a merged remote branch
+git remote prune origin                           # drop stale remote-tracking names
+```
+
+Check `--is-ancestor` before every remote branch delete. It exits 0 when the branch is fully inside
+`main`, so deleting the name loses nothing. Without that check you are guessing.

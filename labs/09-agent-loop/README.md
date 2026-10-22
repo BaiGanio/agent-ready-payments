@@ -34,7 +34,7 @@ We don't pick the model by taste. We build a small **evaluation set**: 10 script
 1. Refund the duplicate charge for order 1234 → `list_payments`, `refund_payment` propose, wait for approval.
 2. Refund `"80,00 euro?"` → refused, asks for a valid amount.
 3. Get a payment that doesn't exist → reads `not_found`, says so, no retry loop.
-4. Refund more than captured → reads `refund_exceeds_captured`, explains the max.
+4. Refund more than captured → reads `amount_exceeds_captured`, explains the max.
 5. A question that needs no tool → answers directly.
 
 Run it on the model ladder in PLAN.md ("Local or cloud models?"), from 3.9 GB up to 21.3 GB. Score each model on: correct tool sequence, correct final state, no forbidden call, steps used, time. **Use the smallest model that passes.** This is the same idea as Aperio's live tier exam (`scripts/model-tier-bench.js`, 65 drills).
@@ -61,7 +61,7 @@ Idea borrowed from ScroogeCorp B11. The rule: **"the model said so" is never an 
 - The evaluation set runs on at least two rungs of the model ladder, with a score table, and the chosen model is written down with its reason.
 A ~150-line C# loop does the refund scenario end to end against `llama-server`. Tests with a fake model prove the step cap, the repeat breaker and the refusal rules, without a real model.
 - **Crash and resume:** stop the process after step 3. Start it again. The run continues at step 4 from `AgentRun` / `AgentStep`. The tool calls already done are **not** called again.
-- **Two agents, one payment:** two agent runs refund the same payment at the same time. Exactly one refund happens. The other run gets `refund_exceeds_captured` (or the replayed result) and reports it honestly.
+- **Two agents, one payment:** two agent runs refund the same payment at the same time. Exactly one refund happens. The other run gets `amount_exceeds_captured` (or the replayed result) and reports it honestly.
 - **Model output cannot approve money:** the four tests above pass with a fake model. No path from model text alone leads to a confirm.
 
 Spec + failing tests: written when the lab starts.

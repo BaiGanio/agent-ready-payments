@@ -334,12 +334,12 @@ return inserted ?? await conn.QuerySingleAsync<Guid>(
 
 ```json
 {
-  "type": "https://api.agent-ready-payments.local/problems/refund-exceeds-captured",
-  "title": "Refund exceeds captured amount",
-  "status": 409,
+  "type": "urn:payments-labs:error:amount_exceeds_captured",
+  "title": "The refund is larger than what is left to refund.",
+  "status": 422,
   "detail": "Captured 100.00 EUR, already refunded 60.00 EUR. Max refundable is 40.00 EUR.",
-  "traceId": "00-4bf92f...-01",
-  "code": "refund_exceeds_captured"
+  "instance": "/payments/0199.../refund",
+  "code": "amount_exceeds_captured"
 }
 ```
 

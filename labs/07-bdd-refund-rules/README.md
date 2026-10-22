@@ -10,7 +10,7 @@ The product owner says: "You can't refund more than was captured." In BDD that b
 Given a payment captured for 100.00 EUR
 And a refund of 60.00 EUR has been made
 When the merchant refunds 50.00 EUR
-Then the refund is rejected with "refund_exceeds_captured"
+Then the refund is rejected with "amount_exceeds_captured"
 ```
 
 The product owner can read it. The CI runs it against the real API. If someone breaks the rule, this scenario goes red.

@@ -20,7 +20,7 @@ Rule: Total refunds can never exceed the captured amount
     Given a payment captured for 100.00 EUR
     And a refund of 60.00 EUR has been made
     When the merchant refunds 50.00 EUR
-    Then the refund is rejected with "refund_exceeds_captured"
+    Then the refund is rejected with "amount_exceeds_captured"
     And the payment's refunded total is still 60.00 EUR
 ```
 

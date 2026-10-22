@@ -369,7 +369,7 @@ Decided things only. Open findings, fix-later items, questions and ideas live in
 
 ## 9. Environment checklist
 
-- `dotnet --version` → `10.0.302` ✓
+- `dotnet --version` → `10.0.401` ✓ (pinned by `global.json`, `rollForward: latestFeature`)
 - Start Docker Desktop. Turn on **"Use Rosetta for x86_64/amd64 emulation"** in Settings → General.
 - SQL Server image: `mcr.microsoft.com/mssql/server:2022-latest` with `platform: linux/amd64`.
 - Postgres image: `pgvector/pgvector:pg17` (native arm64; Postgres 17 with pgvector built in, needed for Lab 12).

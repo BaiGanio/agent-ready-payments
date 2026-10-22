@@ -278,7 +278,7 @@ feat(lab-08): require an api key with a scope on every payments route
 //   record ListBody(List<SummaryBody> Items, bool Truncated);
 ```
 
-**Proof.** `dotnet test tests/Payments.Api.Tests --filter "ListPaymentsTests"`: all 8 fail, with `404` or `405`. Every older test is still green.
+**Proof.** `dotnet test tests/Payments.Api.Tests --filter "ListPaymentsTests"`: all 8 fail, with `404` or `405`. The runner says **10**, not 8: `A_limit_outside_1_to_20_is_400` is a `[Theory]` with three `InlineData` rows, so it counts as three runs. `TEST-LIST.md` counts names; the runner counts runs. Every older test is still green.
 
 **Commit.** Stage `tests/Payments.Api.Tests/ListPaymentsTests.cs`.
 
@@ -290,7 +290,7 @@ test(lab-08): add failing tests for the capped payment list
 
 ## Step 6 — The capped list, green
 
-**Goal.** `GET /payments` returns at most 20 of the caller's payments, newest first, with `truncated`, and the 8 list tests are green.
+**Goal.** `GET /payments` returns at most 20 of the caller's payments, newest first, with `truncated`, and the 8 list tests are green (10 runs).
 
 **Why.** This is a read, so it skips the domain: one Dapper query straight into a `PaymentSummary`, the CQRS-lite split from `docs/plan/PLAN.md`. Replaying 20 payments through the state machine to show 7 columns would be waste. Ask for `limit + 1` rows: if the extra row comes back, there is more, so `truncated` is true and you drop the extra one — no second `count(*)` query, and no race between the count and the page. The merchant comes from the key, never from the query string, so there is no parameter a caller can change to see someone else's payments.
 

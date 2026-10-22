@@ -30,7 +30,7 @@ A: Strong for the money state of one payment (one row, one database, one transac
 ## C. Concurrency and scale
 
 **Q8. Two callers refund the same payment at once. Walk me through it.**
-A: Both hit the API. With different idempotency keys, both reach the proc. The conditional update lets only one succeed while the amount allows it. The other gets `refund_exceeds_captured`. With the **same** key, the unique index lets one insert win, and the other gets the replayed response. No app-level `if` is trusted for this.
+A: Both hit the API. With different idempotency keys, both reach the proc. The conditional update lets only one succeed while the amount allows it. The other gets `amount_exceeds_captured`. With the **same** key, the unique index lets one insert win, and the other gets the replayed response. No app-level `if` is trusted for this.
 
 **Q9. How does it scale out?**
 A: Stateless API and agent hosts behind a load balancer. State only in the database and the bus. Partition hot data by merchant. Read replicas for lookups. A queue-based settlement pipeline with bounded concurrency. Rolling deploys with warm-up and readiness gating (Lab 17).

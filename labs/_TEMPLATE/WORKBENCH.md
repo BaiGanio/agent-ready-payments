@@ -57,6 +57,13 @@ git checkout -b feature/lab-NN-short-name
 
 **Proof.** The command or output that shows it worked.
 
+> **Rule for every Proof that names a test or a count** (`CF-034`, learned in lab 03 step 10 and lab 01 step 7):
+> a Proof may only count tests **this step** makes green. Before you write a number, open each test
+> body and check which methods it calls. A test that calls a method a later step builds belongs to that
+> later step, even when it sits in a file this step starts. If a step leaves part of a group red, say so
+> and name the step that closes it — "2 pass, 3 still red, step 10 closes them" is a correct Proof;
+> "the group is green" is a lie you only find out about at the bench.
+
 **Commit.** Stage `<files this step touched>`.
 
 ```

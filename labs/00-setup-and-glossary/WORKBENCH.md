@@ -498,7 +498,7 @@ The four pairs that catch people:
 | issuer vs acquirer | Issuer is the cardholder's bank. Acquirer is the merchant's bank. |
 | chargeback vs refund | A refund is the merchant choosing to give money back. A chargeback is the issuer taking it back. |
 
-**Proof.** Read `QA.md` out loud and answer without looking.
+**Proof.** Every one of the 28 bullets has a line, no placeholder is left, and no definition borrows another word from the list. Saying the answers out loud is step 9, not this step.
 
 ### One payment, over its life
 
