@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 
@@ -44,6 +45,11 @@ public static class McpSetup
 
         // The tests put the stub behind the client here; step 18 points it at the real API.
         configureApiClient?.Invoke(apiClient);
+
+        // A singleton: one token store per server process. A scoped one would be new
+        // for every request, so the confirm would never find the proposal's token.
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<ConfirmationTokens>();
 
         return services.AddMcpServer()
             .WithTools<PaymentTools>()
