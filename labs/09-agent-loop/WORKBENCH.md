@@ -309,11 +309,11 @@ sequenceDiagram
     participant P as payment row
     A->>P: load: refunded 0, ops 2
     B->>P: load: refunded 0, ops 2
-    A->>P: begin; select 1 … for update → locked
-    B->>P: begin; select 1 … for update
+    A->>P: begin, then select 1 … for update → locked
+    B->>P: begin, then select 1 … for update
     Note over B,P: B waits here. This is the new arrow.
-    A->>P: count ops = 2 = loaded 2 → write, commit
-    P-->>B: lock free; count ops = 3
+    A->>P: count ops = 2 = loaded 2 → write and commit
+    P-->>B: lock free, count ops = 3
     Note over B: 3 ≠ 2 → ConcurrentUpdateException.<br/>The using disposes the transaction, so it rolls back.
     B->>P: load again: refunded 60 on a 100 capture
     Note over B: the domain refuses → 422 amount_exceeds_captured
@@ -333,6 +333,29 @@ flowchart LR
 ```
 
 Put the check **after** `CompleteKeyAsync` and the loser stores a `200` it never earned — and every later retry of that key replays it.
+
+## Hints, before the code
+
+### Why for update and a count?
+The lock only makes B wait. It does not change B's mind. B wakes up still holding the decision it made on the old data, and writes it. So after the wait you must ask the database "is what I read still true?". The count of payment_operation rows is the right question, because every command appends exactly one row. status cannot answer: two refunds both leave PartiallyRefunded, so the column looks unchanged. updated_at is a clock, not a fact, and two writes in the same millisecond tie.
+
+### Why before CompleteKeyAsync?
+CompleteKeyAsync stores the final answer for the Idempotency-Key. If you lock and check after it, the loser has already written "key-B → 200 OK, here is your refund" into the key table. The throw then rolls that back in this run — but worse, in the order the step warns about you may commit it. A stored 200 the request never earned is replayed for ever to every retry of key-B. Check first, write nothing until the check passes.
+
+### Why no tx.RollbackAsync?
+await using var tx is an async using. The throw leaves the scope, so DisposeAsync runs on the transaction. An uncommitted Npgsql transaction rolls back on dispose. The mechanism is the using disposal, not any catch of yours.
+
+### Why does the retry not re-claim the key?
+The claim is still ours — we never released it, and the whole retry lives inside the same try. Re-claiming our own InProgress key would give us Claim.InProgress and we would refuse ourselves. A third copy of the same key-B arriving mid-retry gets 409 idempotency_request_in_progress, which is correct: the first one has not finished yet.
+
+### Why cap at one?
+Because the thing we want is one fresh look at the truth, not a spin loop. A second loss means a third writer joined, and under load an uncapped loop never settles. when (attempt == 1) means the second ConcurrentUpdateException is not caught by the inner catch, so the existing outer catch releases the key and rethrows → 500, loud, visible. In a real double-refund race the second attempt will not throw anyway: it sees the real amounts and gets 422 from the domain.
+
+### RepeatableRead for load, ReadCommitted for update — a problem?
+No. They are different jobs. LoadAsync needs one frozen snapshot, because it reads two tables and they must describe one moment. UpdateAsync wants the opposite: after the lock it must see the newest committed data, or the count would come from a stale snapshot and the check would always pass. ReadCommitted takes a fresh snapshot per statement, which is exactly what the count needs. Raising UpdateAsync to RepeatableRead would break the fix and could add serialisation failures.
+
+### Blast radius if the re-check is too strict?
+UpdateAsync is on authorise, capture and refund. Too strict means a legal, uncontended write throws ConcurrentUpdateException, gets retried once, and on a second throw turns into a 500 with the key released. So a wrong check does not corrupt money — it turns working endpoints into flaky 500s under any concurrency, and sequential tests would never see it. That is why the check compares a count against the count the load handed us, and nothing more.
 
 **Do.**
 
