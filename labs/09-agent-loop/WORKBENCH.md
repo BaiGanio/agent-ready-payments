@@ -1149,7 +1149,7 @@ Now prove they can fail. Comment out the count check in `DapperPaymentStore.Upda
 
 ```bash
 dotnet test                                                       # 385 green
-dotnet test Payments.slnx --filter-not-trait runs=local           # 367: the CI count
+dotnet test Payments.slnx --filter-not-trait runs=local           # 369: the CI count
 ```
 
 **Commit.** Stage `tests/Payments.Agent.Tests/TwoAgentsTests.cs`.
@@ -1195,9 +1195,11 @@ docs(lab-09): write the evaluation set
 | `src/Payments.Agent/Eval/Scenarios.cs` | the ten of `EVAL-SET.md`, typed |
 | `src/Payments.Agent/Eval/EvalRunner.cs` | arrange, run, read back, score |
 | `src/Payments.Agent/Eval/Report.cs` | the per-scenario table, then the one totals row to copy |
+| `src/Payments.Agent/Eval/EvalFile.cs` | the saved report: one file per run, under `eval-runs/` |
 
-Three things to notice:
+Four things to notice:
 
+- **Every check carries its own sentence.** `FinalState` and `Forbidden` are arrays of `Check`, not one big `bool`. So a failed scenario says `{p} is still Authorised`, which is a line you can paste into `EVAL-SET.md`, instead of "wrong final state", which sends you back to the source to guess.
 - **Expected tools is an ordered subsequence**, not the whole list. An extra read is allowed; a call that matters is caught by **Forbidden**. A weak model often reads a payment twice before it acts, and failing it for that would hide the models that refund the wrong payment.
 - **`{p}` in a request is a handle.** `Arrange` creates that payment, then puts its real id in the text. That is what lets S01 say "the newest captured payment".
 - **One MCP child for the whole set, one fresh loop per scenario** (`AgentHost.NewLoop`). The model and the tools are the two things a model comparison must hold still.
@@ -1214,9 +1216,9 @@ set -a; source .env; set +a                        # PAYMENTS_DEV_KEY and the ag
 dotnet run --project src/Payments.Agent -- eval --label gemma-4-E4B
 ```
 
-**Proof.** The table is printed. The totals row is in `EVAL-SET.md`, and every failed scenario has a line under "Which scenarios each model failed, and how".
+**Proof.** The table is printed, and the last line names the report it saved under `labs/09-agent-loop/eval-runs/`. Open that file: it holds the same table, the row to copy, and then every scenario step by step. The totals row is in `EVAL-SET.md`, and every failed scenario has a line under "Which scenarios each model failed, and how", copied from the report's "What went wrong".
 
-**Commit.** Stage `src/Payments.Agent/Eval/`, `src/Payments.Agent/Program.cs`, `labs/09-agent-loop/EVAL-SET.md`.
+**Commit.** Stage `src/Payments.Agent/Eval/`, `src/Payments.Agent/Program.cs`, `labs/09-agent-loop/EVAL-SET.md` and the report under `labs/09-agent-loop/eval-runs/`. The report is committed on purpose: a score with no evidence behind it is a number you cannot defend three weeks later.
 
 ```
 feat(lab-09): add the evaluation runner and score rung 1
@@ -1278,7 +1280,7 @@ docs(lab-09): rehearse the demo on the chosen model
 ```bash
 dotnet build                                                       # 0 warnings
 dotnet test                                                        # 385
-dotnet test Payments.slnx --filter-not-trait runs=local            # 367, the CI count
+dotnet test Payments.slnx --filter-not-trait runs=local            # 369, the CI count
 grep -rn "UseFunctionInvocation" src                               # nothing
 docker exec payments-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" \
   -Q "SELECT name FROM sys.databases WHERE name LIKE 'PaymentsLabs_Test_%';"   # nothing
@@ -1384,4 +1386,15 @@ git log --oneline develop..main   # empty
 
 Write what surprised you here, as it happens. At the end of the lab these move into `CARRY-FORWARD.md` (the inbox) as `CF-NNN` rows. From there each one graduates to `PLAN.md` section 8, to a lab `README.md`, or it is dropped.
 
--
+Moved out on 2026-10-23, when the lab closed. Nothing is left here.
+
+- → `CF-041` reasoning-only replies and the `empty_reply` guard (step 16)
+- → `CF-042` `docs/commands/mcp.md` had no `Idempotency-Key` (step 16, fixed)
+- → `CF-043` the refund proposal said "nothing has been refunded yet" on a part-refunded payment (step 16, fixed)
+- → `CF-044` the local model is not picked: rung 1 scored 5 of 10, rung 3 never loaded (step 23)
+- → `CF-045` `DEMO.md` was never rehearsed (step 24)
+- → `CF-046` `QA.md` was not said out loud (step 26)
+- → `CF-047` both model scores predate the word-check correction and need one re-run each (step 22)
+- → `CF-048` S02: both models repair `80,00` into `80.00` before the tool, so the money fence never fires (step 22)
+
+Two decisions graduated straight to `docs/plan/PLAN.md` §8 instead, because each needed a paragraph: the model ladder's context in `.env`, and **a model that reads and then stops fails the scenario** (2026-10-23).

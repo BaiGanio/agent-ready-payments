@@ -223,6 +223,7 @@ Run it on the model ladder in `docs/plan/PLAN.md` ("Local or cloud models?"). Sc
 | 7b | Two configured agents: `support-bot` (refund key, ceiling 500.00) and `read-bot` (read-only key). Keys by environment variable name only | `src/Payments.Agent/agents.json` |
 | 8 | The tests, fake model only | `tests/Payments.Agent.Tests` |
 | 9 | The evaluation set and its score table, in your words | `labs/09-agent-loop/EVAL-SET.md` |
+| 9b | One saved report per evaluation run, written by the runner | `labs/09-agent-loop/eval-runs/` |
 | 10 | The demo runbook, rehearsed: 10 scenes, the Inspector first | `labs/09-agent-loop/DEMO.md` |
 
 ## Hard requirements
@@ -250,14 +251,14 @@ Run it on the model ladder in `docs/plan/PLAN.md` ("Local or cloud models?"). Sc
 | `QA.md` | the agent |
 
 ## Done when
-- [ ] The evaluation set runs on at least two rungs of the model ladder, with a score table, and the chosen model is written down with its reason.
-- [ ] The console app does the refund scenario end to end against `llama-server`: list, propose, your yes, one refund row.
-- [ ] **The live demo** in `DEMO.md` ran end to end on the picked model — the Inspector scene, both configured agents, crash and resume, two agents — and every scene has a dated "What you saw" line.
-- [ ] Tests with a fake model prove the step cap, the repeat breaker, the failure budget and the refusal rules, without a real model.
-- [ ] **Crash and resume:** stop the process after step 3. Start it again. The run continues at step 4 from `AgentRun` / `AgentStep`. The tool calls already done are **not** called again.
-- [ ] **Two workers, one run:** the second save of the same run gets a concurrency error and changes nothing.
-- [ ] **Two agents, one payment:** two agent runs refund 60.00 of the same 100.00 payment at the same time. Exactly one refund happens. The other run reports `amount_exceeds_captured` honestly.
-- [ ] **Model output cannot approve money:** the four items above pass with a fake model. No path from model text alone leads to a confirm.
-- [ ] `dotnet test Payments.slnx --filter-not-trait runs=local` is green: CI still runs everything that does not need SQL Server or a model.
-- [ ] `grep -rn "UseFunctionInvocation" src` finds nothing.
-- [ ] `QA.md` answered out loud, misses marked.
+- [ ] The evaluation set runs on at least two rungs of the model ladder, with a score table, and the chosen model is written down with its reason. **Half done:** the runner and the ten scenarios are built, and **two models are scored** in `EVAL-SET.md` — rung 1 at 5 of 10 and `Ornith-1.0-9B` at 8 of 10 (9 after the word-check fix). Rung 3 of the ladder was never loaded and no model is chosen — **`CF-044`**, with `CF-047` for the re-scores.
+- [x] The console app does the refund scenario end to end against `llama-server`: list, propose, your yes, one refund row. Proved live by evaluation scenario S01 on 2026-10-23.
+- [ ] **The live demo** in `DEMO.md` ran end to end on the picked model — the Inspector scene, both configured agents, crash and resume, two agents — and every scene has a dated "What you saw" line. **Not done** — **`CF-045`**. The runbook is written; it was never rehearsed.
+- [x] Tests with a fake model prove the step cap, the repeat breaker, the failure budget and the refusal rules, without a real model.
+- [x] **Crash and resume:** stop the process after step 3. Start it again. The run continues at step 4 from `AgentRun` / `AgentStep`. The tool calls already done are **not** called again.
+- [x] **Two workers, one run:** the second save of the same run gets a concurrency error and changes nothing.
+- [x] **Two agents, one payment:** two agent runs refund 60.00 of the same 100.00 payment at the same time. Exactly one refund happens. The other run reports `amount_exceeds_captured` honestly.
+- [x] **Model output cannot approve money:** the four items above pass with a fake model. No path from model text alone leads to a confirm.
+- [x] `dotnet test Payments.slnx --filter-not-trait runs=local` is green: CI still runs everything that does not need SQL Server or a model. **369 green** on 2026-10-23; the whole suite is **385**, on a build with 0 warnings.
+- [x] `grep -rn "UseFunctionInvocation" src` finds nothing. Checked 2026-10-23.
+- [ ] `QA.md` answered out loud, misses marked. **Not done** — **`CF-046`**.

@@ -63,8 +63,13 @@ public static class Report
 
         foreach (var score in failures)
         {
-            Console.WriteLine($"- `{label}` {score.Scenario.Id}: {score.Note} "
-                + $"(run {score.Outcome.Run.Id})");
+            Console.WriteLine($"- `{label}` {score.Scenario.Id} "
+                + $"(run {score.Outcome.Run.Id}):");
+
+            foreach (var reason in score.Reasons)
+            {
+                Console.WriteLine($"  - {reason}");
+            }
         }
     }
 }

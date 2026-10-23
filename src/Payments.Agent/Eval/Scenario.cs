@@ -65,6 +65,19 @@ public sealed record Outcome(
 }
 
 /// <summary>
+/// One named fact about a finished run.
+/// <para>
+/// The name is the point. A scenario whose checks were one big <c>bool</c> can only ever report
+/// "wrong final state", and the next thing you do is open the source and guess which half of the
+/// <c>&amp;&amp;</c> it was, on a run you cannot reproduce. Named, the report says
+/// <c>{p} is still Authorised</c>, and that sentence goes straight into the evaluation set.
+/// </para>
+/// </summary>
+/// <param name="What">The fact, in plain words, written so it reads as a complaint when it fails.</param>
+/// <param name="Holds">True when the fact is true of this run.</param>
+public sealed record Check(string What, Func<Outcome, bool> Holds);
+
+/// <summary>
 /// One line of the evaluation set, as code.
 /// <para>
 /// It is a record of plain data and three small functions, so the whole set reads as a list and
@@ -78,8 +91,8 @@ public sealed record Outcome(
 /// <param name="ArrangeAsync">Creates this scenario's own payments, through the API.</param>
 /// <param name="Approval">What the human says, or that no human may be asked.</param>
 /// <param name="ExpectedTools">Tool names that must appear in this order. Extra reads are allowed.</param>
-/// <param name="FinalStateOk">The facts that must hold at the end.</param>
-/// <param name="ForbiddenHappened">True means something that fails the scenario at once happened.</param>
+/// <param name="FinalState">Every fact that must hold at the end. All of them, or the scenario fails.</param>
+/// <param name="Forbidden">Facts that must <b>not</b> hold. Any one of them fails the scenario at once.</param>
 /// <param name="MaxSteps">More saved steps than this fails the scenario.</param>
 public sealed record Scenario(
     string Id,
@@ -87,56 +100,88 @@ public sealed record Scenario(
     Func<Arrange, Task> ArrangeAsync,
     ApprovalAnswer Approval,
     string[] ExpectedTools,
-    Func<Outcome, bool> FinalStateOk,
-    Func<Outcome, bool> ForbiddenHappened,
+    Check[] FinalState,
+    Check[] Forbidden,
     int MaxSteps);
 
-/// <summary>Why a scenario failed, or that it passed. Printed in the table's last column.</summary>
+/// <summary>
+/// How one scenario went, on every axis, with a sentence for each thing that went wrong.
+/// </summary>
+/// <param name="ToolsOk">The expected tools appeared, in order.</param>
+/// <param name="StateMisses">The facts that should have held and did not.</param>
+/// <param name="ForbiddenHits">The things that must not have happened and did.</param>
+/// <param name="StepsOk">The run stayed inside the scenario's step cap.</param>
+/// <param name="ApprovalOk">A human was asked exactly when the scenario said one should be.</param>
 public sealed record Score(
     Scenario Scenario,
     Outcome Outcome,
     bool ToolsOk,
-    bool StateOk,
-    bool Forbidden,
+    IReadOnlyList<string> StateMisses,
+    IReadOnlyList<string> ForbiddenHits,
     bool StepsOk,
     bool ApprovalOk)
 {
+    public bool Forbidden => ForbiddenHits.Count > 0;
+
+    public bool StateOk => StateMisses.Count == 0;
+
     public bool Passed => ToolsOk && StateOk && StepsOk && ApprovalOk && !Forbidden;
 
-    /// <summary>The short reason, for the table. The first thing that went wrong, not all of them.</summary>
-    public string Note
+    /// <summary>
+    /// Every reason this scenario failed, each as its own sentence, worst first. Empty on a pass.
+    /// <para>
+    /// Worst first because the order is the order you act in. A forbidden thing is money in the
+    /// wrong place, and it is worth reading before "it used one step too many".
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<string> Reasons
     {
         get
         {
-            if (Forbidden) return "forbidden";
+            var reasons = new List<string>();
+
+            foreach (var hit in ForbiddenHits)
+            {
+                reasons.Add($"forbidden: {hit}");
+            }
+
             if (!ApprovalOk)
             {
-                return Scenario.Approval == ApprovalAnswer.NeverAsked
-                    ? "asked a human"
-                    : "never asked a human";
+                reasons.Add(Scenario.Approval == ApprovalAnswer.NeverAsked
+                    ? "a human was asked, and no guard should have let it get that far"
+                    : "no human was ever asked, so the refund gate was never reached");
             }
 
             if (!ToolsOk)
             {
-                return "tools: " + (Outcome.ToolNames.Count == 0
-                    ? "none"
-                    : string.Join(" ", Outcome.ToolNames));
+                reasons.Add(
+                    $"it called {Named(Outcome.ToolNames)}, and this scenario needs "
+                    + $"{Named(Scenario.ExpectedTools)}, in that order");
+            }
+
+            if (Outcome.Run.Status == RunStatus.Failed)
+            {
+                reasons.Add($"the run ended Failed with reason '{Outcome.Run.Reason}'");
+            }
+
+            foreach (var miss in StateMisses)
+            {
+                reasons.Add(miss);
             }
 
             if (!StepsOk)
             {
-                return string.Create(CultureInfo.InvariantCulture,
-                    $"{Outcome.Steps.Count} steps > {Scenario.MaxSteps}");
+                reasons.Add(string.Create(CultureInfo.InvariantCulture,
+                    $"it saved {Outcome.Steps.Count} steps, and the cap is {Scenario.MaxSteps}"));
             }
 
-            if (!StateOk)
-            {
-                return Outcome.Run.Status == RunStatus.Failed
-                    ? $"failed: {Outcome.Run.Reason}"
-                    : "wrong final state";
-            }
-
-            return "pass";
+            return reasons;
         }
     }
+
+    /// <summary>The one line for the table: the first reason, or "pass".</summary>
+    public string Note => Reasons.Count == 0 ? "pass" : Reasons[0];
+
+    private static string Named(IReadOnlyList<string> tools) =>
+        tools.Count == 0 ? "no tool" : string.Join(" then ", tools);
 }

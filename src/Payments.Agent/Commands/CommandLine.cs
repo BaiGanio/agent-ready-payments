@@ -14,10 +14,11 @@ public static class CommandLine
           resume <runId>
           show   <runId>
           seed-demo
-          eval  [--agent <name>] --label <name> [--only S03]
+          eval  [--agent <name>] --label <name> [--only S03] [--out <file.md>]
 
         agents come from agents.json next to the executable (support-bot, read-bot).
         eval needs a live model and the service key in PAYMENTS_DEV_KEY.
+        every eval run saves a report under labs/09-agent-loop/eval-runs/.
         """;
 
     /// <summary>The agent asked for, or the default one.</summary>
@@ -110,6 +111,12 @@ public static class CommandLine
 
     /// <summary>One scenario instead of all ten, while a scenario is being written.</summary>
     public static string? Only(string[] args) => Flag(args, "--only");
+
+    /// <summary>
+    /// Where the run's report goes. Without it the runner names the file after the time the run
+    /// started and puts it in <c>labs/09-agent-loop/eval-runs/</c>.
+    /// </summary>
+    public static string? Out(string[] args) => Flag(args, "--out");
 
     /// <summary>A run id, for <c>resume</c> and <c>show</c>.</summary>
     public static bool TryRunId(string[] args, out Guid id, out string? error)

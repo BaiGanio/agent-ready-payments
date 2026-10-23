@@ -21,7 +21,7 @@ namespace Payments.Agent.Eval;
 public static class EvalRunner
 {
     public static async Task<int> ExecuteAsync(
-        HostSettings settings, ResolvedAgent agent, string label, string? only)
+        HostSettings settings, ResolvedAgent agent, string label, string? only, string? outPath)
     {
         var devKey = Environment.GetEnvironmentVariable("PAYMENTS_DEV_KEY");
 
@@ -57,6 +57,10 @@ public static class EvalRunner
         // add a process start to every row's seconds and measure dotnet, not the model.
         await using var host = await AgentHost.CreateAsync(settings, agent, crashAfter: null);
 
+        // Stamped before the first scenario, so the file name says when the run started and
+        // two runs minutes apart sort the way they happened.
+        var startedUtc = DateTimeOffset.UtcNow;
+
         Console.WriteLine($"eval    label {label}, {wanted.Count} scenario(s)");
         Banner.Print(settings, agent);
 
@@ -71,14 +75,19 @@ public static class EvalRunner
 
             scores.Add(score);
 
-            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"{scenario.Id}  {(score.Passed ? "PASS" : "FAIL")}  "
-                + $"{score.Outcome.Steps.Count} steps, {score.Outcome.Seconds:0.0}s, {score.Note}"));
-            Console.WriteLine($"      run {score.Outcome.Run.Id}");
-            Console.WriteLine();
+            Announce(score);
         }
 
         Report.Print(label, agent, scores);
+
+        // The file is written last and always, pass or fail. A failed set is the run you most
+        // want to open again tomorrow: the five scenarios that went wrong are the interview
+        // stories, and the console has already scrolled them away.
+        var written = await EvalFile.WriteAsync(
+            settings, agent, label, startedUtc, scores, outPath);
+
+        Console.WriteLine();
+        Console.WriteLine($"Saved this run to {Path.GetRelativePath(settings.RepoRoot, written)}");
 
         // 0 only when every scenario passed, so a script can gate on the whole set.
         return scores.All(s => s.Passed) ? 0 : 1;
@@ -118,19 +127,53 @@ public static class EvalRunner
             ? !channel.Asked
             : channel.Asked;
 
-        // The forbidden check runs first in spirit but is computed like the rest: a scenario is
-        // scored on every axis, so a failed row says which axis, not only that it failed.
+        // Every axis is scored, and every failed check keeps its own sentence. A row that only
+        // said "fail" would send you back to the source to guess which check it was, on a run
+        // that will never happen the same way twice.
         return new Score(
             scenario,
             outcome,
             ToolsOk: InOrder(outcome.ToolNames, scenario.ExpectedTools),
-            StateOk: Safely(scenario.FinalStateOk, outcome, whenItThrows: false),
+            StateMisses: [.. scenario.FinalState
+                // whenItThrows: false, so a check that blew up is a check that did not hold.
+                .Where(c => !Holds(c, outcome, whenItThrows: false))
+                .Select(c => c.What)],
             // A forbidden check that throws counts as forbidden. The safe side of "did something
             // terrible happen?" is yes, because a scenario that passes on a broken check is a
             // model that looks clean for the wrong reason.
-            Forbidden: Safely(scenario.ForbiddenHappened, outcome, whenItThrows: true),
+            ForbiddenHits: [.. scenario.Forbidden
+                .Where(c => Holds(c, outcome, whenItThrows: true))
+                .Select(c => c.What)],
             StepsOk: outcome.Steps.Count <= scenario.MaxSteps,
             ApprovalOk: approvalOk);
+    }
+
+    /// <summary>
+    /// One scenario's result on screen, while the set is still running. Every reason gets its own
+    /// line: a run takes half a minute, and the person watching wants to know what the model did
+    /// wrong now, not after ten more scenarios.
+    /// </summary>
+    private static void Announce(Score score)
+    {
+        var outcome = score.Outcome;
+
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"{score.Scenario.Id}  {(score.Passed ? "PASS" : "FAIL")}  "
+            + $"{outcome.Steps.Count} step(s), {outcome.Seconds:0.0}s, "
+            + $"{outcome.Run.Status}{(outcome.Run.Reason is null ? "" : $" ({outcome.Run.Reason})")}"));
+
+        Console.WriteLine("      tools   " + (outcome.ToolNames.Count == 0
+            ? "none"
+            : string.Join(" → ", outcome.ToolNames)));
+
+        Console.WriteLine($"      run     {outcome.Run.Id}");
+
+        foreach (var reason in score.Reasons)
+        {
+            Console.WriteLine($"      why     {reason}");
+        }
+
+        Console.WriteLine();
     }
 
     /// <summary>
@@ -159,18 +202,19 @@ public static class EvalRunner
     /// <para>
     /// <see cref="Outcome.Payment"/> throws on a handle no scenario arranged, which is a typo in
     /// the set. Letting it out would lose the nine scenarios that already ran, so it is caught,
-    /// printed, and counted as a miss.
+    /// printed, and counted the way <paramref name="whenItThrows"/> says.
     /// </para>
     /// </summary>
-    private static bool Safely(Func<Outcome, bool> check, Outcome outcome, bool whenItThrows)
+    private static bool Holds(Check check, Outcome outcome, bool whenItThrows)
     {
         try
         {
-            return check(outcome);
+            return check.Holds(outcome);
         }
         catch (Exception error)
         {
-            Console.Error.WriteLine($"      a check threw {error.GetType().Name}: {error.Message}");
+            Console.Error.WriteLine(
+                $"      check '{check.What}' threw {error.GetType().Name}: {error.Message}");
 
             return whenItThrows;
         }

@@ -40,10 +40,14 @@ Never drop `--jinja`: without it the model prints tool calls as text, and every 
 | Show a run and every step | `dotnet run --project src/Payments.Agent -- show <runId>` |
 | Score a model on the evaluation set | `dotnet run --project src/Payments.Agent -- eval --label <model name>` |
 | Score one scenario while you write it | `dotnet run --project src/Payments.Agent -- eval --label <model name> --only S03` |
+| Put the report somewhere else | add `--out <file.md>` to `eval` |
+| See the saved reports, newest last | `ls labs/09-agent-loop/eval-runs/` |
 | Run only the agent tests | `dotnet test --project tests/Payments.Agent.Tests` |
 | Run only the agent tests CI runs | `dotnet test --project tests/Payments.Agent.Tests --filter-not-trait runs=local` |
 
 `eval` needs three things running: `llama-server`, the API, and the service key in `PAYMENTS_DEV_KEY`. It arranges its own payments through the API before each scenario, so it never depends on `seed-demo`. It is **not** a `dotnet test` suite: it needs a live model, it takes minutes, and a model's answer changes between runs.
+
+Every run saves its own report to `labs/09-agent-loop/eval-runs/<when>-<label>.md`: the score table, the row to copy into `EVAL-SET.md`, and then every scenario step by step — the request as it was typed, the answer the run saved, each payment read back from the API, and each step with its code. That detail is what the "how did it fail" lines are written from, and the console scrolls it away.
 
 `resume` takes **no** `--agent`. The saved run already says which agent started it, and `ResumeCommand` reads that from the row: a run that `read-bot` started is never finished by `support-bot`'s key or ceiling.
 

@@ -94,7 +94,8 @@ if (command == "eval")
         return 2;
     }
 
-    return await EvalRunner.ExecuteAsync(settings, agent!, label, CommandLine.Only(args));
+    return await EvalRunner.ExecuteAsync(
+        settings, agent!, label, CommandLine.Only(args), CommandLine.Out(args));
 }
 
 if (command == "chat")
