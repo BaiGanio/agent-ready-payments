@@ -41,6 +41,8 @@ Rules from the spec, short form:
 | 19 | `labs/19-human-in-the-loop-ui` *(optional)* | **The human in the loop:** an approval screen for agent proposals. The person sees the exact action, evidence and expiry, then approves exactly that version (`If-Match`). Four-eyes, `payments:approve` scope (never on agent keys), no "edit" for money. Svelte 5; patterns reused from `scrooge-financing` | 4, UI | 3 h | 08, 09 (+ 20, 13) | Pending list + card against the real API; tests for stale (`412`), expired, double click, agent key `403`, `four_eyes_required` |
 | 20 | `labs/20-etag-if-match` *(optional)* | **ETag and `If-Match`** on the Postgres API: a `version` column, `ETag` on `GET`, `412 stale_version` on a stale write, `304` on `If-None-Match`; lab 08's refund token bound to the version. Moved out of lab 04 on 2026-10-22 | 1, 4 | 2–3 h | 03, 04, 08 | Two clients read version 7: the first capture wins, the second gets `412 stale_version` |
 
+| 21 | `labs/21-engine-parity` | **Engine parity:** the API runs on **either** Postgres or SQL Server, picked by one config line. The two missing SQL Server tables (`IdempotencyKey`, `ApiKey`), a `SqlServer*` set behind the four existing seams, the whole API suite as a `[Theory]` on the engine, and a CI gate that proves both | 1, 2, 5 | 4–5 h | 03, 06, 08 | `"Engine": "sqlserver"` + `dotnet run` serves every endpoint; one test suite green on both engines; two CI jobs required |
+
 Buckets (from `SPEC.md` §1): **1** C#/.NET · **2** SQL Server · **3** concurrency / flow · **4** agent orchestration · **5** TDD/BDD/Gitflow.
 
 ### Dapper vs EF Core — where each one goes
@@ -180,10 +182,14 @@ flowchart TD
     L18["18 System design capstone<br/>whiteboard · mock interview"]
     L19["19 Human-in-the-loop UI<br/>approval screen · optional"]
     L20["20 ETag + If-Match<br/>stale reads over HTTP · optional"]
+    L21["21 Engine parity<br/>one API · either database"]
     TP["TALKING-POINTS.md<br/>Aperio evidence"]
 
     L00 --> L01 --> L02 --> L03
     L01 --> L04 --> L05 --> L06
+    L06 --> L21
+    L03 --> L21
+    L08 --> L21
     L03 --> L07
     L03 --> L08 --> L09
     L02 --> L10
@@ -390,6 +396,10 @@ Decided things only. Open findings, fix-later items, questions and ideas live in
   - The refund **ceiling** is a host rule, `AgentOptions.RefundCeiling` = 500.00. The turn deadline (`CF-007`) is in this lab.
   - **A live demo is a deliverable**, not only tests: two configured agents (`support-bot`, `read-bot`) in `agents.json`, a `chat` mode, `seed-demo`, `show`, and `labs/09-agent-loop/DEMO.md` with the MCP Inspector scene first. Rehearsed on the picked model.
 - **Found and decided 2026-10-22 (the double refund):** two refunds with **different** `Idempotency-Key`s on one payment both won, 29 of 30 rounds, because `DapperPaymentStore.UpdateAsync` wrote `where id = @Id` and nothing else. Lab 03 only raced **one** key. Fixed **inside lab 09** (steps 4–5), not as a hotfix: `UpdateAsync` takes `select … for update`, re-checks the stored operation count against the loaded one and throws `ConcurrentUpdateException` on a mismatch; `CommandAsync` reloads and runs the command **once more**, so the loser gets the domain's answer (`422 amount_exceeds_captured`, or `409 illegal_transition` after a full refund). Rejected: a `version` column with `409 concurrent_update` — it takes lab 20's column early, and an agent cannot act on "conflict". Measured in a scratch copy: 0 doubles in 90 rounds, the 114 API tests green.
+
+- **Decided 2026-10-23 (engine parity is its own lab, lab 21):** the API gets to run on **either** engine, picked by one configuration line (`Database:Engine`), and that work is **`labs/21-engine-parity`**, placed **after lab 06**. The seams already exist — `IPaymentStore`, `IIdempotencyStore`, `IPaymentQueries`, `IApiKeyStore` — so the lab adds a second implementation behind them, the two SQL Server tables lab 03 and lab 08 never got (`IdempotencyKey`, `ApiKey`), the startup switch, and the API suite as a `[Theory]` on the engine. It runs **after** labs 04–06 on purpose: by then the T-SQL has been written by hand, so the lab is typing, not learning. **Lab 04 does not grow** — it stays procs and locking. Rejected: doing parity first, which parks lab 09 and lab 04 for a week. Measured the same day: the whole Postgres-vs-SQL-Server difference across today's 465 lines of store code is **six** places (`on conflict … returning`, `now()`, `::text` on a null parameter, `limit` vs `offset/fetch`, the column alias, the three type names) plus `for update` → `with (updlock, rowlock)` and the isolation question. **Correction to the 2026-10-22 `runs=local` reasoning:** that tag is about *this Mac* needing Rosetta, not about CI being unable — `mcr.microsoft.com/mssql/server:2022` is **native** on an `ubuntu-latest` runner, so lab 21 runs the SQL Server half in CI as a service container and the parity claim becomes a required check. Open: which engine becomes the default afterwards (`CF-039`).
+
+- **Decided 2026-10-23 (the lockstep rule covers every shared table, and twins land in the same commit):** `db/README.md` named only `Merchant`, `Payment` and `PaymentOperation` as the shared set, so lab 03's `idempotency_key` and lab 08's `api_key` were written for Postgres only and the two engines drifted. From today the shared set is **every table the API reads or writes**, and **a new Postgres migration gets its SQL Server twin in the same commit** (and the other way round). Lockstep is still about columns, types and rules, not spelling: `snake_case` in Postgres, `PascalCase` in SQL Server (2026-10-19). Engine-only columns stay allowed and must say so in the script — `Payment.RowVer` and `Payment.DuplicateOf` are SQL Server only (lab 04), `Policy.Embedding` is Postgres only (lab 12). Lab 21 pays off the drift that already happened; this rule stops any new drift from today. Written into `CLAUDE.md` so it cannot be forgotten.
 
 ## 9. Environment checklist
 

@@ -59,7 +59,8 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 - Runnable code is **.NET 10**. .NET Framework is paper-only (Lab 10). It cannot run on macOS.
 - Data access: **Dapper** first. **Bare ADO.NET** in Lab 05. **EF Core** only where `docs/plan/PLAN.md` ("Dapper vs EF Core") says so.
 - Databases: **Postgres** for the API, Docker and k3s path. **SQL Server** (amd64 under Rosetta) for stored procedures and locking. **Never** target SQL Server at the Pi.
-- Migrations: **DbUp** with plain `.sql` files. One migration per lab. See `db/README.md`.
+- Migrations: **DbUp** with plain `.sql` files. One migration per lab per engine. See `db/README.md`.
+- **Lockstep, in the same commit.** Every table the API reads or writes exists in **both** engines. A new Postgres migration gets its SQL Server twin in the same commit, and the other way round. Lockstep is about columns, types and rules — not spelling (`snake_case` in Postgres, `PascalCase` in SQL Server). An engine-only column is allowed and the script must say so in a comment; `db/README.md` lists the ones we have.
 - Tests: xUnit v3 (default until Lab 01 decides). Testcontainers for Postgres. Respawn between tests.
 - BDD: **Reqnroll** (not SpecFlow).
 - Agent labs run **offline**: `llama-server` + a local model. No API key needed.

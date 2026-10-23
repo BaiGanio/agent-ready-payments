@@ -7,9 +7,25 @@ One small **payments database** for all labs. It grows lab by lab: each lab adds
 | Database | Engine | Container | Used by |
 |---|---|---|---|
 | `payments_labs` | **Postgres 17 + pgvector** (`pgvector/pgvector:pg17`, native arm64) | `payments-postgres` | Labs 02, 03, 07, 08, 09, 12 — the API and agent flow |
-| `PaymentsLabs` | **SQL Server 2022** (`mcr.microsoft.com/mssql/server:2022-latest`, amd64 under Rosetta) | `payments-mssql` | Labs 04, 05, 06 — stored procedures, locking, bulk, settlement |
+| `PaymentsLabs` | **SQL Server 2022** (`mcr.microsoft.com/mssql/server:2022-latest`, amd64 under Rosetta) | `payments-mssql` | Labs 04, 05, 06 — stored procedures, locking, bulk, settlement. Lab 09 — `AgentRun` / `AgentStep`. **From lab 21 — the API itself, when `Database:Engine` says so** |
 
-The shared tables (`Merchant`, `Payment`, `PaymentOperation`) exist in **both** engines with the same columns. The two script sets are kept **in lockstep**: if you change one, you change the other in the same commit. This is the same rule as Aperio's `db/migrations/` + `db/migrations-sqlite/`.
+### The lockstep rule (tightened 2026-10-23)
+
+**Every table the API reads or writes exists in both engines, and a new migration gets its twin in the same commit.** Not only `Merchant`, `Payment` and `PaymentOperation` — also `IdempotencyKey` (lab 03) and `ApiKey` (lab 08). This is the same rule as Aperio's `db/migrations/` + `db/migrations-sqlite/`, which hold **14 files each** (verified 2026-10-23).
+
+Lockstep is about **columns, types and rules — not spelling**. `snake_case` in Postgres, `PascalCase` in SQL Server (decided 2026-10-19).
+
+An **engine-only** column is still allowed, and the script must say so in a comment:
+
+| Engine-only | Engine | Lab | Why |
+|---|---|---|---|
+| `Payment.RowVer` | SQL Server | 04 | `rowversion` has no Postgres equal; lab 20 uses a `version int` column there |
+| `Payment.DuplicateOf` | SQL Server | 04 | feeds `usp_MarkDuplicatePair`, the deadlock |
+| `PaymentJob` | SQL Server | 04 | the `READPAST` queue |
+| `Policy.Embedding`, `Policy.SearchText` | Postgres | 12 | pgvector and `tsvector` |
+| `StagingSettlementFile`, `SettlementBatch`, `SettlementItem` | SQL Server | 05, 06 | `SqlBulkCopy` and TVP work; no Postgres lab needs them |
+
+**The drift already happened:** lab 03 and lab 08 wrote Postgres-only tables before this rule existed. [`labs/21-engine-parity`](../labs/21-engine-parity) pays it off and makes the API run on either engine from one config line. This rule stops any new drift from 2026-10-23.
 
 ## Tables, and which lab adds them
 
@@ -170,6 +186,7 @@ erDiagram
 | 14 | Postgres | `agent_audit`: one row per agent tool call, with the key, tool, payment, redacted arguments, result code, approver and trace id (moved from lab 08, 2026-10-21) |
 | 15 | Postgres | `ToolResult` (offloaded big results: id, run id, tool, content, created) |
 | 16 | SQL Server | `AgentStep` gets `Status` (`Planned/Started/Completed/Failed/InDoubt`), `IdempotencyKey`, `StartedUtc`; `AgentRun` gets `NextWakeUtc` and `ToolSchemaHash` |
+| 21 | SQL Server | The twins lab 03 and lab 08 never got: `IdempotencyKey` (PK `(MerchantId, Key)`) and `ApiKey`. After this, every API table exists on both engines (2026-10-23) |
 
 ## Naming: `snake_case` in Postgres, `PascalCase` in SQL Server
 

@@ -81,6 +81,7 @@ Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the s
 | 18 | [System design capstone](../labs/18-system-design-capstone) | Spec only | — | Design-doc scaffold, then the lab |
 | 19 | [Human-in-the-loop UI](../labs/19-human-in-the-loop-ui) *(optional)* | Spec only | — | Bench sheet, then the lab |
 | 20 | [ETag + If-Match](../labs/20-etag-if-match) *(optional)* | Spec only | — | Moved out of lab 04 on 2026-10-22. Bench sheet + test list, then the lab |
+| 21 | [Engine parity](../labs/21-engine-parity) | Spec only | — | Added 2026-10-23. Runs after lab 06. Bench sheet + test list, then the lab |
 
 Every lab from 02 on needs three files before it can start: `WORKBENCH.md`, the test list, and any scaffold. The agent writes them **at the start of that lab**, never earlier (`plan/PLAN.md` §8).
 
