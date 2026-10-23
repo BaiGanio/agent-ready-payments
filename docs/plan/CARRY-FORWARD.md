@@ -7,7 +7,7 @@ Read it at the start of every session. Groom it at the end of every lab.
 ## How it works
 
 ```mermaid
-flowchart LR
+flowchart TD
     W["WORKBENCH.md<br/>Notes while you work"] -->|"end of a lab"| CF["CARRY-FORWARD.md<br/>the inbox"]
     S["mid-session findings<br/>and ideas"] --> CF
     CF -->|"we decide it"| P["PLAN.md section 8<br/>Decided"]
@@ -60,6 +60,7 @@ Known debt. Each one needs a lab or a commit, not a discussion.
 | CF-026 | 2026-10-20 | lab 03 prep | A key whose request died hard (process killed) stays `InProgress` forever, and every retry gets `409`. Nothing reclaims it. The real fix is a `locked_at` column and a takeover after a timeout, plus a recovery point per step. Lab 16 owns in-doubt calls. | → lab 16 |
 | CF-006 | 2026-10-18 | lab 00 | No CI, and no PR gate: `develop` merges into `main` with nothing checking it. **Scoped 2026-10-20. Both open decisions answered 2026-10-22 (`PLAN.md` §8): the PR gate shape, and `[Trait("runs","local")]` tagging the exceptions.** Built as a proof of concept **on `develop`**, not on a branch of its own. What is left: add `.github/workflows/ci.yml`, push it, then turn on branch protection for `main` in the GitHub UI with the check required. The repo is public, so required checks and protection are free.  **2026-10-22: the push and the protection wait until lab 04 closes; lab 04 step 1 does the back-merge.** Lab 09 now runs first (2026-10-22); its step 1 does the back-merge, and the gate still waits for lab 04. | In flight |
 | CF-013 | 2026-10-19 | lab 01 step 12 | The transition rule is written twice: once in each method's first guard, once in `AllowedActions`. Step 12 (drive both from one `Table`, plus a shared amount check for `Capture`/`Refund`) was not done — lab 01 closes green at step 11. A verified-green version of the refactor exists; redo it in a later lab where a second aggregate shares the rule. | Open |
+| CF-040 | 2026-10-23 | lab 09 step 5 | No lint checks the Mermaid blocks, so a broken diagram ships and only shows up as a parse error on the web — one in lab 00's `WORKBENCH.md` had been broken since the lab closed. A parse-only check (jsdom + `mermaid.parse`, no browser) over every ` ```mermaid ` block, run in CI, would catch it. Measured 2026-10-23: 50 blocks, all green after the sweep. | Open |
 | CF-029 | 2026-10-21 | lab 08 prep | A refund left `refund_in_doubt` whose token then expires cannot be retried from the agent: the token is gone, and with it the `Idempotency-Key`. A human must read the payment to know. Lab 16 owns in-doubt calls; it may keep in-doubt tokens past their expiry, or move proposals into the API. | → lab 16 |
 
 ## Ideas for later

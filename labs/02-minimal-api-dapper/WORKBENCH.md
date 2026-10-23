@@ -941,7 +941,7 @@ feat(lab-02): add the keyset list query
 **Why.** The cursor is the API's promise about paging, so it has to be a thing the client carries and never builds. Base64 of `created_at|id` is opaque enough for that: nobody will hand-craft one, and you can change what is inside it later without breaking a caller. Decoding it is the risky part — it arrives from outside, so every failure must be a `400` with `code: invalid_cursor`. A `FormatException` escaping into a 500 says "we crashed" when the truth is "your input was wrong", and the difference decides whether a client retries forever or fixes its call.
 
 ```mermaid
-flowchart LR
+flowchart TD
     R["GET /payments?merchant=M1&limit=50"] -->|"no cursor"| P1["page 1<br/>rows 1-50"]
     P1 -->|"last row (created_at, id)<br/>base64"| N1["nextCursor"]
     N1 -->|"client sends it back"| R2["GET …&cursor=MjAy…"]

@@ -31,7 +31,7 @@ Code sketches: `docs/aperio/AGENT-READY-BACKEND.md` §1 (loop), §2 (`AgentRun` 
 ## What this lab builds
 
 ```mermaid
-flowchart LR
+flowchart TD
     U["You<br/>(console)"] -->|"a request"| LOOP
     subgraph agent["src/Payments.Agent"]
         LOOP["AgentLoop<br/>the while, the guards"]

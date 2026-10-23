@@ -15,7 +15,7 @@ The ad asks for *"backend services with clear and deterministic interfaces that 
 ## What this lab builds
 
 ```mermaid
-flowchart LR
+flowchart TD
     C["client or agent<br/>HTTP + JSON"] -->|"POST /payments/{id}/refund"| E["endpoint<br/>Payments.Api"]
     E -->|"shape check fails"| P400["400 ProblemDetails<br/>errors per field"]
     E -->|"valid shape"| H["command handler"]

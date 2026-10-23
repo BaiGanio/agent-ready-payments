@@ -23,7 +23,7 @@ Started 2026-10-22.
 ## The target state
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph tests["tests/Payments.Data.SqlServer.Tests"]
         FX["SqlServerDatabase<br/>from Payments.Testing (lab 09)"]
         T["8 groups, 42 tests<br/>[Trait runs=local]"]

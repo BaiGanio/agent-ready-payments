@@ -27,7 +27,7 @@ Code sketch: `docs/aperio/AGENT-READY-BACKEND.md` §5. It shows the simple one-p
 ## What this lab builds
 
 ```mermaid
-flowchart LR
+flowchart TD
     C["client or agent<br/>Idempotency-Key: K"] -->|"POST /payments<br/>or /payments/{id}/refund"| E["endpoint"]
     E -->|"no key, or a bad one"| P400["400 idempotency_key_required<br/>or idempotency_key_invalid"]
     E -->|"phase 1: claim (merchant, K)"| IK["idempotency_key table<br/>primary key (merchant_id, key)"]

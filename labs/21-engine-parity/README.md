@@ -107,7 +107,7 @@ Two more that are not SQL but matter:
 ## CI: both engines, one gate
 
 ```mermaid
-flowchart LR
+flowchart TD
     PR["pull request into main"] --> J1["job: postgres<br/>Testcontainers pgvector:pg17"]
     PR --> J2["job: sqlserver<br/>service container mssql/server:2022 (amd64, native)"]
     J1 -->|"green"| GATE["the gate"]

@@ -13,7 +13,7 @@ You write every line in `src/Payments.Domain`. The 160 tests in `tests/Payments.
 One project with no dependencies, and one test project that drives it.
 
 ```mermaid
-flowchart LR
+flowchart TD
     T["tests/Payments.Domain.Tests<br/>160 tests, xUnit v3"] -->|"ProjectReference"| D["src/Payments.Domain<br/>pure .NET 10, zero packages"]
     C["FixedClock : TimeProvider<br/>(in the test project)"] -->|"injected into Payment.Create"| D
     D -.->|"no reference"| DB[("database")]

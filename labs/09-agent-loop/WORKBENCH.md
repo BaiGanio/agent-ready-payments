@@ -26,7 +26,7 @@ Started 2026-10-22.
 ## The target state
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph src["src"]
         MIG["Payments.Migrations<br/>RepoRoot, LocalDatabases, Migrator"]
         AG["Payments.Agent<br/>AgentLoop, McpToolHost,<br/>EfAgentRunStore, console"]
@@ -322,7 +322,7 @@ sequenceDiagram
 Inside the transaction the **order** is the other half of the fix.
 
 ```mermaid
-flowchart LR
+flowchart TD
     A["begin"] -->|"holds the row"| B["select 1 … for update"]
     B -->|"is my load still true?"| C["count payment_operation"]
     C -->|"count ≠ loaded → throw"| D["ConcurrentUpdateException"]
@@ -748,7 +748,7 @@ test(lab-09): add the guard tests (red)
 **Why.** Each guard turns one model mistake into a calm, saved outcome instead of a hang, a crash or a wrong action. **Refuse, never repair** (QA Q15): broken arguments are not "fixed" by guessing the missing brace, and a tool call printed as text is not parsed and run — Aperio recovers some leaks, and for a refund tool that is a risk this lab does not take. The step cap is the only bound that cannot be dodged: two tools taking turns slip past the repeat breaker every time. The turn deadline is the one Aperio does not have (`CF-007`): a `CancellationTokenSource` made with the loop's `TimeProvider`, linked to the caller's token, so a test can advance fake time and production uses the real clock.
 
 ```mermaid
-flowchart LR
+flowchart TD
     R["a reply"] --> T{"tool calls?"}
     T -->|"no, empty"| E1["retry once,<br/>then Failed empty_reply"]
     T -->|"no, text with a tool name + {"| E2["never run, retry once,<br/>then Failed tool_call_leak"]

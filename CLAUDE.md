@@ -100,7 +100,7 @@ Visuals come first in this repo. The user learns from them.
 
 | Shape | Mermaid type |
 |---|---|
-| Boxes and who calls whom | `flowchart LR` |
+| Boxes and who calls whom | `flowchart TD` |
 | Who talks to whom, in what order | `sequenceDiagram` |
 | Allowed and illegal moves (payment status, workflow) | `stateDiagram-v2` |
 | Tables and keys | `erDiagram` |
@@ -109,6 +109,8 @@ Visuals come first in this repo. The user learns from them.
 
 - Label every arrow. An unlabelled arrow teaches nothing.
 - Keep one idea per diagram. Two small diagrams beat one crowded one.
+- **Flowcharts go down, not across: `flowchart TD`.** GitHub renders a diagram into a fixed page width, so `LR` squeezes a long chain into a thin strip and the text turns tiny. `TD` gives every box the full width. Use `LR` only for a chain of three boxes or fewer (decided 2026-10-23).
+- **No `;` inside a diagram line.** Mermaid reads it as the end of the statement, and the rest of the line becomes a line with no arrow — a parse error on GitHub. Write `begin, then select …`, not `begin; select …`.
 - Use Mermaid for diagrams.
 - Write absolute dates (`2026-10-18`), not "today" or "last week".
 

@@ -2,7 +2,7 @@
 
 The status board. One row per lab. This is the only place that says where you are.
 
-Updated 2026-10-22 (lab 09 prepared, runs before lab 04).
+Updated 2026-10-23 (lab 09 steps 4–5 done: the double refund is fixed).
 
 ## How to read it
 
@@ -27,7 +27,7 @@ Rules:
 
 **Lab 04 comes after lab 09.** Its bench sheet is already updated for the new order: its script is now `0002`, and its step 3 is a check, because lab 09 does `CF-016`.
 
-**A real bug is open on `main`:** two refunds with different `Idempotency-Key`s can both win (29 of 30 rounds, measured 2026-10-22). Lab 09 steps 4–5 fix it (`plan/PLAN.md` §8).
+**A real bug is still open on `main`:** two refunds with different `Idempotency-Key`s can both win (29 of 30 rounds, measured 2026-10-22). **Fixed 2026-10-23 on `feature/lab-09-agent-loop`** by steps 4–5 — `select … for update`, the operation re-count and one retry (`plan/PLAN.md` §8). It reaches `main` when the lab merges.
 
 **The CI gate (`CF-006`) waits until lab 04 closes** (decided 2026-10-22). `.github/workflows/ci.yml` exists and its command is verified on this Mac. What is left after lab 04: push `develop`, so GitHub runs the workflow once and learns the check exists, then turn on branch protection for `main` with `build-and-test` required.
 
@@ -40,7 +40,7 @@ Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the s
 - [x] 1 Start the lab, commit the prep
 - [x] 2 `Payments.Migrations` (`CF-016`)
 - [x] 3 `Payments.Testing` (`CF-033`)
-- [ ] 4–5 The double refund: red, then lock, check, retry once
+- [x] 4–5 The double refund: red, then lock, check, retry once
 - [ ] 6–7 Agent projects, `0001_agent_run.sql`
 - [ ] 8–9 EF Core run store
 - [ ] 10–11 The loop
