@@ -14,8 +14,10 @@ public static class CommandLine
           resume <runId>
           show   <runId>
           seed-demo
+          eval  [--agent <name>] --label <name> [--only S03]
 
         agents come from agents.json next to the executable (support-bot, read-bot).
+        eval needs a live model and the service key in PAYMENTS_DEV_KEY.
         """;
 
     /// <summary>The agent asked for, or the default one.</summary>
@@ -80,6 +82,34 @@ public static class CommandLine
 
         return true;
     }
+
+    /// <summary>
+    /// The name the evaluation's scores are filed under: the model on the rung being scored.
+    /// <para>
+    /// It is required and never guessed from <c>LLM_MODEL</c>, because llama-server answers with
+    /// its own id whatever it is asked for, and two rungs scored under the same label are two
+    /// numbers nobody can tell apart afterwards.
+    /// </para>
+    /// </summary>
+    public static bool TryLabel(string[] args, out string label, out string? error)
+    {
+        label = Flag(args, "--label") ?? "";
+
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            error = "eval needs --label with the model being scored, for example:\n"
+                + "  eval --label gemma-4-E4B";
+
+            return false;
+        }
+
+        error = null;
+
+        return true;
+    }
+
+    /// <summary>One scenario instead of all ten, while a scenario is being written.</summary>
+    public static string? Only(string[] args) => Flag(args, "--only");
 
     /// <summary>A run id, for <c>resume</c> and <c>show</c>.</summary>
     public static bool TryRunId(string[] args, out Guid id, out string? error)

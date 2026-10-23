@@ -1,5 +1,6 @@
 using Payments.Agent;
 using Payments.Agent.Commands;
+using Payments.Agent.Eval;
 using Payments.Migrations;
 
 // The front door: read the command line, read the environment, pick the command, and let the
@@ -16,7 +17,7 @@ if (args.Length == 0)
 var command = args[0];
 
 // The commands are checked before anything is started, so a typo costs nothing.
-if (command is not ("chat" or "run" or "resume" or "show" or "seed-demo"))
+if (command is not ("chat" or "run" or "resume" or "show" or "seed-demo" or "eval"))
 {
     Console.Error.WriteLine($"Unknown command '{command}'.");
     Console.Error.WriteLine();
@@ -74,13 +75,26 @@ switch (command)
     }
 }
 
-// Only chat and run are left, and both need a configured agent: its options for the loop and
-// its key for the MCP child.
+// chat, run and eval are left, and all three need a configured agent: its options for the loop
+// and its key for the MCP child. eval scores one agent, because the ceiling and the prompt are
+// part of what is being scored.
 if (!AgentProfiles.TryResolve(CommandLine.AgentName(args), out var agent, out var error))
 {
     Console.Error.WriteLine(error);
 
     return 2;
+}
+
+if (command == "eval")
+{
+    if (!CommandLine.TryLabel(args, out var label, out var missing))
+    {
+        Console.Error.WriteLine(missing);
+
+        return 2;
+    }
+
+    return await EvalRunner.ExecuteAsync(settings, agent!, label, CommandLine.Only(args));
 }
 
 if (command == "chat")

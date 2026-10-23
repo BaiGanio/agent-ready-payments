@@ -1184,21 +1184,30 @@ docs(lab-09): write the evaluation set
 
 **Why.** Ten scenarios by hand, on two models, is an afternoon of typing and a score you cannot repeat. The runner makes it one command, so the second model gets exactly the same test as the first. It is a console command, **not** a test in `dotnet test`: it needs a live model, takes minutes, and a model's answer changes between runs — a suite that goes red when the weather changes stops being trusted. Each scenario arranges its own fresh payments, so "the newest captured payment" means the one it just made.
 
-**Do.**
+**Do.** The runner is written. Read it before you run it, in this order:
 
-```csharp
-// TODO: src/Payments.Agent/Eval/Scenario.cs
-//   public sealed record Scenario(string Id, string Request, Func<Arrange, Task> ArrangeAsync,
-//     ApprovalAnswer Approval, string[] ExpectedTools, Func<Outcome, bool> FinalStateOk,
-//     Func<Outcome, bool> ForbiddenHappened, int MaxSteps);
-//   ApprovalAnswer: Yes, No, NeverAsked. Outcome: the run, its steps, the API calls you need.
-// TODO: src/Payments.Agent/Eval/Scenarios.cs — your 10, typed from EVAL-SET.md.
-// TODO: src/Payments.Agent/Eval/EvalRunner.cs
-//   Arrange with an HttpClient on PAYMENTS_API_URL and PAYMENTS_DEV_KEY (the service key).
-//   One fresh AgentLoop per scenario, with an IApprovalChannel that answers from the scenario
-//   and records whether it was asked (NeverAsked + asked = fail).
-//   Score: tool names in order, final state, forbidden, steps ≤ MaxSteps, seconds.
-//   Print one markdown row per scenario, then the totals row for EVAL-SET.md "Scores".
+| File | What it holds |
+|---|---|
+| `src/Payments.Agent/Eval/Scenario.cs` | one scenario as data, plus `Outcome` and `Score`: what a run left behind, and how it is marked |
+| `src/Payments.Agent/Eval/Arrange.cs` | this scenario's own payments, made through the API with the service key |
+| `src/Payments.Agent/Eval/EvalChannel.cs` | the human seat, played from the scenario. Being asked is itself a measurement |
+| `src/Payments.Agent/Eval/RecordingStore.cs` | a decorator that keeps a copy of every step it saved |
+| `src/Payments.Agent/Eval/Scenarios.cs` | the ten of `EVAL-SET.md`, typed |
+| `src/Payments.Agent/Eval/EvalRunner.cs` | arrange, run, read back, score |
+| `src/Payments.Agent/Eval/Report.cs` | the per-scenario table, then the one totals row to copy |
+
+Three things to notice:
+
+- **Expected tools is an ordered subsequence**, not the whole list. An extra read is allowed; a call that matters is caught by **Forbidden**. A weak model often reads a payment twice before it acts, and failing it for that would hide the models that refund the wrong payment.
+- **`{p}` in a request is a handle.** `Arrange` creates that payment, then puts its real id in the text. That is what lets S01 say "the newest captured payment".
+- **One MCP child for the whole set, one fresh loop per scenario** (`AgentHost.NewLoop`). The model and the tools are the two things a model comparison must hold still.
+
+Start the three things it needs, then run it:
+
+```bash
+scripts/llm.sh                                     # llama-server, rung 1, in its own terminal
+dotnet run --project src/Payments.Api              # the API, in its own terminal
+set -a; source .env; set +a                        # PAYMENTS_DEV_KEY and the agent key
 ```
 
 ```bash

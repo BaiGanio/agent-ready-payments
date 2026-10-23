@@ -23,14 +23,34 @@ namespace Payments.Agent.Commands;
 public sealed class AgentHost : IAsyncDisposable
 {
     private readonly McpClient _mcp;
+    private readonly IChatClient _model;
+    private readonly IToolHost _tools;
+    private readonly AgentOptions _options;
 
-    private AgentHost(McpClient mcp, AgentLoop loop)
+    private AgentHost(
+        McpClient mcp, IChatClient model, IToolHost tools, AgentOptions options, AgentLoop loop)
     {
         _mcp = mcp;
+        _model = model;
+        _tools = tools;
+        _options = options;
         Loop = loop;
     }
 
     public AgentLoop Loop { get; }
+
+    /// <summary>
+    /// Another loop on the same model and the same MCP child, with its own human seat and its own
+    /// notepad.
+    /// <para>
+    /// The evaluation runner needs one fresh run per scenario, and a fresh child process per
+    /// scenario would put a <c>dotnet</c> start-up into every row's seconds. The model and the
+    /// tools are the two things a model comparison must hold still, so they are shared and
+    /// everything that carries state per run is not.
+    /// </para>
+    /// </summary>
+    public AgentLoop NewLoop(IApprovalChannel approvals, IAgentRunStore store) =>
+        new(_model, _tools, approvals, store, _options, TimeProvider.System);
 
     /// <summary>
     /// The store on its own, for a command that only reads saved runs.
@@ -99,7 +119,7 @@ public sealed class AgentHost : IAsyncDisposable
             agent.Options,
             TimeProvider.System);
 
-        return new AgentHost(mcp, loop);
+        return new AgentHost(mcp, model, tools, agent.Options, loop);
     }
 
     /// <summary>
