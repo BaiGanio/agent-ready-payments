@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
@@ -12,9 +13,19 @@ namespace Payments.Agent.Tools;
 /// tools on every pass of the loop would put a round trip in front of every model call, and the
 /// list does not change inside a turn.
 /// </para>
+/// <para>
+/// This host also holds the key to the refund gate. A proposal comes back from the server with a
+/// <c>confirmation_token</c> on it, and this host <b>cuts it out</b> before the result goes into
+/// the conversation. The token lives on the run's <see cref="PendingRefund"/>, which only
+/// <see cref="ConfirmAsync"/> reads. So the model is never handed the key, and no sentence in any
+/// payload can talk it into using one.
+/// </para>
 /// </summary>
 public sealed class McpToolHost : IToolHost
 {
+    /// <summary>The one tool that moves money, and the only one with two phases.</summary>
+    internal const string RefundTool = "refund_payment";
+
     private McpClient _client = null!;
 
     public IReadOnlyList<AITool> Tools { get; private set; } = [];
@@ -36,6 +47,43 @@ public sealed class McpToolHost : IToolHost
         IReadOnlyDictionary<string, object?> args,
         CancellationToken ct)
     {
+        var (isError, json) = await SendAsync(name, args, ct);
+
+        var proposal = ProposalIn(json, args);
+
+        // Only a proposal is rewritten. Every other result goes into the conversation exactly
+        // as the server wrote it: a host that edits tool output hides what the server said.
+        return proposal is null
+            ? new ToolOutcome(isError, json, null)
+            : new ToolOutcome(isError, WithoutToken(json), proposal);
+    }
+
+    /// <summary>
+    /// Phase two: the same refund again, with the token a human approved. The three money
+    /// arguments come from the saved <see cref="PendingRefund"/>, never from the model's latest
+    /// reply, so the refund that runs is the exact one the human read.
+    /// </summary>
+    public async Task<ToolOutcome> ConfirmAsync(PendingRefund refund, CancellationToken ct)
+    {
+        var (isError, json) = await SendAsync(
+            RefundTool,
+            new Dictionary<string, object?>
+            {
+                ["payment_id"] = refund.PaymentId,
+                ["amount"] = refund.Amount,
+                ["currency"] = refund.Currency,
+                ["confirmation_token"] = refund.Token,
+            },
+            ct);
+
+        // No proposal can come out of phase two, and nothing here is rewritten: this is the
+        // answer about real money, and the model and the audit must see it whole.
+        return new ToolOutcome(isError, json, null);
+    }
+
+    private async Task<(bool IsError, string Json)> SendAsync(
+        string name, IReadOnlyDictionary<string, object?> args, CancellationToken ct)
+    {
         var result = await _client.CallToolAsync(
             name,
             new Dictionary<string, object?>(args),
@@ -46,11 +94,31 @@ public sealed class McpToolHost : IToolHost
         // block to read would hide that.
         var json = result.Content.OfType<TextContentBlock>().Single().Text;
 
-        return new ToolOutcome(result.IsError ?? false, json, ProposalIn(json, args));
+        return (result.IsError ?? false, json);
     }
 
-    public Task<ToolOutcome> ConfirmAsync(PendingRefund refund, CancellationToken ct) =>
-        throw new NotImplementedException();
+    /// <summary>
+    /// The proposal as the model may read it: the same answer with the token taken out.
+    /// <para>
+    /// The server's own <c>next</c> tells the caller to send the token back, and that is true
+    /// for a plain MCP client. Here it is not: the model has no token and never will. Leaving
+    /// the sentence in would send a weak model off to call the tool with a token it invented,
+    /// which the loop then has to refuse. So the host replaces it with what really happens.
+    /// </para>
+    /// </summary>
+    private static string WithoutToken(string json)
+    {
+        var payload = JsonNode.Parse(json)!.AsObject();
+
+        payload.Remove("confirmation_token");
+
+        payload["next"] =
+            "A human is being asked to approve this exact refund. You cannot approve it and " +
+            "you have no confirmation_token: this host keeps it and sends it itself, only " +
+            "after a human says yes. Do not call refund_payment again for this refund.";
+
+        return payload.ToJsonString();
+    }
 
     /// <summary>
     /// Reads a phase-one refund answer. The token and the words come from the tool, the three

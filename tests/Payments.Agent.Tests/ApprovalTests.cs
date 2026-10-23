@@ -48,11 +48,15 @@ public sealed class ApprovalTests
         Assert.Equal(RunStatus.WaitingForHuman, ask.SavedStatusWhenAsked);
         Assert.Equal(run.Id, ask.RunId);
 
-        // The human must see the exact refund, not a summary of it. This record is the
-        // PendingCall the loop saved, so these three fields are what was on disk.
+        // The human must see the exact refund, not a summary of it.
         Assert.Equal(PaymentId, ask.Refund.PaymentId);
         Assert.Equal("60.00", ask.Refund.Amount);
         Assert.Equal("EUR", ask.Refund.Currency);
+
+        // And the same refund was read back out of the store. The status alone would pass on a
+        // run that says "waiting" for a refund nobody wrote down: the yes would then have
+        // nothing to confirm, and the customer would wait for a refund that was never pending.
+        Assert.Equal(ask.Refund, ask.SavedPendingWhenAsked);
 
         // The wait is over, so nothing is pending any more. A PendingCall left behind on a
         // finished run is an invitation to confirm the same refund twice.

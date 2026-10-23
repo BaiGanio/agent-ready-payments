@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 using Payments.Agent.Storage;
 using Payments.Agent.Tools;
@@ -18,8 +20,16 @@ namespace Payments.Agent;
 /// action. The rule throughout is <b>refuse, never repair</b>: the loop never guesses what the
 /// model meant.
 /// </para>
+/// <para>
+/// The last guard is the one about money: <b>"the model said so" is never an approval.</b> A
+/// refund that comes back as a proposal stops the turn dead. The run is saved as
+/// <see cref="RunStatus.WaitingForHuman"/> with the pending refund on it, a human is asked
+/// through <see cref="IApprovalChannel"/>, the answer is saved <b>before</b> the money moves,
+/// and only then does the host send the confirm. No model reply, and no tool result, can reach
+/// that confirm.
+/// </para>
 /// </summary>
-public sealed class AgentLoop(
+public sealed partial class AgentLoop(
     IChatClient model,
     IToolHost tools,
     IApprovalChannel approvals,
@@ -27,6 +37,14 @@ public sealed class AgentLoop(
     AgentOptions options,
     TimeProvider clock)
 {
+    /// <summary>
+    /// An amount in exactly the shape the tool contract allows. The ceiling can only be
+    /// compared against a number, and only this shape is certainly a number. Anything else is
+    /// the MCP server's fence to refuse: one owner per rule.
+    /// </summary>
+    [GeneratedRegex(@"^\d{1,7}(\.\d{1,2})?$")]
+    private static partial Regex PlainAmount();
+
     /// <summary>Starts a new run from one human request and carries it as far as it goes.</summary>
     public async Task<AgentRun> StartAsync(string request, CancellationToken ct)
     {
@@ -155,19 +173,51 @@ public sealed class AgentLoop(
             run.StepCount++;
 
             List<AgentStep> steps = [];
+            PendingRefund? proposal = null;
 
             foreach (var call in calls)
             {
-                var step = await RunCallAsync(run, call, ++ordinal, reply.ModelId, ct);
+                if (proposal is not null)
+                {
+                    // A reply that proposes a refund and then asks for something else. The
+                    // refund is about to go to a human, and the run can only wait for one
+                    // answer, so everything after it is refused instead of queued.
+                    steps.Add(Rejected(
+                        run,
+                        ++ordinal,
+                        call,
+                        "one_refund_at_a_time",
+                        "A refund is already waiting for a human in this turn.",
+                        "Wait for that answer. Ask for one refund at a time."));
+
+                    continue;
+                }
+
+                var (step, found) = await RunCallAsync(run, call, ++ordinal, ct);
 
                 steps.Add(step);
+
+                proposal = found;
 
                 // In a row, not in total. A budget on the total would kill a long, honest run
                 // that hit two blips an hour apart.
                 failures = step.Outcome == "Ok" ? 0 : failures + 1;
             }
 
+            if (proposal is not null)
+            {
+                // Saved with the step that made it, in one write. The pending refund and its
+                // step must land together, or a crash in between leaves one without the other.
+                run.PendingCall = proposal;
+                run.Status = RunStatus.WaitingForHuman;
+            }
+
             await SaveAsync(run, steps, ct);
+
+            if (proposal is not null)
+            {
+                return await ApproveAsync(run, proposal, ordinal, ct);
+            }
 
             if (failures >= options.FailureBudget)
             {
@@ -198,11 +248,95 @@ public sealed class AgentLoop(
     }
 
     /// <summary>
+    /// The human gate. The turn is over either way: the answer is written by the host, from the
+    /// approval and the refund's own result, so no model reply stands between a yes and the money
+    /// or dresses up a refusal as a success.
+    /// </summary>
+    private async Task<AgentRun> ApproveAsync(
+        AgentRun run, PendingRefund refund, int ordinal, CancellationToken ct)
+    {
+        var approval = await approvals.AskAsync(run, refund, ct);
+
+        // Saved before the confirm, on its own write. Crash in the window that opens next and
+        // the run reads "approved by lk, no confirm after it", which step 19 can call
+        // refund_in_doubt. Save it after the confirm and the same crash leaves a blank that
+        // invites a second refund of the same money.
+        var step = NewStep(run, ++ordinal);
+
+        step.Kind = "approval";
+        step.InputJson = Approved(refund);
+        step.OutputJson = JsonSerializer.Serialize(new { approved = approval.Approved });
+        step.Outcome = approval.Approved ? "Ok" : "Rejected";
+        step.Approver = approval.By;
+
+        await SaveAsync(run, [step], ct);
+
+        return approval.Approved
+            ? await ConfirmAsync(run, refund, approval.By, ordinal, ct)
+            : await DoneAsync(
+                run,
+                $"No money moved. {approval.By} did not approve the refund of {refund.Amount} " +
+                $"{refund.Currency} on payment {refund.PaymentId}.",
+                ct);
+    }
+
+    /// <summary>The one call that moves money. It happens here and nowhere else.</summary>
+    private async Task<AgentRun> ConfirmAsync(
+        AgentRun run, PendingRefund refund, string approver, int ordinal, CancellationToken ct)
+    {
+        var started = clock.GetTimestamp();
+
+        string outcome;
+        string json;
+
+        try
+        {
+            var result = await tools.ConfirmAsync(refund, ct);
+
+            outcome = result.IsError ? "ToolError" : "Ok";
+            json = result.Json;
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            // The type, never the message, the same as every other tool step.
+            outcome = "ToolError";
+            json = Error(
+                "tool_threw",
+                $"That tool failed with a {error.GetType().Name}.",
+                "Tell the person the refund may or may not have happened, and stop.");
+        }
+
+        var step = NewStep(run, ++ordinal);
+
+        step.Kind = "tool";
+        step.ToolName = McpToolHost.RefundTool;
+        step.InputJson = Approved(refund);
+        step.OutputJson = json;
+        step.Outcome = outcome;
+        step.Approver = approver;
+        step.DurationMs = (int)clock.GetElapsedTime(started).TotalMilliseconds;
+
+        await SaveAsync(run, [step], ct);
+
+        // The words are the host's, not the model's. "Refunded" is only ever said when the API
+        // said so, and a refusal is never dressed up as a success.
+        return await DoneAsync(
+            run,
+            outcome == "Ok"
+                ? $"Refunded {refund.Amount} {refund.Currency} on payment {refund.PaymentId}. " +
+                  $"Approved by {approver}."
+                : $"No money moved. {approver} approved {refund.Amount} {refund.Currency} on " +
+                  $"payment {refund.PaymentId}, but the payments API would not do it. Tell the " +
+                  "person, and do not try again without a new approval.",
+            ct);
+    }
+
+    /// <summary>
     /// One tool call the model asked for. Every way it can go wrong ends as a saved step and a
     /// result the model can read, never as an exception out of the loop.
     /// </summary>
-    private async Task<AgentStep> RunCallAsync(
-        AgentRun run, FunctionCallContent call, int ordinal, string? modelId, CancellationToken ct)
+    private async Task<(AgentStep Step, PendingRefund? Proposal)> RunCallAsync(
+        AgentRun run, FunctionCallContent call, int ordinal, CancellationToken ct)
     {
         Dictionary<string, object?> args = call.Arguments is null ? [] : new(call.Arguments);
 
@@ -210,6 +344,7 @@ public sealed class AgentLoop(
 
         string outcome;
         string json;
+        PendingRefund? proposal = null;
 
         if (!tools.Tools.Any(t => t.Name == call.Name))
         {
@@ -231,6 +366,13 @@ public sealed class AgentLoop(
                 "The arguments of that call were not valid JSON, so it was not run.",
                 "Send the call again with valid JSON arguments. Nothing was repaired for you.");
         }
+        else if (HostRefusal(call.Name, args) is { } refusal)
+        {
+            // This agent's own rules, checked before the tool runs. A call refused here never
+            // reaches the MCP server, so it cannot propose, cannot read and cannot move money.
+            outcome = "Rejected";
+            json = refusal;
+        }
         else
         {
             try
@@ -239,6 +381,7 @@ public sealed class AgentLoop(
 
                 outcome = result.IsError ? "ToolError" : "Ok";
                 json = result.Json;
+                proposal = result.Proposal;
             }
             catch (Exception error) when (error is not OperationCanceledException)
             {
@@ -256,21 +399,99 @@ public sealed class AgentLoop(
         run.Messages.Add(new ChatMessage(
             ChatRole.Tool, [new FunctionResultContent(call.CallId, json)]));
 
-        return new AgentStep
+        var step = NewStep(run, ordinal);
+
+        step.Kind = "tool";
+        step.ToolName = call.Name;
+        step.InputJson = JsonSerializer.Serialize(args, AIJsonUtilities.DefaultOptions);
+        step.OutputJson = json;
+        step.Outcome = outcome;
+        step.DurationMs = (int)clock.GetElapsedTime(started).TotalMilliseconds;
+
+        return (step, proposal);
+    }
+
+    /// <summary>
+    /// This agent's own rules about a refund, checked before the tool is called. Null means the
+    /// call may go through; a string is the refusal the model gets back.
+    /// </summary>
+    private string? HostRefusal(string tool, IReadOnlyDictionary<string, object?> args)
+    {
+        if (tool != McpToolHost.RefundTool)
         {
-            Id = Guid.CreateVersion7(),
-            RunId = run.Id,
-            Ordinal = ordinal,
-            Kind = "tool",
-            ToolName = call.Name,
-            InputJson = JsonSerializer.Serialize(args, AIJsonUtilities.DefaultOptions),
-            OutputJson = json,
-            Outcome = outcome,
-            ModelId = modelId,
-            PromptVersion = options.PromptVersion,
-            DurationMs = (int)clock.GetElapsedTime(started).TotalMilliseconds,
-            CreatedUtc = clock.GetUtcNow(),
-        };
+            return null;
+        }
+
+        if (args.TryGetValue("confirmation_token", out var written) &&
+            !string.IsNullOrEmpty(written?.ToString()))
+        {
+            // The model has no token and cannot have one, so any token it sends is one it made
+            // up or one it read somewhere it should not have. The server would refuse it as
+            // token_unknown, which is safe but looks like an ordinary failed call. Refusing it
+            // here makes it what it is: the model trying to approve money by itself.
+            return Error(
+                "confirmation_token_not_allowed",
+                "You may not send a confirmation_token. You never receive one.",
+                "Call refund_payment with payment_id, amount and currency only. A human is " +
+                "asked, and this host sends the confirmation itself.");
+        }
+
+        if (args.TryGetValue("amount", out var asked) &&
+            asked?.ToString() is { } text &&
+            PlainAmount().IsMatch(text) &&
+            decimal.Parse(text, CultureInfo.InvariantCulture) > options.RefundCeiling)
+        {
+            // The ceiling is this agent's limit, not the server's: another agent on the same
+            // MCP server may be trusted with more. It is checked before the call, because a
+            // proposal above the ceiling is a proposal a human might say yes to.
+            return Error(
+                "amount_above_ceiling",
+                $"This agent may not refund more than " +
+                $"{options.RefundCeiling.ToString("0.00", CultureInfo.InvariantCulture)} at once.",
+                "Propose an amount at or below that limit, or tell the person that a refund " +
+                "this big has to be done by a person.");
+        }
+
+        return null;
+    }
+
+    /// <summary>A call refused without being run, as a saved step.</summary>
+    private AgentStep Rejected(
+        AgentRun run,
+        int ordinal,
+        FunctionCallContent call,
+        string error,
+        string message,
+        string hint)
+    {
+        var json = Error(error, message, hint);
+
+        run.Messages.Add(new ChatMessage(
+            ChatRole.Tool, [new FunctionResultContent(call.CallId, json)]));
+
+        var step = NewStep(run, ordinal);
+
+        step.Kind = "tool";
+        step.ToolName = call.Name;
+        step.InputJson = call.Arguments is null
+            ? null
+            : JsonSerializer.Serialize(call.Arguments, AIJsonUtilities.DefaultOptions);
+        step.OutputJson = json;
+        step.Outcome = "Rejected";
+
+        return step;
+    }
+
+    /// <summary>The run is finished and the answer is written. Nothing is pending any more.</summary>
+    private async Task<AgentRun> DoneAsync(AgentRun run, string answer, CancellationToken ct)
+    {
+        run.Status = RunStatus.Done;
+        run.Answer = answer;
+        run.PendingCall = null;
+
+        await SaveAsync(run, [], ct);
+
+        return run;
     }
 
     /// <summary>
@@ -286,6 +507,32 @@ public sealed class AgentLoop(
 
         return run;
     }
+
+    /// <summary>
+    /// A new step with everything the run already knows filled in. Provenance is not optional:
+    /// six months later somebody asks which model and which prompt caused this, and a step
+    /// without them can only shrug.
+    /// </summary>
+    private AgentStep NewStep(AgentRun run, int ordinal) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        RunId = run.Id,
+        Ordinal = ordinal,
+        ModelId = run.ModelId,
+        PromptVersion = options.PromptVersion,
+        CreatedUtc = clock.GetUtcNow(),
+    };
+
+    /// <summary>
+    /// The refund a human saw, as JSON for a step. <b>Without the token.</b> A step's text is
+    /// shown to the model and read by a reviewer, and the token is neither of their business.
+    /// </summary>
+    private static string Approved(PendingRefund refund) => JsonSerializer.Serialize(new
+    {
+        payment_id = refund.PaymentId,
+        amount = refund.Amount,
+        currency = refund.Currency,
+    });
 
     /// <summary>What the model is offered. Nothing at all, once a guard has taken the tools.</summary>
     private ChatOptions Offer(bool toolsOff) =>

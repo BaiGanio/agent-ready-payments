@@ -2,7 +2,7 @@
 
 The status board. One row per lab. This is the only place that says where you are.
 
-Updated 2026-10-23 (lab 09 steps 12–13 done: the thirteen guards are green, `CF-007` closed. 361 tests green).
+Updated 2026-10-23 (lab 09 steps 14–15 done: the model never holds the refund token, only a human yes confirms, the ceiling is a host rule. 375 tests green — the **stop mark**).
 
 ## How to read it
 
@@ -45,7 +45,7 @@ Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the s
 - [x] 8–9 EF Core run store
 - [x] 10–11 The loop
 - [x] 12–13 The guards (`CF-007` closed)
-- [ ] 14–15 The token, the human, the ceiling — **stop mark**
+- [x] 14–15 The token, the human, the ceiling — **stop mark**
 - [ ] 16 The console against `llama-server`
 - [ ] 17 Configured agents, `chat`, demo data
 - [ ] 18–19 Crash and resume
