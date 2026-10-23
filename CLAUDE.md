@@ -18,6 +18,7 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 | `docs/aperio/` | the Aperio backbone: map, tour, talking points, agent-ready notes |
 | `labs/NN-…/` | three files per lab: `README.md`, `WORKBENCH.md`, `QA.md`. From lab 02 also `TEST-LIST.md`, plus any scaffold (`TDD-NOTES.md`, `STORE-NOTES.md`) |
 | `db/README.md` | the lab database plan |
+| `scripts/` | the shell helpers: `llm.sh` starts `llama-server` with the model in `.env` |
 
 **The repo root holds two `.md` files only: `README.md` and `CLAUDE.md`.** Every other document lives under `docs/`. A new reference doc goes in `docs/plan/`, `docs/aperio/` or `docs/commands/`, or flat in `docs/` if it is none of those, and it gets a row in this table and in the one in `README.md`, in the same commit. Never add a `.md` file to the root.
 
@@ -62,6 +63,7 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 - Migrations: **DbUp** with plain `.sql` files. One migration per lab per engine. See `db/README.md`.
 - **Lockstep, in the same commit.** Every table the API reads or writes exists in **both** engines. A new Postgres migration gets its SQL Server twin in the same commit, and the other way round. Lockstep is about columns, types and rules — not spelling (`snake_case` in Postgres, `PascalCase` in SQL Server). An engine-only column is allowed and the script must say so in a comment; `db/README.md` lists the ones we have.
 - Tests: xUnit v3 (default until Lab 01 decides). Testcontainers for Postgres. Respawn between tests.
+- **One folder per subject in a test project.** Once a test project passes about 10 `.cs` files, the files go in folders named after the subject they test, not the kind of test: `Endpoints/`, `Idempotency/`, `Auth/`, `Races/`, `Storage/`, `Mcp/`, plus `Harness/` for the fixture, the base class and the fakes. A flat folder of 25 files hides the one you want, and it hides the gap where a subject has no tests at all. **The namespace stays flat** — every file in `tests/Payments.Api.Tests` is `namespace Payments.Api.Tests`, whatever folder it sits in. Folders are for your eyes; a folder-shaped namespace would make every test file learn a `using` for the fixture it already has. Move files with `git mv`, so the history follows them. `Payments.Api.Tests` is the worked example (lab 09).
 - BDD: **Reqnroll** (not SpecFlow).
 - Agent labs run **offline**: `llama-server` + a local model. No API key needed.
 - `Payments.Mcp` calls the API over HTTP. It **never** touches the database.
@@ -99,7 +101,7 @@ Visuals come first in this repo. The user learns from them.
 
 | Shape | Mermaid type |
 |---|---|
-| Boxes and who calls whom | `flowchart LR` |
+| Boxes and who calls whom | `flowchart TD` |
 | Who talks to whom, in what order | `sequenceDiagram` |
 | Allowed and illegal moves (payment status, workflow) | `stateDiagram-v2` |
 | Tables and keys | `erDiagram` |
@@ -108,6 +110,8 @@ Visuals come first in this repo. The user learns from them.
 
 - Label every arrow. An unlabelled arrow teaches nothing.
 - Keep one idea per diagram. Two small diagrams beat one crowded one.
+- **Flowcharts go down, not across: `flowchart TD`.** GitHub renders a diagram into a fixed page width, so `LR` squeezes a long chain into a thin strip and the text turns tiny. `TD` gives every box the full width. Use `LR` only for a chain of three boxes or fewer (decided 2026-10-23).
+- **No `;` inside a diagram line.** Mermaid reads it as the end of the statement, and the rest of the line becomes a line with no arrow — a parse error on GitHub. Write `begin, then select …`, not `begin; select …`.
 - Use Mermaid for diagrams.
 - Write absolute dates (`2026-10-18`), not "today" or "last week".
 

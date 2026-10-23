@@ -2,7 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 
-namespace Payments.Mcp.Tests;
+namespace Payments.Testing;
 
 /// <summary>One request the stub saw, kept as plain strings so a test can read it.</summary>
 public sealed record RecordedRequest(
@@ -136,4 +136,34 @@ public sealed class StubApi : HttpMessageHandler
 
         return response;
     }
+
+    /// <summary>
+    /// A <c>GET /payments/{id}</c> answer for one payment. The text fields are parameters, so
+    /// an injection test can put a prompt where a real merchant could put one.
+    /// </summary>
+    public static object Payment(
+        string id,
+        string status = "Captured",
+        string currency = "EUR",
+        decimal authorised = 80.00m,
+        decimal captured = 80.00m,
+        decimal refunded = 0.00m,
+        decimal refundableRemaining = 80.00m,
+        string? declineReason = null,
+        string merchantId = "0199c000-0000-7000-8000-000000000001") => new
+        {
+            id,
+            merchantId,
+            status,
+            currency,
+            authorisedAmount = authorised,
+            capturedAmount = captured,
+            refundedAmount = refunded,
+            capturableRemaining = 0.00m,
+            refundableRemaining,
+            allowedActions = new[] { "Refund" },
+            declineReason,
+            createdAt = "2026-10-21T10:00:00+00:00",
+            updatedAt = "2026-10-21T10:00:00+00:00",
+        };
 }

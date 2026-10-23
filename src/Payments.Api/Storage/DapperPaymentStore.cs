@@ -139,6 +139,24 @@ public sealed class DapperPaymentStore(string connectionString, TimeProvider clo
         await conn.OpenAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
 
+        // The lock comes FIRST, before anything is written. `for update` holds the payment row
+        // until this transaction ends, so a second writer waits here instead of racing us.
+        await conn.ExecuteAsync(new CommandDefinition(
+            "select 1 from payment where id = @Id for update", new { Id = payment.Id },
+            tx, cancellationToken: ct));
+
+        // Waiting is not enough: the loser wakes up holding a decision it made on the OLD data.
+        // The operation count is the one thing every command adds a row to, so a different count
+        // means the payment moved under us. The status column cannot tell us -- two refunds both
+        // leave PartiallyRefunded -- and updated_at is a clock, not a fact about this payment.
+        var storedOperationCount = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            "select count(*) from payment_operation where payment_id = @Id", new { Id = payment.Id },
+            tx, cancellationToken: ct));
+
+        // Before CompleteKeyAsync on purpose. The other order would store a 200 this request
+        // never earned, and every later retry of that key would replay it.
+        if (storedOperationCount != persistedOperationCount) throw new ConcurrentUpdateException(payment.Id);
+
         await CompleteKeyAsync(conn, tx, completion, ct);
 
         var updatedAt = payment.Operations.Count > 0

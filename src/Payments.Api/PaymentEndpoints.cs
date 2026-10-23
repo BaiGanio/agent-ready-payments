@@ -169,28 +169,60 @@ public static class PaymentEndpoints
 
         try
         {
-            var result = act(loaded.Payment);
+            // `loaded` is proven non-null above, but the retry reassigns it and the compiler
+            // forgets that. A separate non-null local keeps the proof: `current` is assigned
+            // from the checked value, and the reload below only ever assigns a checked value.
+            var current = loaded;
 
-            if (result.IsFailure)
+            // One retry, no more. A second loss means a third writer, and a loop that keeps
+            // retrying under load never ends. The outer catch then releases the key and rethrows.
+            for (var attempt = 1; ; attempt++)
             {
-                // A final answer. Store it, so a retry is told the same thing instead of
-                // being allowed to try the same illegal move again.
-                var (status, refusal) = ProblemMapper.Refusal(result.Error, http);
+                if (attempt > 1)
+                {
+                    // Fresh data for the second try. The key stays claimed through the retry,
+                    // so another copy of the same request still gets InProgress, not a double.
+                    var reloaded = await store.LoadAsync(id, ct);
 
-                await keys.CompleteAsync(new Completion(loaded.MerchantId, key!, status, refusal, null), ct);
+                    if (reloaded is null || reloaded.MerchantId != http.Caller().MerchantId)
+                        return ProblemMapper.NotFound("payment_not_found", $"Payment with Id: @{id} not found.", http);
 
-                return Results.Content(refusal, "application/problem+json", statusCode: status);
+                    current = reloaded;
+                }
+
+                var result = act(current.Payment);
+
+                if (result.IsFailure)
+                {
+                    // A final answer. Store it, so a retry is told the same thing instead of
+                    // being allowed to try the same illegal move again.
+                    var (status, refusal) = ProblemMapper.Refusal(result.Error, http);
+
+                    await keys.CompleteAsync(new Completion(current.MerchantId, key!, status, refusal, null), ct);
+
+                    return Results.Content(refusal, "application/problem+json", statusCode: status);
+                }
+
+                // Serialize once. The stored body and the answer must be the same bytes.
+                string body = JsonSerializer.Serialize(
+                    PaymentDto.From(current.Payment, current.MerchantId, current.Payment.Operations[^1].At),
+                    JsonSerializerOptions.Web);
+
+                try
+                {
+                    await store.UpdateAsync(current.Payment, current.OperationCount,
+                        new Completion(current.MerchantId, key!, StatusCodes.Status200OK, body, null), ct);
+                }
+                catch (ConcurrentUpdateException) when (attempt == 1)
+                {
+                    // The payment moved while we were deciding. Nothing was written. Go round
+                    // once with fresh data, so the loser gets the domain's answer (422
+                    // amount_exceeds_captured) and not a technical conflict it cannot act on.
+                    continue;
+                }
+
+                return Results.Content(body, "application/json", statusCode: StatusCodes.Status200OK);
             }
-
-            // Serialize once. The stored body and the answer must be the same bytes.
-            string body = JsonSerializer.Serialize(
-                PaymentDto.From(loaded.Payment, loaded.MerchantId, loaded.Payment.Operations[^1].At),
-                JsonSerializerOptions.Web);
-
-            await store.UpdateAsync(loaded.Payment, loaded.OperationCount,
-                new Completion(loaded.MerchantId, key!, StatusCodes.Status200OK, body, null), ct);
-
-            return Results.Content(body, "application/json", statusCode: StatusCodes.Status200OK);
         }
         catch
         {

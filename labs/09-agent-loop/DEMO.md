@@ -7,7 +7,7 @@ Written by the agent: the scenes, the prompts and what must happen. Written by *
 The model answers in its own words, so the runbook never fixes the wording. It fixes **facts**: which tools were called, whether a human was asked, how many refund rows exist, what the answer must and must not say.
 
 ```mermaid
-flowchart LR
+flowchart TD
     YOU["You at the console<br/>(and in the approval seat)"] -->|"prompts"| AG["Payments.Agent chat<br/>support-bot / read-bot"]
     AG -->|"IChatClient"| L["llama-server<br/>the picked model"]
     AG -->|"stdio, child process"| M["Payments.Mcp"]

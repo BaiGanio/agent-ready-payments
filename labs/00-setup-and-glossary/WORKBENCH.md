@@ -11,7 +11,7 @@ Started 2026-10-18.
 Two containers, two databases, one runner. No tables yet.
 
 ```mermaid
-flowchart LR
+flowchart TD
     You["You<br/>dotnet run"] -->|"migrate --engine X"| R["src/Payments.Db<br/>DbUp runner"]
     SP["db/postgres/*.sql"] -->|"read in order"| R
     SS["db/sqlserver/*.sql"] -->|"read in order"| R
@@ -404,7 +404,7 @@ sequenceDiagram
     autonumber
     actor You
     participant R as Payments.Db
-    participant FS as db/&lt;engine&gt;/*.sql
+    participant FS as db/[engine]/*.sql
     participant DB as Database engine
 
     You->>R: migrate --engine postgres
@@ -521,7 +521,7 @@ stateDiagram-v2
 ### Who is who, in one card payment
 
 ```mermaid
-flowchart LR
+flowchart TD
     C["Cardholder<br/>buys shoes"] -->|"taps card"| M["Merchant<br/>the shop"]
     M -->|"auth request"| A["Acquirer / PSP<br/>the shop's bank"]
     A -->|"routes it"| S["Card scheme<br/>Visa / Mastercard"]
