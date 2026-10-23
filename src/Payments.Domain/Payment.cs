@@ -1,3 +1,5 @@
+using Payments.Core;
+
 namespace Payments.Domain;
 public sealed class Payment
 {

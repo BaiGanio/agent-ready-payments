@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Payments.Domain\Payments.Domain.csproj" />
     <InternalsVisibleTo Include="Payments.Api.Tests" />
+    <Using Include="Payments.Core" />
   </ItemGroup>
 
   <ItemGroup>

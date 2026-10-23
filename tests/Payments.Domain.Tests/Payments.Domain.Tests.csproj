@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Payments.Domain/Payments.Domain.csproj" />
+    <Using Include="Payments.Core" />
   </ItemGroup>
 
 </Project>

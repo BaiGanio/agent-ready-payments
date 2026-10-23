@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Payments.Api.Auth;
 using Payments.Api.Storage;
+using Payments.Core;
 using Payments.Domain;
 
 namespace Payments.Api;
