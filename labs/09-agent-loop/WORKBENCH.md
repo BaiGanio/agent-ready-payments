@@ -299,6 +299,41 @@ test(lab-09): two refunds with different keys refund twice (red)
 
 **Why.** The bug is a lost update: a read, a decision in C#, a write that does not check the read is still true. The fix chosen (2026-10-22) keeps the domain the only judge. `select … for update` makes the second writer **wait** for the first; then it counts the payment's operation rows, and if the count is not the one it loaded, the payment moved under it. It rolls back and says so with `ConcurrentUpdateException`. `CommandAsync` then loads again and runs the same command once more — so the loser gets the **domain's** answer (`422 amount_exceeds_captured`), not a technical `409` it cannot act on. The key stays claimed through the retry, so a third copy of the same request still replays. Order matters inside the transaction: lock and check **before** `CompleteKeyAsync`, or a losing request would store a `200` it never earned.
 
+Step 4's diagram is the same race today. This is the same race with the lock and the re-check.
+Watch the one arrow that now **waits**.
+
+```mermaid
+sequenceDiagram
+    participant A as Refund A (key 1)
+    participant B as Refund B (key 2)
+    participant P as payment row
+    A->>P: load: refunded 0, ops 2
+    B->>P: load: refunded 0, ops 2
+    A->>P: begin; select 1 … for update → locked
+    B->>P: begin; select 1 … for update
+    Note over B,P: B waits here. This is the new arrow.
+    A->>P: count ops = 2 = loaded 2 → write, commit
+    P-->>B: lock free; count ops = 3
+    Note over B: 3 ≠ 2 → ConcurrentUpdateException.<br/>The using disposes the transaction, so it rolls back.
+    B->>P: load again: refunded 60 on a 100 capture
+    Note over B: the domain refuses → 422 amount_exceeds_captured
+```
+
+Inside the transaction the **order** is the other half of the fix.
+
+```mermaid
+flowchart LR
+    A["begin"] -->|"holds the row"| B["select 1 … for update"]
+    B -->|"is my load still true?"| C["count payment_operation"]
+    C -->|"count ≠ loaded → throw"| D["ConcurrentUpdateException"]
+    C -->|"count = loaded"| E["CompleteKeyAsync<br/>(stores the 200)"]
+    E --> F["update payment + insert operations"]
+    F --> G["commit"]
+    D -.->|"nothing was written"| H["rollback on dispose"]
+```
+
+Put the check **after** `CompleteKeyAsync` and the loser stores a `200` it never earned — and every later retry of that key replays it.
+
 **Do.**
 
 ```csharp
