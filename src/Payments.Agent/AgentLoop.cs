@@ -71,15 +71,185 @@ public sealed partial class AgentLoop(
     }
 
     /// <summary>
-    /// Carries a saved run on from its last saved step. <b>Step 19 writes the body.</b>
+    /// Carries a saved run on from its last saved step.
     /// <para>
-    /// The signature exists now so step 18's <c>ResumeTests</c> compile and fail as six red
-    /// tests. A test file that cannot build is not a red test: it takes the whole project down
-    /// with it, and the other green tests stop telling you anything.
+    /// Every pass is saved with its results, so the saved <see cref="AgentRun.Messages"/> are a
+    /// complete history: the model is handed the same story it had before, and the tools that
+    /// already ran are never run again. Nothing is re-played; the run simply goes on.
+    /// </para>
+    /// <para>
+    /// The first thing it does is a <b>claim</b>: a save that only bumps
+    /// <see cref="AgentRun.UpdatedUtc"/>. Two workers that loaded the same <c>RowVer</c> cannot
+    /// both win it, and the loser stops before it calls a model or a tool. That guards against
+    /// two workers at once, <b>not</b> against a worker that loads after the first claim — that
+    /// needs a lease, which lab 13's workflow brings.
+    /// </para>
+    /// <para>
+    /// A returned run with <see cref="RunStatus.Running"/> on it means exactly one thing: the
+    /// claim was lost. The loop itself never returns a <c>Running</c> run, because its own
+    /// <c>while</c> only ends when the status changed.
     /// </para>
     /// </summary>
-    public Task<AgentRun> ResumeAsync(Guid runId, CancellationToken ct)
-        => throw new NotImplementedException("ResumeAsync is step 19.");
+    public async Task<AgentRun> ResumeAsync(Guid runId, CancellationToken ct)
+    {
+        var loaded = await store.LoadAsync(runId, ct)
+            ?? throw new InvalidOperationException($"There is no run {runId}.");
+
+        var (run, steps) = (loaded.Run, loaded.Steps);
+
+        if (run.Status is RunStatus.Done or RunStatus.Failed)
+        {
+            // A finished run is an answer, not a job. Carrying it on would call tools again for
+            // a question somebody already has the answer to, and a retry above us would turn
+            // one request into many.
+            return run;
+        }
+
+        run.UpdatedUtc = clock.GetUtcNow();
+
+        // The claim. SaveAsync is called straight, not through the private helper, because
+        // losing this race is the normal answer and must not throw: the loser returns the run
+        // as it read it, having called nothing at all.
+        if (await store.SaveAsync(run, [], ct) == SaveOutcome.Conflict)
+        {
+            return run;
+        }
+
+        // Ordinals go on from the last saved one. A gap means the resume lost a step and a
+        // repeat means it wrote over one, and either way the history a reviewer reads months
+        // later is not what happened.
+        var ordinal = steps.Count == 0 ? 0 : steps[^1].Ordinal;
+
+        return run.Status == RunStatus.WaitingForHuman
+            ? await ResumeWaitAsync(run, steps.Count == 0 ? null : steps[^1], ordinal, ct)
+            : await RunAsync(run, ordinal, ct);
+    }
+
+    /// <summary>
+    /// A run that was waiting for a human when the process died. Which of the three ways it
+    /// goes is decided by the <b>last saved step</b>, and nothing else.
+    /// </summary>
+    private async Task<AgentRun> ResumeWaitAsync(
+        AgentRun run, AgentStep? last, int ordinal, CancellationToken ct)
+    {
+        if (last is { Kind: "approval" })
+        {
+            // The human already answered, and the step says what they said. A no is the easy
+            // one: nothing moved, so the run is simply finished. A yes is the hard one, and it
+            // is the reason this branch is checked first: asking again would ask a person to
+            // approve a refund they have already approved.
+            return last.Outcome == "Ok"
+                ? await InDoubtAsync(run, last.Approver)
+                : await DoneAsync(run, NoApproval(run.PendingCall, last.Approver), ct);
+        }
+
+        if (run.PendingCall is not { } refund)
+        {
+            // Waiting for an answer about nothing. The loop writes the refund and the status in
+            // one save, so this cannot happen from this loop — which is exactly why it is a
+            // failure with a reason and not a guess at what the refund might have been.
+            return await StopAsync(run, "waiting_without_a_refund");
+        }
+
+        // Propose again, from the saved refund. The old token was minted by an MCP server that
+        // died with the last process, so it confirms nothing: a resume that reused it would
+        // hand a human's old yes to a gate that no longer holds anything.
+        var args = new Dictionary<string, object?>
+        {
+            ["payment_id"] = refund.PaymentId,
+            ["amount"] = refund.Amount,
+            ["currency"] = refund.Currency,
+        };
+
+        var started = clock.GetTimestamp();
+
+        string outcome;
+        string json;
+        PendingRefund? again = null;
+
+        try
+        {
+            var result = await tools.CallAsync(McpToolHost.RefundTool, args, ct);
+
+            outcome = result.IsError ? "ToolError" : "Ok";
+            json = result.Json;
+            again = result.Proposal;
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            // The type, never the message, the same as every other tool step.
+            outcome = "ToolError";
+            json = Error(
+                "tool_threw",
+                $"That tool failed with a {error.GetType().Name}.",
+                "Tell the person no refund was made, and stop.");
+        }
+
+        var step = NewStep(run, ++ordinal);
+
+        step.Kind = "tool";
+        step.ToolName = McpToolHost.RefundTool;
+        step.InputJson = JsonSerializer.Serialize(args, AIJsonUtilities.DefaultOptions);
+        step.OutputJson = json;
+        step.Outcome = outcome;
+        step.DurationMs = (int)clock.GetElapsedTime(started).TotalMilliseconds;
+
+        // Nothing goes into Messages. The model did not ask for this call, so there is no call
+        // id to thread a result to, and an invented one would break the next model call. The
+        // step is the record, and the turn ends on the human's answer either way.
+        run.PendingCall = again;
+
+        // The new refund and the step that made it land together, before anybody is asked. A
+        // crash in the next window has to find the proposal a human is reading, not the dead one.
+        await SaveAsync(run, [step], ct);
+
+        return again is null
+            // The payment moved while the process was down: already refunded, voided, or the
+            // amount is no longer refundable. The server said no, so there is nothing to
+            // approve, and an old yes is never carried over to a new proposal.
+            ? await DoneAsync(
+                run,
+                $"No money moved. The payments API would not propose {refund.Amount} " +
+                $"{refund.Currency} on payment {refund.PaymentId} any more. The payment has " +
+                "changed since this run started, so a person has to look at it.",
+                ct)
+            : await ApproveAsync(run, again, ordinal, ct);
+    }
+
+    /// <summary>
+    /// A yes was written and no confirm was written after it. The first process may already
+    /// have moved the money, and from here nobody can tell: the API answered into a process
+    /// that no longer exists. So the run fails, says why, and asks nobody. This is lab 16's
+    /// in-doubt problem, and the approval-first save is this lab's part of the answer.
+    /// </summary>
+    private async Task<AgentRun> InDoubtAsync(AgentRun run, string? approver)
+    {
+        var who = approver ?? "a person";
+
+        run.Answer = run.PendingCall is { } refund
+            ? $"In doubt. {who} approved {refund.Amount} {refund.Currency} on payment " +
+              $"{refund.PaymentId}, and this agent died before the payments API answered. The " +
+              "refund may or may not have happened. Check the payment before anybody tries again."
+            : $"In doubt. {who} approved a refund, and this agent died before the payments API " +
+              "answered. Check the payment before anybody tries again.";
+
+        // Cleared on purpose: it is no longer pending, it is unknown. A run that still reads
+        // "waiting for a human" would invite somebody to approve it a second time.
+        run.PendingCall = null;
+
+        return await StopAsync(run, "refund_in_doubt");
+    }
+
+    /// <summary>The sentence for a refund a human refused. The host writes it, never the model.</summary>
+    private static string NoApproval(PendingRefund? refund, string? approver)
+    {
+        var who = approver ?? "A person";
+
+        return refund is { } r
+            ? $"No money moved. {who} did not approve the refund of {r.Amount} {r.Currency} on " +
+              $"payment {r.PaymentId}."
+            : $"No money moved. {who} did not approve the refund.";
+    }
 
     /// <summary>
     /// One turn, with a wall clock around it. The step cap bounds passes, not seconds: one model

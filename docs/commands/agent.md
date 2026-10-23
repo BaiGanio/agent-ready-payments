@@ -38,6 +38,8 @@ Never drop `--jinja`: without it the model prints tool calls as text, and every 
 | Run only the agent tests | `dotnet test --project tests/Payments.Agent.Tests` |
 | Run only the agent tests CI runs | `dotnet test --project tests/Payments.Agent.Tests --filter-not-trait runs=local` |
 
+`resume` takes **no** `--agent`. The saved run already says which agent started it, and `ResumeCommand` reads that from the row: a run that `read-bot` started is never finished by `support-bot`'s key or ceiling.
+
 ## Four prompts that test the guards
 
 Every one of these is `dotnet run --project src/Payments.Agent -- run "<the request>"`. Only the first moves money, and only after you type `y`.

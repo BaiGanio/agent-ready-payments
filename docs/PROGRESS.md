@@ -48,7 +48,7 @@ Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the s
 - [x] 14–15 The token, the human, the ceiling — **stop mark**
 - [x] 16 The console against `llama-server`
 - [x] 17 Configured agents, `chat`, demo data
-- [ ] 18–19 Crash and resume
+- [x] 18–19 Crash and resume
 - [ ] 20 Two agents, one payment
 - [ ] 21–23 Evaluation set, rung 1, rung 3, the pick
 - [ ] 24 Rehearse the demo (`DEMO.md`)

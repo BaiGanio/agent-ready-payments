@@ -61,16 +61,16 @@ switch (command)
 
     case "resume":
     {
-        if (!CommandLine.TryRunId(args, out _, out var bad))
+        if (!CommandLine.TryRunId(args, out var runId, out var bad))
         {
             Console.Error.WriteLine(bad);
 
             return 2;
         }
 
-        Console.Error.WriteLine("resume is not built yet. It is step 19.");
-
-        return 2;
+        // No --agent here. The run already says which agent started it, and the command reads
+        // that from the row: see ResumeCommand.
+        return await ResumeCommand.ExecuteAsync(settings, runId);
     }
 }
 
