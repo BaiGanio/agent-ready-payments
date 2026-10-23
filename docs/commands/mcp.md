@@ -29,18 +29,23 @@ A `401` here means the key is in `.env` but not in the database. Store it with t
 
 ## Make a captured payment
 
+Every money-moving `POST` needs an `Idempotency-Key`, so all three calls carry one. A fresh `uuidgen` per call: these are three different requests, and one key reused would make the second call replay the first. Change both amounts to the amount you need.
+
 ```bash
 set -a; source .env; set +a
 id=$(curl -s -X POST http://localhost:5080/payments \
-  -H "X-Api-Key: $PAYMENTS_DEV_KEY" -H 'Content-Type: application/json' \
+  -H "X-Api-Key: $PAYMENTS_DEV_KEY" -H "Idempotency-Key: $(uuidgen)" -H 'Content-Type: application/json' \
   -d '{"merchantId":"11111111-1111-1111-1111-111111111111","amount":80.00,"currency":"EUR"}' \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
-curl -s -o /dev/null -X POST "http://localhost:5080/payments/$id/authorise" -H "X-Api-Key: $PAYMENTS_DEV_KEY"
+curl -s -o /dev/null -X POST "http://localhost:5080/payments/$id/authorise" \
+  -H "X-Api-Key: $PAYMENTS_DEV_KEY" -H "Idempotency-Key: $(uuidgen)"
 curl -s -o /dev/null -X POST "http://localhost:5080/payments/$id/capture" \
-  -H "X-Api-Key: $PAYMENTS_DEV_KEY" -H 'Content-Type: application/json' \
+  -H "X-Api-Key: $PAYMENTS_DEV_KEY" -H "Idempotency-Key: $(uuidgen)" -H 'Content-Type: application/json' \
   -d '{"amount":80.00,"currency":"EUR"}'
 echo "captured: $id"
 ```
+
+A `python3` traceback with an empty `json.load` means the create call answered an error, not a payment. Run the first `curl` on its own to read it: a missing `Idempotency-Key` is a `400 idempotency_key_required`, and a `401` means the key is not in the database.
 
 ## Drive the tools without the Inspector
 

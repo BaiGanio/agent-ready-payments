@@ -27,6 +27,7 @@ Never drop `--jinja`: without it the model prints tool calls as text, and every 
 | Make the demo payments | `dotnet run --project src/Payments.Agent -- seed-demo` |
 | Chat with the refund agent | `dotnet run --project src/Payments.Agent -- chat --agent support-bot` |
 | Chat with the read-only agent | `dotnet run --project src/Payments.Agent -- chat --agent read-bot` |
+| One request, before the profiles exist (step 16) | `dotnet run --project src/Payments.Agent -- run "<request>"` |
 | One request, no chat | `dotnet run --project src/Payments.Agent -- run --agent support-bot "<request>"` |
 | Crash on purpose after 3 steps | add `--crash-after 3` to `run` — it exits with `99` |
 | Resume a run | `dotnet run --project src/Payments.Agent -- resume <runId>` |
