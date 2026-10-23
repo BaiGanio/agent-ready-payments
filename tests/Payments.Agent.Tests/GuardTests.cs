@@ -166,13 +166,19 @@ public sealed class GuardTests
 
         // Fail, fail, succeed, fail, fail. Five calls and four failures, but never three in
         // a row, so the budget must never be spent.
-        foreach (var ok in new[] { false, false, true, false, false })
+        //
+        // The id alternates on purpose. Five identical calls would trip the repeat breaker
+        // first, and then this test would measure the breaker instead of the budget. One
+        // guard per test, or a red test cannot tell you which guard is broken.
+        var ids = new[] { PaymentId, OtherPaymentId };
+
+        foreach (var (ok, n) in new[] { false, false, true, false, false }.Select((ok, n) => (ok, n)))
         {
             harness.Api.Enqueue(
                 ok ? HttpStatusCode.OK : HttpStatusCode.InternalServerError,
-                ok ? StubApi.Payment(PaymentId) : null);
+                ok ? StubApi.Payment(ids[n % 2]) : null);
 
-            harness.Model.Calls("get_payment", Get(PaymentId));
+            harness.Model.Calls("get_payment", Get(ids[n % 2]));
         }
 
         harness.Model.Says("It is captured, but the service is flaky today.");
