@@ -2,12 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Dapper;
-using DbUp;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
 using Payments.Api.Auth;
 using Payments.Api.Storage;
+using Payments.Migrations;
 using Respawn;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -59,32 +59,12 @@ public sealed class ApiFixture : IAsyncLifetime
         if (_conn is not null) await _conn.DisposeAsync();
         if (_pg is not null) await _pg.DisposeAsync();
     }
-    private void Migrate(string connectionString)
+    private static void Migrate(string connectionString)
     {
-        string scripts = Path.Combine(RepoRoot(), "db", "postgres");
-
-        var result = DeployChanges.To
-            .PostgresqlDatabase(connectionString)
-            .WithScriptsFromFileSystem(scripts)
-            .WithTransactionPerScript()
-            .LogToConsole()
-            .Build()
-            .PerformUpgrade();
+        var result = Migrator.Run("postgres", connectionString);
 
         if (!result.Successful)
             throw new InvalidOperationException("Migrations failed.", result.Error);
-
-    }
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null)
-        {
-            if (dir.GetFiles("Payments.slnx").Length > 0) return dir.FullName;
-            dir = dir.Parent;
-        }
-        throw new DirectoryNotFoundException("Could not find Payments.slnx in any parent directory.");
     }
 }
 
