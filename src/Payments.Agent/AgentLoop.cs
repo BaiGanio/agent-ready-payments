@@ -71,6 +71,17 @@ public sealed partial class AgentLoop(
     }
 
     /// <summary>
+    /// Carries a saved run on from its last saved step. <b>Step 19 writes the body.</b>
+    /// <para>
+    /// The signature exists now so step 18's <c>ResumeTests</c> compile and fail as six red
+    /// tests. A test file that cannot build is not a red test: it takes the whole project down
+    /// with it, and the other green tests stop telling you anything.
+    /// </para>
+    /// </summary>
+    public Task<AgentRun> ResumeAsync(Guid runId, CancellationToken ct)
+        => throw new NotImplementedException("ResumeAsync is step 19.");
+
+    /// <summary>
     /// One turn, with a wall clock around it. The step cap bounds passes, not seconds: one model
     /// call that never comes back would sit for ever under a step cap alone (<c>CF-007</c>).
     /// </summary>
