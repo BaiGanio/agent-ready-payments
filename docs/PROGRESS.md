@@ -2,7 +2,7 @@
 
 The status board. One row per lab. This is the only place that says where you are.
 
-Updated 2026-10-23 (lab 09 steps 6–7 done: the agent tables exist).
+Updated 2026-10-23 (lab 09 steps 8–9 done: the EF Core run store saves and resumes).
 
 ## How to read it
 
@@ -42,7 +42,7 @@ Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the s
 - [x] 3 `Payments.Testing` (`CF-033`)
 - [x] 4–5 The double refund: red, then lock, check, retry once
 - [x] 6–7 Agent projects, `0001_agent_run.sql`
-- [ ] 8–9 EF Core run store
+- [x] 8–9 EF Core run store
 - [ ] 10–11 The loop
 - [ ] 12–13 The guards (`CF-007`)
 - [ ] 14–15 The token, the human, the ceiling — **stop mark**
