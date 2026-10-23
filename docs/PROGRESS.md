@@ -46,7 +46,7 @@ Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the s
 - [x] 10–11 The loop
 - [x] 12–13 The guards (`CF-007` closed)
 - [x] 14–15 The token, the human, the ceiling — **stop mark**
-- [ ] 16 The console against `llama-server`
+- [x] 16 The console against `llama-server`
 - [ ] 17 Configured agents, `chat`, demo data
 - [ ] 18–19 Crash and resume
 - [ ] 20 Two agents, one payment

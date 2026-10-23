@@ -69,6 +69,49 @@ public sealed class RefundProposeTests
     }
 
     [Fact]
+    public async Task The_proposal_says_what_has_already_been_refunded()
+    {
+        await using var harness = await McpHarness.StartAsync();
+
+        // 80.00 captured, 40.00 already refunded, so 40.00 is left.
+        harness.Api.Enqueue(HttpStatusCode.OK, PaymentBody(refundable: 40.00m));
+
+        var (isError, body) = await ProposeAsync(harness, amount: "20.00");
+
+        Assert.False(isError, body.ToString());
+
+        var proposal = body.GetProperty("proposal").GetString() ?? string.Empty;
+
+        // How the money is lost: the sentence a human reads before they say yes claims
+        // nothing has been refunded, so a second agent, a double click or an honest
+        // mistake gets a second yes on money that is already gone. The person was never
+        // careless: they were told the wrong thing by the one tool that knows.
+        Assert.DoesNotContain("Nothing has been refunded", proposal, StringComparison.Ordinal);
+        Assert.Contains("40.00", proposal, StringComparison.Ordinal);
+        Assert.Contains("80.00", proposal, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_proposal_says_so_when_nothing_has_been_refunded()
+    {
+        await using var harness = await McpHarness.StartAsync();
+
+        // The whole 80.00 is still refundable, so nothing has gone back yet.
+        harness.Api.Enqueue(HttpStatusCode.OK, PaymentBody(refundable: 80.00m));
+
+        var (isError, body) = await ProposeAsync(harness, amount: "20.00");
+
+        Assert.False(isError, body.ToString());
+
+        var proposal = body.GetProperty("proposal").GetString() ?? string.Empty;
+
+        // The other half of the same rule. A tool that only ever reports a figure would
+        // read "0.00 EUR has already been refunded", which a tired person misreads.
+        Assert.Contains("Nothing has been refunded yet", proposal, StringComparison.Ordinal);
+        Assert.Contains("80.00", proposal, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task The_proposal_names_the_amount_currency_and_payment()
     {
         await using var harness = await McpHarness.StartAsync();

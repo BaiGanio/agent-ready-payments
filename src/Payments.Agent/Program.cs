@@ -143,7 +143,7 @@ if (resumeId is not null)
 }
 
 Console.WriteLine($"agent   {new AgentOptions().AgentName}");
-Console.WriteLine($"model   {llmUrl}");
+Console.WriteLine($"llm     {llmUrl}");
 Console.WriteLine($"api     {apiUrl}");
 Console.WriteLine();
 
@@ -189,6 +189,7 @@ static int? CrashAfter(string[] args)
 internal sealed class PrintingStore(IAgentRunStore inner) : IAgentRunStore
 {
     private bool _announced;
+    private bool _named;
 
     public Task<LoadedRun?> LoadAsync(Guid id, CancellationToken ct) => inner.LoadAsync(id, ct);
 
@@ -200,6 +201,16 @@ internal sealed class PrintingStore(IAgentRunStore inner) : IAgentRunStore
             Console.WriteLine($"run     {run.Id}");
 
             _announced = true;
+        }
+
+        // The model names itself in its first reply, so this cannot go in the header: at
+        // start-up all this process knows is a URL. Printing it here means the run on screen
+        // says which model produced it, which is the same thing every saved step carries.
+        if (!_named && run.ModelId is { Length: > 0 })
+        {
+            Console.WriteLine($"model   {run.ModelId}");
+
+            _named = true;
         }
 
         var outcome = await inner.SaveAsync(run, newSteps, ct);
