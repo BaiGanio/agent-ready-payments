@@ -44,7 +44,7 @@ This lab has four files: `README.md`, `WORKBENCH.md`, `QA.md` and `TEST-LIST.md`
 ## What this lab builds
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph tests["tests/Payments.Data.SqlServer.Tests<br/>one database per test class"]
         T["xUnit tests<br/>Task.WhenAll for the races"]
     end
@@ -72,7 +72,7 @@ flowchart LR
 Before the SQL Server work, two refactors from the inbox make room for it. `CF-016` (the lift into `Payments.Migrations`) was done by lab 09; `CF-009` (`Result`) is done here:
 
 ```mermaid
-flowchart LR
+flowchart TD
     CORE["src/Payments.Core<br/>Result, no packages"]
     MIG["src/Payments.Migrations<br/>RepoRoot, LocalDatabases,<br/>Migrator → Result"]
     DOM["Payments.Domain"] -->|"uses Result"| CORE

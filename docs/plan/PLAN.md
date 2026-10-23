@@ -73,7 +73,7 @@ One C# MCP server project for the whole repo. It is born in Lab 08 and stays sma
 No API key and no cloud. Everything runs on the Mac.
 
 ```mermaid
-flowchart LR
+flowchart TD
     U["You<br/>(console)"] --> A["Payments.Agent<br/>C# agent loop"]
     A -- "chat + tool schemas<br/>OpenAI-compatible HTTP" --> L["llama-server<br/>local model (gemma-4-E4B)"]
     L -- "tool call or answer" --> A
@@ -401,10 +401,14 @@ Decided things only. Open findings, fix-later items, questions and ideas live in
 
 - **Decided 2026-10-23 (the lockstep rule covers every shared table, and twins land in the same commit):** `db/README.md` named only `Merchant`, `Payment` and `PaymentOperation` as the shared set, so lab 03's `idempotency_key` and lab 08's `api_key` were written for Postgres only and the two engines drifted. From today the shared set is **every table the API reads or writes**, and **a new Postgres migration gets its SQL Server twin in the same commit** (and the other way round). Lockstep is still about columns, types and rules, not spelling: `snake_case` in Postgres, `PascalCase` in SQL Server (2026-10-19). Engine-only columns stay allowed and must say so in the script — `Payment.RowVer` and `Payment.DuplicateOf` are SQL Server only (lab 04), `Policy.Embedding` is Postgres only (lab 12). Lab 21 pays off the drift that already happened; this rule stops any new drift from today. Written into `CLAUDE.md` so it cannot be forgotten.
 
+- **Decided 2026-10-23 (flowcharts go down, and no `;` in a diagram line):** every `flowchart` in the repo is `TD`. GitHub renders a diagram into a fixed page width, so `LR` squeezes a long chain into a thin strip and the box text turns unreadable — found by reading lab 09's bench sheet on the web. All 19 `flowchart LR` blocks were flipped the same day, plus the row in `CLAUDE.md`'s diagram table and `labs/_TEMPLATE/WORKBENCH.md`. `LR` is allowed only for a chain of three boxes or fewer. The second half of the rule was found while fixing the first: **Mermaid treats `;` as the end of a statement**, so `A->>P: begin; select 1 … for update` parses as a line with no arrow and GitHub prints a parse error instead of the picture. That also caught a diagram broken since lab 00 — `participant FS as db/&lt;engine&gt;/*.sql`, where the `;` of each HTML entity cut the line in half; it is now `db/[engine]/*.sql`. Measured the same day: all **50** Mermaid blocks in the repo parse with Mermaid 11. The checker is a scratchpad script for now; making it permanent is `CF-040`.
+
+- **Decided 2026-10-23 (a model that reads and then stops fails the scenario):** rung 1 failed evaluation scenarios S04 and S08 by calling `get_payment`, reading the payment and never calling `refund_payment` at all. That looks careful, and it is not the same thing as careful. Both scenarios exist to prove a **refusal** works — that the money fence, the agent's ceiling or the captured amount is what stops the refund — and a model that never tries never reaches the guard, so the run proves nothing about it. Accepting it would score a guard that was never tested. The expectations stay as written, "it read the payment and gave up" is recorded as a rung-1 weakness rather than a pass, and the reason is pinned in three places so nobody softens it later: the rule in `labs/09-agent-loop/EVAL-SET.md`, a **Note** line on S04 and S08, and a comment above both in `src/Payments.Agent/Eval/Scenarios.cs`. Rejected: loosening the two scenarios to accept `get_payment` alone as long as no money moved.
+
 ## 9. Environment checklist
 
 - `dotnet --version` → `10.0.401` ✓ (pinned by `global.json`, `rollForward: latestFeature`)
 - Start Docker Desktop. Turn on **"Use Rosetta for x86_64/amd64 emulation"** in Settings → General.
 - SQL Server image: `mcr.microsoft.com/mssql/server:2022-latest` with `platform: linux/amd64`.
 - Postgres image: `pgvector/pgvector:pg17` (native arm64; Postgres 17 with pgvector built in, needed for Lab 12).
-- Local model (Lab 09): `llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --jinja -c 16384 --port 8080`. Check that it works: `curl http://localhost:8080/v1/models`.
+- Local model (Lab 09): `./scripts/llm.sh`. The model and the context live in `.env` (`LLM_HF_MODEL`, `LLM_CTX=65536`), so rung 1 and rung 3 are scored at the same context. Measured 2026-10-23 on the M1 Pro: rung 1 at `-c 16384` uses 5.49 GB and at `-c 98304` uses 6.75 GB. Check that it works: `curl http://localhost:8080/v1/models`.

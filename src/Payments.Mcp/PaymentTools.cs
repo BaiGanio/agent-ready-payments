@@ -182,8 +182,12 @@ internal sealed class PaymentTools(PaymentsApi api, ConfirmationTokens tokens)
 
         if (!payment.TryGetProperty("currency", out var paid) ||
             !payment.TryGetProperty("refundableRemaining", out var left) ||
+            !payment.TryGetProperty("capturedAmount", out var took) ||
+            !payment.TryGetProperty("refundedAmount", out var gave) ||
             paid.GetString() is not { } paidCurrency ||
-            !left.TryGetDecimal(out var refundable))
+            !left.TryGetDecimal(out var refundable) ||
+            !took.TryGetDecimal(out var captured) ||
+            !gave.TryGetDecimal(out var refunded))
         {
             return Failed(
                 "tool_failed",
@@ -214,9 +218,19 @@ internal sealed class PaymentTools(PaymentsApi api, ConfirmationTokens tokens)
         return Ok(new
         {
             result = "confirmation_required",
+            // The one sentence a human reads before money moves, so it carries the state
+            // the human needs and not a hopeful guess. It said "Nothing has been refunded
+            // yet" on every proposal until 2026-10-23, including on a payment that had
+            // just been part-refunded: the person who said yes had been told the opposite
+            // of the truth by the only tool that knew it.
             proposal =
-                $"Refund {Money(args.Amount)} {args.Currency} on payment " +
-                $"{args.PaymentId:D}? Nothing has been refunded yet.",
+                $"Refund {Money(args.Amount)} {args.Currency} on payment {args.PaymentId:D}? " +
+                (refunded > 0
+                    ? $"{Money(refunded)} {paidCurrency} of {Money(captured)} {paidCurrency} " +
+                      $"has already been refunded, and {Money(refundable)} {paidCurrency} " +
+                      "is refundable."
+                    : $"Nothing has been refunded yet, and {Money(refundable)} {paidCurrency} " +
+                      "is refundable."),
             confirmation_token = token,
             expires_at = expiresAt.ToString("O", CultureInfo.InvariantCulture),
             next =

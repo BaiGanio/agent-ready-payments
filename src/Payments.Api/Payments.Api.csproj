@@ -3,6 +3,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Payments.Domain\Payments.Domain.csproj" />
     <InternalsVisibleTo Include="Payments.Api.Tests" />
+    <!-- ApiFixture lives in Payments.Testing and needs the internal Program for
+         WebApplicationFactory<Program>. -->
+    <InternalsVisibleTo Include="Payments.Testing" />
   </ItemGroup>
 
   <ItemGroup>

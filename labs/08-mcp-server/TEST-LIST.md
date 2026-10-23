@@ -124,12 +124,14 @@ Unit tests on the token store alone. `FakeTimeProvider` from `Microsoft.Extensio
 | `A_done_token_returns_its_stored_outcome` | Claim, complete with an outcome, redeem again: `AlreadyDone` with that exact outcome |
 | `Two_claims_at_once_one_wins` | 20 parallel claims on one token: exactly one won, the rest `InProgress` |
 
-### RefundProposeTests (5) — step 16
+### RefundProposeTests (7) — step 16
 
 | Test | The rule it must check |
 |---|---|
 | `A_proposal_posts_nothing` | No token in the call: the stub saw exactly one `GET` and **zero** `POST` |
 | `The_proposal_names_the_amount_currency_and_payment` | `result` is `confirmation_required`; `proposal` contains `80.00`, `EUR` and the payment id; `confirmation_token` and `expires_at` are present; `next` says to ask the human first |
+| `The_proposal_says_what_has_already_been_refunded` | Stub payment with 40.00 of 80.00 refundable: the sentence does **not** say "Nothing has been refunded", and it names `40.00` and `80.00`. Added 2026-10-23 for `CF-043` |
+| `The_proposal_says_so_when_nothing_has_been_refunded` | Stub payment with the whole 80.00 refundable: the sentence says "Nothing has been refunded yet" and still names what is refundable |
 | `More_than_refundable_is_refused_without_a_token` | Stub payment with 30.00 refundable, ask 80.00: `amount_exceeds_captured`, the message says `30.00`, and no token is in the result |
 | `Another_currency_is_refused_without_a_token` | Stub payment in EUR, ask USD: `currency_mismatch`, no token |
 | `A_missing_payment_is_refused_without_a_token` | Stub `404`: `isError`, `payment_not_found`. For a refund that is an error, not a fact |

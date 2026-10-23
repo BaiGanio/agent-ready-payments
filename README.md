@@ -66,6 +66,7 @@ In short: strong backend fundamentals, plus knowing what changes when the caller
 | [`docs/plan/SPEC.md`](docs/plan/SPEC.md) | the inputs and limits this plan came from | rarely |
 | [`docs/aperio/`](docs/aperio) | the Aperio backbone: map, tour, talking points | when writing an interview answer |
 | [`db/README.md`](db/README.md) | the lab database plan | database labs |
+| [`scripts/`](scripts) | shell helpers: `llm.sh` starts the local model named in `.env` | agent labs |
 | `CLAUDE.md` | the rules the agent follows | when the agent gets it wrong |
 
 The root holds two `.md` files, this one and `CLAUDE.md`. Everything else lives under [`docs/`](docs).

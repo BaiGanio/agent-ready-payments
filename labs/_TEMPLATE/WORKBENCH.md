@@ -14,8 +14,10 @@ Started YYYY-MM-DD.
 
 One diagram of what exists when the lab is done. Draw this **before** step 1 — if you cannot draw it, the lab is not specified yet.
 
+Keep it `flowchart TD`. Across the page the boxes shrink to nothing on GitHub; down the page each box gets the full width. And never put a `;` inside a diagram line — Mermaid reads it as the end of the line and refuses to render.
+
 ```mermaid
-flowchart LR
+flowchart TD
     TODO["TODO: boxes you will build"] --> TODO2["TODO: what they talk to"]
 ```
 

@@ -19,7 +19,7 @@ A weak answer draws an LLM in the middle and arrows everywhere. A strong answer:
 ## The design to practise (draw it, then defend it)
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Callers
         SA["Support agent<br/>(internal)"]
         MA["Merchant's agent<br/>(external)"]

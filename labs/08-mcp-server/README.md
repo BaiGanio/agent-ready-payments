@@ -28,7 +28,7 @@ Code sketches: `docs/aperio/AGENT-READY-BACKEND.md` §3 (registry, one tool) and
 ## What this lab builds
 
 ```mermaid
-flowchart LR
+flowchart TD
     H["human"] -->|"picks the tool and the args,<br/>approves the proposal"| CC["MCP client<br/>lab 08: MCP Inspector<br/>lab 09: own loop + gemma"]
     CC -->|"MCP over stdio:<br/>tools/list, tools/call"| M["Payments.Mcp<br/>3 tools + argument fence<br/>+ confirmation tokens"]
     M -->|"HTTP + X-Api-Key<br/>+ Idempotency-Key on refund"| F["Payments.Api<br/>key filter: who, which merchant,<br/>which scope"]
