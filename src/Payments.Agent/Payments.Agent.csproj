@@ -18,4 +18,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+
+  <ItemGroup>
+    <!-- The configured agents travel with the executable: AgentProfiles reads agents.json from
+         AppContext.BaseDirectory, so a published agent carries its own configuration. The file
+         holds key NAMES, never keys. -->
+    <None Update="agents.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

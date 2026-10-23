@@ -15,7 +15,9 @@ Load the keys first, in every terminal: `set -a; source .env; set +a`. The API m
 | Start the small model (rung 1) | `llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --jinja -c 16384 --port 8080` |
 | Start the bigger model (rung 3) | `llama-server -hf unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_XL --jinja -c 16384 --port 8080` |
 | Is it up, and which model? | `curl -s localhost:8080/v1/models` |
+| Ask for a model by name (a server with several) | `export LLM_MODEL=<the name /v1/models prints>`. The default is `local`, which llama-server ignores |
 | Which models are on disk? | `ls ~/.cache/huggingface/hub \| grep -i gguf` |
+| Point the agent at another endpoint | `export LLM_URL=http://<host>:<port>/v1` — keep the `/v1` |
 
 Never drop `--jinja`: without it the model prints tool calls as text, and every call is a "leak".
 
@@ -27,7 +29,7 @@ Never drop `--jinja`: without it the model prints tool calls as text, and every 
 | Make the demo payments | `dotnet run --project src/Payments.Agent -- seed-demo` |
 | Chat with the refund agent | `dotnet run --project src/Payments.Agent -- chat --agent support-bot` |
 | Chat with the read-only agent | `dotnet run --project src/Payments.Agent -- chat --agent read-bot` |
-| One request, before the profiles exist (step 16) | `dotnet run --project src/Payments.Agent -- run "<request>"` |
+| One request, default agent (`support-bot`) | `dotnet run --project src/Payments.Agent -- run "<request>"` |
 | One request, no chat | `dotnet run --project src/Payments.Agent -- run --agent support-bot "<request>"` |
 | Crash on purpose after 3 steps | add `--crash-after 3` to `run` — it exits with `99` |
 | Resume a run | `dotnet run --project src/Payments.Agent -- resume <runId>` |
