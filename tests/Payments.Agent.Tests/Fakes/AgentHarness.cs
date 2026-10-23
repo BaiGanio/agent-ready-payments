@@ -31,7 +31,14 @@ public sealed class AgentHarness : IAsyncDisposable
 
     public AgentLoop Loop { get; private set; } = null!;
 
-    public static async Task<AgentHarness> StartAsync(AgentOptions? options = null)
+    /// <summary>
+    /// The loop, wired up. <paramref name="wrapTools"/> puts something between the loop and the
+    /// real MCP host: one test needs a tool that throws, and only a wrapper can break one tool
+    /// while every other tool and the whole tool list stay real.
+    /// </summary>
+    public static async Task<AgentHarness> StartAsync(
+        AgentOptions? options = null,
+        Func<IToolHost, IToolHost>? wrapTools = null)
     {
         var harness = new AgentHarness();
 
@@ -49,7 +56,7 @@ public sealed class AgentHarness : IAsyncDisposable
 
         harness.Loop = new AgentLoop(
             harness.Model,
-            harness.Tools,
+            wrapTools is null ? harness.Tools : wrapTools(harness.Tools),
             harness.Approvals,
             harness.Store,
             options ?? new AgentOptions { AgentName = "support-bot" },

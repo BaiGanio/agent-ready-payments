@@ -20,7 +20,7 @@ public sealed class ScriptedChatClient : IChatClient
 {
     public const string FakeModelId = "fake-model";
 
-    private readonly Queue<Func<Task<ChatResponse>>> _replies = new();
+    private readonly Queue<Func<CancellationToken, Task<ChatResponse>>> _replies = new();
 
     public List<RecordedChatRequest> Requests { get; } = [];
 
@@ -70,17 +70,24 @@ public sealed class ScriptedChatClient : IChatClient
     /// <summary>The model call itself fails, the way a dead <c>llama-server</c> fails.</summary>
     public ScriptedChatClient Throws()
     {
-        _replies.Enqueue(() => throw new HttpRequestException("the model is not answering"));
+        _replies.Enqueue(_ => throw new HttpRequestException("the model is not answering"));
 
         return this;
     }
 
-    /// <summary>The model takes this long to answer. For the turn deadline.</summary>
+    /// <summary>
+    /// The model takes this long to answer. For the turn deadline and for cancel.
+    /// <para>
+    /// The wait honours the token the loop passed in. A wait that ignored it would keep the
+    /// test sitting here for the whole delay after the deadline fired, so the test would be
+    /// slow and would prove nothing about when the loop gave up.
+    /// </para>
+    /// </summary>
     public ScriptedChatClient Slow(TimeSpan delay, string text = "sorry, that took a while")
     {
-        _replies.Enqueue(async () =>
+        _replies.Enqueue(async ct =>
         {
-            await Task.Delay(delay);
+            await Task.Delay(delay, ct);
 
             return Response(new ChatMessage(ChatRole.Assistant, text));
         });
@@ -108,7 +115,7 @@ public sealed class ScriptedChatClient : IChatClient
 
         OnRequest?.Invoke(Requests.Count);
 
-        return await _replies.Dequeue()();
+        return await _replies.Dequeue()(cancellationToken);
     }
 
     public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
@@ -125,7 +132,7 @@ public sealed class ScriptedChatClient : IChatClient
 
     private ScriptedChatClient Reply(ChatMessage message)
     {
-        _replies.Enqueue(() => Task.FromResult(Response(message)));
+        _replies.Enqueue(_ => Task.FromResult(Response(message)));
 
         return this;
     }
