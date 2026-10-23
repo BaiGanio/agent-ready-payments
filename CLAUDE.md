@@ -18,6 +18,7 @@ Rules for agents in this repo. Short and strict. We add, change and remove rules
 | `docs/aperio/` | the Aperio backbone: map, tour, talking points, agent-ready notes |
 | `labs/NN-…/` | three files per lab: `README.md`, `WORKBENCH.md`, `QA.md`. From lab 02 also `TEST-LIST.md`, plus any scaffold (`TDD-NOTES.md`, `STORE-NOTES.md`) |
 | `db/README.md` | the lab database plan |
+| `scripts/` | the shell helpers: `llm.sh` starts `llama-server` with the model in `.env` |
 
 **The repo root holds two `.md` files only: `README.md` and `CLAUDE.md`.** Every other document lives under `docs/`. A new reference doc goes in `docs/plan/`, `docs/aperio/` or `docs/commands/`, or flat in `docs/` if it is none of those, and it gets a row in this table and in the one in `README.md`, in the same commit. Never add a `.md` file to the root.
 

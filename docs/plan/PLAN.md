@@ -409,4 +409,4 @@ Decided things only. Open findings, fix-later items, questions and ideas live in
 - Start Docker Desktop. Turn on **"Use Rosetta for x86_64/amd64 emulation"** in Settings → General.
 - SQL Server image: `mcr.microsoft.com/mssql/server:2022-latest` with `platform: linux/amd64`.
 - Postgres image: `pgvector/pgvector:pg17` (native arm64; Postgres 17 with pgvector built in, needed for Lab 12).
-- Local model (Lab 09): `llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --jinja -c 16384 --port 8080`. Check that it works: `curl http://localhost:8080/v1/models`.
+- Local model (Lab 09): `./scripts/llm.sh`. The model and the context live in `.env` (`LLM_HF_MODEL`, `LLM_CTX=65536`), so rung 1 and rung 3 are scored at the same context. Measured 2026-10-23 on the M1 Pro: rung 1 at `-c 16384` uses 5.49 GB and at `-c 98304` uses 6.75 GB. Check that it works: `curl http://localhost:8080/v1/models`.

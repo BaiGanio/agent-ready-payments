@@ -10,10 +10,14 @@ Load the keys first, in every terminal: `set -a; source .env; set +a`. The API m
 
 ## The model
 
+The model you run is the one line `LLM_HF_MODEL` in `.env`. `scripts/llm.sh` reads it, so the model name lives in one file instead of in a command you retype.
+
 | I want to | Command |
 |---|---|
-| Start the small model (rung 1) | `llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --jinja -c 16384 --port 8080` |
-| Start the bigger model (rung 3) | `llama-server -hf unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_XL --jinja -c 16384 --port 8080` |
+| Start the model named in `.env` | `./scripts/llm.sh` |
+| Change which model that is | edit `LLM_HF_MODEL` in `.env` (rung 1 and rung 3 are both in `.env.example`) |
+| Start another model, just this once | `./scripts/llm.sh unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_XL` |
+| Start it by hand, no script | `llama-server -hf <repo>:<quant> --jinja -c 16384 --port 8080` |
 | Is it up, and which model? | `curl -s localhost:8080/v1/models` |
 | Ask for a model by name (a server with several) | `export LLM_MODEL=<the name /v1/models prints>`. The default is `local`, which llama-server ignores |
 | Which models are on disk? | `ls ~/.cache/huggingface/hub \| grep -i gguf` |
