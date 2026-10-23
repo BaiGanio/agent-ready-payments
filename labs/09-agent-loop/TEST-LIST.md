@@ -37,10 +37,10 @@ In `tests/Payments.Testing` (step 3 and step 6) — shared by every test project
 
 In `tests/Payments.Agent.Tests` (step 10) — the agent's fakes:
 
-- `ScriptedChatClient : IChatClient` — the fake model. A queue of replies: `Calls(tool, args)`, `Says(text)`, `Empty()`, `Leaks(text)`, `BrokenArgs(tool)`, `Throws()`, `Slow(delay)`. Every reply has `ModelId = "fake-model"`. It records every request: the messages it was sent and the tool names it was offered. A queue that runs dry fails the test loudly, never answers "".
+- `ScriptedChatClient : IChatClient` — the fake model. A queue of replies: `Calls(tool, args)`, `Says(text)`, `Empty()`, `Leaks(text)`, `BrokenArgs(tool)`, `Throws()`, `Slow(delay)`. Every reply has `ModelId = "fake-model"`. It records every request: the messages it was sent and the tool names it was offered. A queue that runs dry fails the test loudly, never answers "". `OnRequest` runs just before each reply, with the request number: it is the only moment a test can look at the store from **inside** the loop.
 - `BrokenArgs(tool)` builds a `FunctionCallContent` with `Arguments = null` and `Exception` set. That is exactly what `FunctionCallContent.CreateFromParsedArguments` makes from broken JSON (measured 2026-10-22).
-- `InMemoryAgentRunStore : IAgentRunStore` — a dictionary. It copies on save and on load, so a test cannot change a saved run by accident. It also bumps a fake version, so a stale save is a conflict here too.
-- `FakeApprovalChannel : IApprovalChannel` — answers `Approve("lk")` or `Deny("lk")`. Records every ask, and the run's saved status **at the moment** it was asked.
+- `InMemoryAgentRunStore : IAgentRunStore` — a dictionary. It copies on save and on load, so a test cannot change a saved run by accident. It also bumps a fake version, so a stale save is a conflict here too. `Saved(id)` and `Only()` read it back — `Only()` for a test that does not know the run id yet.
+- `FakeApprovalChannel : IApprovalChannel` — answers `Approve("lk")` or `Deny("lk")`. Records every ask, and the run's saved status **at the moment** it was asked — read from the store, not from the run object the loop passed in.
 - `AgentHarness` — one line to get a loop wired to: the fake model, an `InMemoryMcpServer` on a `StubApi`, the in-memory store, the fake channel, a `FakeTimeProvider`. Exposes all five so a test can arrange and check.
 - `StubApi.Payment(...)` — a `GET /payments/{id}` answer for one payment: id, status, currency, amounts, `refundableRemaining`. Text fields are a parameter, for the injection test.
 

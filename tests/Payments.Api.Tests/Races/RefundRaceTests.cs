@@ -42,7 +42,7 @@ public sealed class RefundRaceTests(ApiFixture fixture) : ApiTestBase(fixture)
                 var ok = answers.Where(a => a.StatusCode == HttpStatusCode.OK).ToList();
                 var refused = answers.Where(a => a.StatusCode == HttpStatusCode.UnprocessableEntity).ToList();
 
-                Assert.Empty(answers.Where(a => (int)a.StatusCode >= 500));
+                Assert.DoesNotContain(answers, a => (int)a.StatusCode >= 500);
 
                 Assert.True(
                     ok.Count == 1,
@@ -81,7 +81,7 @@ public sealed class RefundRaceTests(ApiFixture fixture) : ApiTestBase(fixture)
                 var ok = answers.Where(a => a.StatusCode == HttpStatusCode.OK).ToList();
                 var refused = answers.Where(a => a.StatusCode == HttpStatusCode.Conflict).ToList();
 
-                Assert.Empty(answers.Where(a => (int)a.StatusCode >= 500));
+                Assert.DoesNotContain(answers, a => (int)a.StatusCode >= 500);
 
                 Assert.True(
                     ok.Count == 1,
