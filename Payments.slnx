@@ -10,5 +10,6 @@
     <Project Path="tests/Payments.Api.Tests/Payments.Api.Tests.csproj" />
     <Project Path="tests/Payments.Domain.Tests/Payments.Domain.Tests.csproj" />
     <Project Path="tests/Payments.Mcp.Tests/Payments.Mcp.Tests.csproj" />
+    <Project Path="tests/Payments.Testing/Payments.Testing.csproj" />
   </Folder>
 </Solution>

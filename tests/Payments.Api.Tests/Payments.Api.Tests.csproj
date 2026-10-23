@@ -22,6 +22,14 @@
     <ProjectReference Include="..\..\src\Payments.Api\Payments.Api.csproj" />
     <ProjectReference Include="..\..\src\Payments.Mcp\Payments.Mcp.csproj" />
     <ProjectReference Include="..\..\src\Payments.Migrations\Payments.Migrations.csproj" />
+    <ProjectReference Include="..\Payments.Testing\Payments.Testing.csproj" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <!-- StubApi, ApiFixture and InMemoryMcpServer moved namespace in lab 09 step 3.
+         A global using means no test file had to learn it. -->
+    <Using Include="Payments.Testing" />
   </ItemGroup>
 
 </Project>

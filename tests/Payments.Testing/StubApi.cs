@@ -2,7 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 
-namespace Payments.Mcp.Tests;
+namespace Payments.Testing;
 
 /// <summary>One request the stub saw, kept as plain strings so a test can read it.</summary>
 public sealed record RecordedRequest(

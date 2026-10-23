@@ -1,11 +1,6 @@
-using System.IO.Pipelines;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
-using Payments.Mcp;
 
 namespace Payments.Api.Tests;
 
@@ -15,16 +10,15 @@ namespace Payments.Api.Tests;
 /// key filter, endpoint, Dapper and Postgres, so the proof of a refund is a row.
 /// </summary>
 /// <remarks>
-/// This is the second harness in the repo. <c>Payments.Mcp.Tests/McpHarness.cs</c> is the
-/// first, and the pipes, the transport and the client are the same three steps in both.
-/// It is not shared: that one owns a <c>StubApi</c> and a <c>FakeTimeProvider</c>, this one
-/// owns an <c>ApiFixture</c>, and the two test projects do not reference each other.
+/// The pipes, the host and the client live in <see cref="InMemoryMcpServer"/> (lab 09 step 3,
+/// <c>CF-033</c>). What is left here is what only this harness has: the fixture it borrows the
+/// API handler from, and the optional broken network.
 /// </remarks>
 internal sealed class McpEndToEndHarness : IAsyncDisposable
 {
-    private IHost _host = null!;
+    private InMemoryMcpServer _server = null!;
 
-    public McpClient Client { get; private set; } = null!;
+    public McpClient Client => _server.Client;
 
     /// <param name="fixture">Gives the base address and the in-process handler of the real API.</param>
     /// <param name="apiKey">The raw API key the server sends as X-Api-Key. It decides the merchant and the scopes.</param>
@@ -38,77 +32,34 @@ internal sealed class McpEndToEndHarness : IAsyncDisposable
     {
         var harness = new McpEndToEndHarness();
 
-        // Two one-way hoses. The ends are crossed on purpose.
-        var clientToServer = new Pipe();
-        var serverToClient = new Pipe();
+        harness._server = await InMemoryMcpServer.StartAsync(
+            new Dictionary<string, string?>
+            {
+                ["PAYMENTS_API_URL"] = fixture.Factory.Server.BaseAddress.ToString(),
+                ["PAYMENTS_API_KEY"] = apiKey,
+            },
 
-        var builder = Host.CreateApplicationBuilder();
+            // The one line that makes this end to end: the API client's socket is the
+            // test server itself, so there is no port, no network and no stub.
+            api =>
+            {
+                api.ConfigurePrimaryHttpMessageHandler(() => fixture.Factory.Server.CreateHandler());
 
-        // Added last, so it wins over a real environment variable on this machine.
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["PAYMENTS_API_URL"] = fixture.Factory.Server.BaseAddress.ToString(),
-            ["PAYMENTS_API_KEY"] = apiKey,
-        });
-
-        builder.Services.AddPaymentsMcp(
-                builder.Configuration,
-
-                // The one line that makes this end to end: the API client's socket is the
-                // test server itself, so there is no port, no network and no stub.
-                api =>
+                if (brokenNetwork is not null)
                 {
-                    api.ConfigurePrimaryHttpMessageHandler(() => fixture.Factory.Server.CreateHandler());
-
-                    if (brokenNetwork is not null)
-                    {
-                        api.AddHttpMessageHandler(() => brokenNetwork);
-                    }
-                })
-            .WithStreamServerTransport(
-                clientToServer.Reader.AsStream(),
-                serverToClient.Writer.AsStream());
-
-        harness._host = builder.Build();
-
-        // The host must be running before the client tries to shake hands.
-        await harness._host.StartAsync();
-
-        harness.Client = await McpClient.CreateAsync(
-            new StreamClientTransport(
-                clientToServer.Writer.AsStream(),
-                serverToClient.Reader.AsStream()));
+                    api.AddHttpMessageHandler(() => brokenNetwork);
+                }
+            });
 
         return harness;
     }
 
     /// <summary>Calls a tool and returns the single text block, parsed as JSON.</summary>
-    public async Task<(bool IsError, JsonElement Body)> CallAsync(string tool, object? arguments = null)
-    {
-        var args = arguments is null
-            ? new Dictionary<string, object?>()
-            : JsonSerializer.Deserialize<Dictionary<string, object?>>(
-                  JsonSerializer.Serialize(arguments))!;
-
-        var result = await Client.CallToolAsync(tool, args);
-
-        var text = result.Content.OfType<TextContentBlock>().Single().Text;
-        using var parsed = JsonDocument.Parse(text);
-
-        return (result.IsError ?? false, parsed.RootElement.Clone());
-    }
+    public Task<(bool IsError, JsonElement Body)> CallAsync(string tool, object? arguments = null)
+        => _server.CallAsync(tool, arguments);
 
     public async ValueTask DisposeAsync()
     {
-        if (Client is not null)
-        {
-            await Client.DisposeAsync();
-        }
-
-        if (_host is not null)
-        {
-            await _host.StopAsync();
-            _host.Dispose();
-        }
+        if (_server is not null) await _server.DisposeAsync();
     }
 }

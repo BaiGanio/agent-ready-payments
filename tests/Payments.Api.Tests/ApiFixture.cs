@@ -3,70 +3,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
 using Payments.Api.Auth;
 using Payments.Api.Storage;
-using Payments.Migrations;
-using Respawn;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace Payments.Api.Tests;
-
-/// <summary>One Postgres container and one migrated schema for the whole test run.</summary>
-public sealed class ApiFixture : IAsyncLifetime
-{
-    private PostgreSqlContainer _pg = null!;
-    private NpgsqlConnection _conn = null!;
-    private Respawner _respawner = null!;
-
-    public WebApplicationFactory<Program> Factory { get; private set; } = null!;
-
-    public string ConnectionString => _pg.GetConnectionString();
-
-    public async ValueTask InitializeAsync()
-    {
-        _pg = new PostgreSqlBuilder("pgvector/pgvector:pg17")
-            .WithDatabase("payments_labs")
-            .WithUsername("labs")
-            .WithPassword("labs")
-            .Build();
-
-        await _pg.StartAsync();
-
-        Migrate(_pg.GetConnectionString());
-
-        Factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(b => b.UseSetting("ConnectionStrings:Postgres", _pg.GetConnectionString()));
-
-        _conn = new NpgsqlConnection(_pg.GetConnectionString());
-        await _conn.OpenAsync();
-
-        _respawner = await Respawner.CreateAsync(_conn, new RespawnerOptions
-        {
-            DbAdapter = DbAdapter.Postgres,
-            SchemasToInclude = ["public"],
-            TablesToIgnore = ["schemaversions", "merchant"]
-        });
-    }
-    /// <summary>Deletes every row except the seeded merchants. Keeps the schema.</summary>
-    public Task ResetAsync() => _respawner.ResetAsync(_conn);
-
-    public async ValueTask DisposeAsync()
-    {
-        if (Factory is not null) await Factory.DisposeAsync();
-        if (_conn is not null) await _conn.DisposeAsync();
-        if (_pg is not null) await _pg.DisposeAsync();
-    }
-    private static void Migrate(string connectionString)
-    {
-        var result = Migrator.Run("postgres", connectionString);
-
-        if (!result.Successful)
-            throw new InvalidOperationException("Migrations failed.", result.Error);
-    }
-}
 
 [CollectionDefinition("api")]
 public sealed class ApiCollection : ICollectionFixture<ApiFixture>;
@@ -105,19 +47,8 @@ public abstract class ApiTestBase(ApiFixture fixture) : IAsyncLifetime
     /// Inserts a key straight into api_key and returns the raw key. Only the hash is stored,
     /// so the raw key lives only in the test. Defaults to an agent key for the seeded merchant.
     /// </summary>
-    protected async Task<string> InsertKeyAsync(string[] scopes, string kind = "agent", Guid? merchant = null)
-    {
-        string raw = Guid.NewGuid().ToString("N");
-
-        await ExecuteSqlAsync(
-            """
-            insert into api_key (key_hash, name, merchant_id, kind, scopes)
-            values (@Hash, @Name, @Merchant, @Kind, @Scopes)
-            """,
-            new { Hash = ApiKeyHash.Of(raw), Name = raw, Merchant = merchant ?? SeededMerchant, Kind = kind, Scopes = scopes });
-
-        return raw;
-    }
+    protected Task<string> InsertKeyAsync(string[] scopes, string kind = "agent", Guid? merchant = null)
+        => Fixture.InsertKeyAsync(scopes, kind, merchant ?? SeededMerchant);
 
     /// <summary>A new client that sends a fresh key with these scopes on every request.</summary>
     protected async Task<HttpClient> ClientWith(string[] scopes, string kind = "agent", Guid? merchant = null)
