@@ -37,9 +37,9 @@ The suite is **330 of 330 green**, measured 10 runs out of 10, on 2026-10-22.
 
 Steps are in the lab's `WORKBENCH.md`. Tick each one in the same commit as the step.
 
-- [ ] 1 Start the lab, commit the prep
-- [ ] 2 `Payments.Migrations` (`CF-016`)
-- [ ] 3 `Payments.Testing` (`CF-033`)
+- [x] 1 Start the lab, commit the prep
+- [x] 2 `Payments.Migrations` (`CF-016`)
+- [x] 3 `Payments.Testing` (`CF-033`)
 - [ ] 4–5 The double refund: red, then lock, check, retry once
 - [ ] 6–7 Agent projects, `0001_agent_run.sql`
 - [ ] 8–9 EF Core run store
