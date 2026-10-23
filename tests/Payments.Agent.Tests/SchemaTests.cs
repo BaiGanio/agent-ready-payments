@@ -139,7 +139,7 @@ public sealed class SchemaTests(SqlServerDatabase db) : IClassFixture<SqlServerD
         command.Parameters.AddWithValue("RunId", runId);
         command.Parameters.AddWithValue("Ordinal", ordinal);
         command.Parameters.AddWithValue("ToolName", "get_payment");
-        command.Parameters.AddWithValue("Outcome", "Completed");
+        command.Parameters.AddWithValue("Outcome", "Ok");
 
         await command.ExecuteNonQueryAsync();
     }
