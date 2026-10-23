@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Payments.Agent/Payments.Agent.csproj" />
     <Project Path="src/Payments.Api/Payments.Api.csproj" />
     <Project Path="src/Payments.Db/Payments.Db.csproj" />
     <Project Path="src/Payments.Domain/Payments.Domain.csproj" />
@@ -7,6 +8,7 @@
     <Project Path="src/Payments.Migrations/Payments.Migrations.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Payments.Agent.Tests/Payments.Agent.Tests.csproj" />
     <Project Path="tests/Payments.Api.Tests/Payments.Api.Tests.csproj" />
     <Project Path="tests/Payments.Domain.Tests/Payments.Domain.Tests.csproj" />
     <Project Path="tests/Payments.Mcp.Tests/Payments.Mcp.Tests.csproj" />
