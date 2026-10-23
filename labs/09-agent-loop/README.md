@@ -215,7 +215,7 @@ Run it on the model ladder in `docs/plan/PLAN.md` ("Local or cloud models?"). Sc
 |---|---|---|
 | 1 | `RepoRoot`, `LocalDatabases`, `Migrator`, used by the runner and every fixture (`CF-016`) | `src/Payments.Migrations` |
 | 2 | One shared test library: in-memory MCP server, `StubApi`, `ApiFixture`, `SqlServerDatabase` (`CF-033`) | `tests/Payments.Testing` |
-| 3 | The double-refund fix: lock, check, retry once, with its race tests | `src/Payments.Api/Storage/DapperPaymentStore.cs`, `src/Payments.Api/PaymentEndpoints.cs`, `tests/Payments.Api.Tests/RefundRaceTests.cs` |
+| 3 | The double-refund fix: lock, check, retry once, with its race tests | `src/Payments.Api/Storage/DapperPaymentStore.cs`, `src/Payments.Api/PaymentEndpoints.cs`, `tests/Payments.Api.Tests/Races/RefundRaceTests.cs` |
 | 4 | The agent tables | `db/sqlserver/0001_agent_run.sql` |
 | 5 | `AgentDbContext`, `EfAgentRunStore` | `src/Payments.Agent/Storage` |
 | 6 | `AgentLoop` (~150 lines), `AgentOptions`, `McpToolHost`, `IApprovalChannel` | `src/Payments.Agent` |

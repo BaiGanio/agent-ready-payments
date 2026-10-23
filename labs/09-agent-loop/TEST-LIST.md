@@ -50,7 +50,7 @@ In `tests/Payments.Agent.Tests` (step 10) — the agent's fakes:
 
 ### RefundRaceTests (2) — steps 4–5
 
-`tests/Payments.Api.Tests/RefundRaceTests.cs`. Each test runs **20 rounds** in one test: a fresh captured payment per round, two requests built first, fired together. One round passing proves nothing.
+`tests/Payments.Api.Tests/Races/RefundRaceTests.cs`. Each test runs **20 rounds** in one test: a fresh captured payment per round, two requests built first, fired together. One round passing proves nothing.
 
 | Test | The rule it must check |
 |---|---|

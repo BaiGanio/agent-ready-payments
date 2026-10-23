@@ -259,7 +259,7 @@ refactor(lab-09): share the MCP harness, StubApi and ApiFixture in Payments.Test
 
 ## Step 4 — The double refund, red
 
-**Goal.** `tests/Payments.Api.Tests/RefundRaceTests.cs` exists with its 2 tests, and both are red.
+**Goal.** `tests/Payments.Api.Tests/Races/RefundRaceTests.cs` exists with its 2 tests, and both are red.
 
 **Why.** Two agents refunding one payment is in this lab's Done-when, and the API cannot survive it today: two refunds with **different** keys both win (29 of 30 rounds, measured 2026-10-22). Lab 03's race tests used **one** key, so the key table caught every racer; with two keys each request is honest and only the payment row can say no. A test that runs one round proves nothing — the race needs both loads to land before either write — so each test runs 20 rounds. Seeing it red first is the whole point: a fix you never saw fail is a fix you cannot trust.
 
@@ -285,7 +285,7 @@ dotnet test --project tests/Payments.Api.Tests --filter-class "*RefundRaceTests"
 
 Both red, and the message shows **two** `200`s in a round. If a test is green, it is not racing: check that you built the requests first.
 
-**Commit.** Stage `tests/Payments.Api.Tests/RefundRaceTests.cs`.
+**Commit.** Stage `tests/Payments.Api.Tests/Races/RefundRaceTests.cs`.
 
 ```
 test(lab-09): two refunds with different keys refund twice (red)
